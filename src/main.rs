@@ -2,7 +2,7 @@ use std::{sync::mpsc::{Sender, channel}, thread};
 use event::Event;
 use log::info;
 use window_event_loop::WindowEventLoop;
-use keybinding_event_loop::{KeybindingEventLoop, Keybinding, Modifiers};
+use keybinding_event_loop::KeybindingEventLoop;
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -20,6 +20,7 @@ mod keybinding_event_loop;
 mod platform;
 mod logging;
 mod event;
+mod lua;
 
 fn main() {
     logging::init().expect("Failed to initialize logging");
@@ -27,19 +28,15 @@ fn main() {
 
     let (tx, rx) = channel::<Event>();
 
+    let rt = lua::init().unwrap();
+
+    rt.eval("nog.say('hello', 2, 'what')").unwrap();
+
     WindowEventLoop::spawn(tx.clone());
     info!("Window event loop spawned");
 
     KeybindingEventLoop::spawn(tx.clone());
     info!("Keybinding event loop spawned");
-
-    KeybindingEventLoop::update_keybindings(vec![Keybinding {
-        key_code: 13,
-        modifiers: Modifiers {
-            ctrl: true,
-            ..Default::default()
-        }
-    }]);
 
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
@@ -48,7 +45,10 @@ fn main() {
                 info!("{:?} {:?}", win_event.kind, win_event.window);
             },
             Event::Keybinding(kb) => {
-                info!("Handling {}", kb.to_string());
+                info!("Keybinding {}", kb.to_string());
+            },
+            Event::Action(_action) => {
+                info!("Action");
             }
         }
     }

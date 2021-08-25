@@ -10,3 +10,4 @@ fern = "0.6.0"
 chrono = "0.4.19"
 lazy_static = "1.4.0"
 itertools = "0.10.1"
+mlua = { version = "0.5.3", features = ["luajit", "vendored", "send", "serialize"] }
