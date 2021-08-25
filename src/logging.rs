@@ -1,0 +1,26 @@
+use std::thread;
+use std::sync::mpsc::channel;
+
+pub fn init() -> Result<(), log::SetLoggerError> {
+    let (tx, rx) = channel();
+    thread::spawn(move || {
+        while let Ok(msg) = rx.recv() {
+            print!("{}", msg);
+        }
+    });
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .chain(tx)
+        .apply()?;
+    Ok(())
+}

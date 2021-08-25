@@ -1,0 +1,10 @@
+[package]
+edition = "2018"
+name = "winapi"
+version = "0.1.0"
+
+[dependencies]
+windows = "0.19.0"
+
+[build-dependencies]
+windows = "0.19.0"
