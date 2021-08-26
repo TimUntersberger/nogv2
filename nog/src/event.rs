@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::config::Config;
 use crate::keybinding_event_loop::Keybinding;
+use crate::keybinding::KeybindingMode;
 use crate::platform::Window;
 use crate::window_event_loop::WindowEvent;
 
@@ -25,6 +26,13 @@ pub enum Action {
     UpdateConfig {
         key: String,
         update_fn: ActionFn
+    },
+    CreateKeybinding {
+        mode: KeybindingMode,
+        key: String
+    },
+    RemoveKeybinding {
+        key: String
     }
 }
 

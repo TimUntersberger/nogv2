@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::mpsc::Sender};
+
+use crate::event::Event;
 
 use super::LuaNamespace;
 use mlua::prelude::*;
@@ -6,6 +8,7 @@ use mlua::prelude::*;
 pub struct LuaRuntime<'a> {
     pub rt: &'static Lua,
     pub namespace: LuaNamespace<'a>,
+    tx: Sender<Event>,
     /// Holds the latest callback id. This is only increases and is meant as a primitive auto
     /// increment id.
     latest_callback_id: u32,
@@ -13,12 +16,13 @@ pub struct LuaRuntime<'a> {
 }
 
 impl<'a> LuaRuntime<'a> {
-    pub fn new() -> LuaResult<Self> {
+    pub fn new(tx: Sender<Event>) -> LuaResult<Self> {
         let options = LuaOptions::default();
         let rt = unsafe { Lua::unsafe_new_with(mlua::StdLib::ALL, options) }.into_static();
         Ok(Self {
             rt,
-            namespace: LuaNamespace::new(&rt, "nog")?,
+            namespace: LuaNamespace::new(&rt, tx.clone(), "nog")?,
+            tx,
             latest_callback_id: 0,
             callback_store: HashMap::new()
         })
@@ -38,6 +42,6 @@ impl<'a> LuaRuntime<'a> {
     }
 
     pub fn create_namespace(&self, s: &str) -> LuaResult<LuaNamespace<'a>> {
-        LuaNamespace::new(self.rt, s)
+        LuaNamespace::new(self.rt, self.tx.clone(), s)
     }
 }

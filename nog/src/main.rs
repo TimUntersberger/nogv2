@@ -23,6 +23,7 @@ mod config;
 mod keybinding_event_loop;
 mod logging;
 mod lua;
+mod keybinding;
 mod platform;
 mod window_event_loop;
 
@@ -60,6 +61,17 @@ fn main() {
                     } => {
                         info!("Updated config property: {:#?}", key);
                     },
+                    event::Action::CreateKeybinding {
+                        mode,
+                        key
+                    } => {
+                        info!("Created {:?} keybinding: {:#?}", mode, key);
+                    },
+                    event::Action::RemoveKeybinding {
+                        key
+                    } => {
+                        info!("Removed keybinding: {:#?}", key);
+                    }
                 }
             }
         }

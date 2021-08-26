@@ -9,6 +9,7 @@ nog.inspect = execute_runtime_file("inspect.lua")
 nog.uv = require 'luv'
 
 execute_runtime_file("util.lua")
+execute_runtime_file("keybindings.lua")
 
 -- local modes = {}
 -- local previous_kbs = nil
