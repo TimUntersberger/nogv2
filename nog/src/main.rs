@@ -1,8 +1,11 @@
-use std::{sync::mpsc::{Sender, channel}, thread};
 use event::Event;
-use log::info;
-use window_event_loop::WindowEventLoop;
 use keybinding_event_loop::KeybindingEventLoop;
+use log::info;
+use std::{
+    sync::mpsc::{channel, Sender},
+    thread,
+};
+use window_event_loop::WindowEventLoop;
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -15,12 +18,13 @@ pub trait EventLoop {
     }
 }
 
-mod window_event_loop;
-mod keybinding_event_loop;
-mod platform;
-mod logging;
 mod event;
+mod config;
+mod keybinding_event_loop;
+mod logging;
 mod lua;
+mod platform;
+mod window_event_loop;
 
 fn main() {
     logging::init().expect("Failed to initialize logging");
@@ -28,27 +32,35 @@ fn main() {
 
     let (tx, rx) = channel::<Event>();
 
-    let rt = lua::init().unwrap();
+    std::thread::spawn(move || {
+        let mut rt = lua::init(tx.clone()).unwrap();
+        lua::repl::start(&mut rt);
+    });
 
-    rt.eval("nog.say('hello', 2, 'what')").unwrap();
+    // WindowEventLoop::spawn(tx.clone());
+    // info!("Window event loop spawned");
 
-    WindowEventLoop::spawn(tx.clone());
-    info!("Window event loop spawned");
-
-    KeybindingEventLoop::spawn(tx.clone());
-    info!("Keybinding event loop spawned");
+    // KeybindingEventLoop::spawn(tx.clone());
+    // info!("Keybinding event loop spawned");
 
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
         match event {
             Event::Window(win_event) => {
                 info!("{:?} {:?}", win_event.kind, win_event.window);
-            },
+            }
             Event::Keybinding(kb) => {
                 info!("Keybinding {}", kb.to_string());
-            },
-            Event::Action(_action) => {
-                info!("Action");
+            }
+            Event::Action(action) => {
+                match action {
+                    event::Action::UpdateConfig { 
+                        key, 
+                        update_fn 
+                    } => {
+                        info!("Updated config property: {:#?}", key);
+                    },
+                }
             }
         }
     }

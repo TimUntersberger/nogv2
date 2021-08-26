@@ -6,8 +6,8 @@ use winapi::Windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::event::Event;
-use crate::EventLoop;
 use crate::keybinding_event_loop::Modifiers;
+use crate::EventLoop;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use std::mem;

@@ -1,0 +1,16 @@
+[package]
+edition = "2018"
+name = "nog"
+version = "0.1.0"
+
+[dependencies]
+winapi = { path = "./winapi" }
+log = "0.4.0"
+fern = "0.6.0"
+chrono = "0.4.19"
+lazy_static = "1.4.0"
+itertools = "0.10.1"
+mlua = { version = "0.6.2", features = ["luajit", "vendored", "send", "serialize"] }
+serde = "1.0"
+# Only used by the lua repl
+rustyline = "8.0.0"

@@ -1,6 +1,6 @@
 pub mod win;
-pub use win::*;
 use itertools::*;
+pub use win::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct Modifiers {
@@ -40,7 +40,7 @@ fn key_code_to_string(key_code: usize) -> String {
     match key_code {
         13 => "Enter".to_string(),
         27 => "Escape".to_string(),
-        k => (key_code as u8 as char).to_string()
+        k => (key_code as u8 as char).to_string(),
     }
 }
 
@@ -63,7 +63,7 @@ impl Keybinding {
             (self.modifiers.ralt, "RAlt"),
             (self.modifiers.shift, "Shift"),
             (self.modifiers.win, "Win"),
-            (self.modifiers.ctrl, "Ctrl")
+            (self.modifiers.ctrl, "Ctrl"),
         ]
         .iter()
         .filter(|(x, _)| *x)

@@ -1,16 +1,33 @@
-use winapi::Windows::Win32::{Foundation::{HINSTANCE, HWND}, UI::{Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK}, WindowsAndMessaging::{PM_REMOVE, PeekMessageW}}, UI::WindowsAndMessaging::{
-        DispatchMessageW, TranslateMessage, EVENT_MAX, EVENT_MIN,
-        EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
-        EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, MSG,
-    }};
+use winapi::Windows::Win32::{
+    Foundation::{HINSTANCE, HWND},
+    UI::WindowsAndMessaging::{
+        DispatchMessageW, TranslateMessage, EVENT_MAX, EVENT_MIN, EVENT_OBJECT_DESTROY,
+        EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
+        EVENT_SYSTEM_MINIMIZESTART, MSG,
+    },
+    UI::{
+        Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
+        WindowsAndMessaging::{PeekMessageW, PM_REMOVE},
+    },
+};
 
 use super::WindowEventLoop;
-use crate::{EventLoop, window_event_loop::{WindowEvent, WindowEventKind}};
-use std::{mem, sync::{Arc, Mutex, atomic::{self, AtomicBool}, mpsc::{Receiver, Sender, SyncSender, sync_channel}}};
-use log::{warn, error};
 use crate::event::Event;
 use crate::platform::Window;
+use crate::{
+    window_event_loop::{WindowEvent, WindowEventKind},
+    EventLoop,
+};
 use lazy_static::lazy_static;
+use log::{error, warn};
+use std::{
+    mem,
+    sync::{
+        atomic::{self, AtomicBool},
+        mpsc::{sync_channel, Receiver, Sender, SyncSender},
+        Arc, Mutex,
+    },
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct WinApiWindowEvent {
@@ -49,7 +66,10 @@ impl WinApiWindowEventKind {
 }
 
 lazy_static! {
-    static ref CHAN: (SyncSender<WinApiWindowEvent>, Arc<Mutex<Receiver<WinApiWindowEvent>>>) = {
+    static ref CHAN: (
+        SyncSender<WinApiWindowEvent>,
+        Arc<Mutex<Receiver<WinApiWindowEvent>>>
+    ) = {
         let (tx, rx) = sync_channel(100);
 
         (tx, Arc::new(Mutex::new(rx)))
@@ -90,14 +110,12 @@ impl EventLoop for WindowEventLoop {
             let kind = match event.kind {
                 WinApiWindowEventKind::Show => Some(WindowEventKind::Created),
                 WinApiWindowEventKind::Destroy => Some(WindowEventKind::Deleted),
-                _ => None
+                _ => None,
             };
 
             if let Some(kind) = kind {
-                tx.send(Event::Window(WindowEvent {
-                    kind,
-                    window,
-                })).unwrap();
+                tx.send(Event::Window(WindowEvent { kind, window }))
+                    .unwrap();
             } else {
                 warn!("The following event is not supported: {:#?}", event)
             }

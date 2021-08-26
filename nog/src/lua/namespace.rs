@@ -17,19 +17,25 @@ impl<'a> LuaNamespace<'a> {
         })
     }
 
-    pub fn add_function<F, A>(&self, name: &str, f: F) -> LuaResult<()>
+    pub fn add_function<F, A, FReturn>(&self, name: &str, f: F) -> LuaResult<()>
     where
-        F: Fn(A) -> () + Send + 'static,
-        A: FromLuaMulti<'a>
+        F: Fn(A) -> LuaResult<FReturn> + Send + 'static,
+        A: FromLuaMulti<'a>,
     {
         self.tbl.set(
             name,
-            self.rt
-                .create_function(move |_lua, args: A| {
-                    f(args);
-                    Ok(())
-                })?,
+            self.rt.create_function(move |_lua, args: A| {
+                f(args);
+                Ok(())
+            })?,
         )
+    }
+
+    pub fn add_constant<T>(&self, name: &str, value: T) -> LuaResult<()>
+    where
+        T: ToLua<'a>,
+    {
+        self.tbl.set(name, value)
     }
 
     pub fn add_namespace(&mut self, ns: LuaNamespace<'a>) {

@@ -1,5 +1,5 @@
-use std::thread;
 use std::sync::mpsc::channel;
+use std::thread;
 
 pub fn init() -> Result<(), log::SetLoggerError> {
     let (tx, rx) = channel();

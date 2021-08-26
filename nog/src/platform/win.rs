@@ -1,6 +1,6 @@
+use super::NativeWindow;
 use winapi::Windows::Win32::Foundation::{HWND, PWSTR};
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{GetWindowTextLengthW, GetWindowTextW};
-use super::NativeWindow;
 
 #[derive(Debug, Clone)]
 pub struct Window(pub HWND);
