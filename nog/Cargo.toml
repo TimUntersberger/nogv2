@@ -12,5 +12,6 @@ lazy_static = "1.4.0"
 itertools = "0.10.1"
 mlua = { version = "0.6.2", features = ["luajit", "vendored", "send", "serialize"] }
 serde = "1.0"
+nog-protocol = { path = "../nog-protocol" }
 # Only used by the lua repl
 rustyline = "8.0.0"

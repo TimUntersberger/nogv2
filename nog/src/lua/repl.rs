@@ -1,9 +1,13 @@
+use std::sync::mpsc::{Sender, sync_channel};
+
 use mlua::Error;
 use rustyline::Editor;
 
+use crate::event::{Action, Event, ExecuteLuaActionFn};
+
 use super::LuaRuntime;
 
-pub fn start(rt: &mut LuaRuntime) {
+pub fn start(tx: Sender<Event>) {
     let mut editor = Editor::<()>::new();
 
     loop {
@@ -16,10 +20,20 @@ pub fn start(rt: &mut LuaRuntime) {
                 Err(_) => return,
             }
 
-            match rt.eval(&line) {
-                Ok(value) => {
+            let (result_tx, result_rx) = sync_channel(1);
+
+            tx.send(Event::Action(Action::ExecuteLua {
+                code: line.clone(),
+                capture_stdout: false,
+                cb: ExecuteLuaActionFn::new(move |res| {
+                    result_tx.send(res).unwrap();
+                })
+            })).unwrap();
+
+            match result_rx.recv().unwrap() {
+                Ok(output) => {
                     editor.add_history_entry(line);
-                    println!("{:#?}", value);
+                    println!("{}", output);
                     break;
                 }
                 Err(Error::SyntaxError {
@@ -42,4 +56,10 @@ pub fn start(rt: &mut LuaRuntime) {
             }
         }
     }
+}
+
+pub fn spawn(tx: Sender<Event>) {
+    std::thread::spawn(move || {
+        start(tx);
+    });
 }

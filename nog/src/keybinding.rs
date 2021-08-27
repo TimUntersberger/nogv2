@@ -1,4 +1,8 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
+
+use itertools::Itertools;
+
+use crate::key_combination::KeyCombination;
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeybindingMode {
@@ -17,5 +21,22 @@ impl FromStr for KeybindingMode {
             "n" => KeybindingMode::Normal,
             _ => return Err(())
         })
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Keybinding {
+    pub key_combination: KeyCombination
+}
+
+impl Keybinding {
+    pub fn get_id(&self) -> usize {
+        self.key_combination.get_id()
+    }
+}
+
+impl Display for Keybinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.key_combination.to_string())
     }
 }

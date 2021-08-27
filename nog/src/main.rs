@@ -1,6 +1,8 @@
 use event::Event;
 use keybinding_event_loop::KeybindingEventLoop;
 use log::info;
+use mlua::FromLua;
+use server::Server;
 use std::{
     sync::mpsc::{channel, Sender},
     thread,
@@ -18,13 +20,17 @@ pub trait EventLoop {
     }
 }
 
-mod event;
 mod config;
+mod event;
+mod key;
+mod key_combination;
+mod keybinding;
 mod keybinding_event_loop;
 mod logging;
 mod lua;
-mod keybinding;
+mod modifiers;
 mod platform;
+mod server;
 mod window_event_loop;
 
 fn main() {
@@ -32,11 +38,13 @@ fn main() {
     info!("Initialized logging");
 
     let (tx, rx) = channel::<Event>();
+    let mut rt = lua::init(tx.clone()).unwrap();
 
-    std::thread::spawn(move || {
-        let mut rt = lua::init(tx.clone()).unwrap();
-        lua::repl::start(&mut rt);
-    });
+    // lua::repl::spawn(tx.clone());
+    // info!("Repl started");
+
+    Server::spawn(tx.clone());
+    info!("IPC Server started");
 
     // WindowEventLoop::spawn(tx.clone());
     // info!("Window event loop spawned");
@@ -53,27 +61,72 @@ fn main() {
             Event::Keybinding(kb) => {
                 info!("Keybinding {}", kb.to_string());
             }
-            Event::Action(action) => {
-                match action {
-                    event::Action::UpdateConfig { 
-                        key, 
-                        update_fn 
-                    } => {
-                        info!("Updated config property: {:#?}", key);
-                    },
-                    event::Action::CreateKeybinding {
-                        mode,
-                        key
-                    } => {
-                        info!("Created {:?} keybinding: {:#?}", mode, key);
-                    },
-                    event::Action::RemoveKeybinding {
-                        key
-                    } => {
-                        info!("Removed keybinding: {:#?}", key);
+            Event::Action(action) => match action {
+                event::Action::UpdateConfig { key, update_fn } => {
+                    info!("Updated config property: {:#?}", key);
+                }
+                event::Action::ExecuteLua {
+                    code,
+                    capture_stdout,
+                    cb,
+                } => {
+                    if capture_stdout {
+                        rt.eval(
+                            r#"
+                            _G.__stdout_buf = ""
+                            _G.__old_print = print
+                            _G.print = function(...)
+                                if _G.__stdout_buf ~= "" then
+                                    _G.__stdout_buf = _G.__stdout_buf .. "\n"
+                                end
+                                local outputs = {}
+                                for _,x in ipairs({...}) do
+                                    table.insert(outputs, tostring(x))
+                                end
+                                local output = table.concat(outputs, "\t")
+                                _G.__stdout_buf = _G.__stdout_buf .. output
+                            end
+                                    "#,
+                        )
+                        .unwrap();
+
+                        let code_res = rt.eval(&code);
+
+                        let stdout_buf =
+                            String::from_lua(rt.eval("_G.__stdout_buf").unwrap(), rt.rt)
+                                .unwrap();
+
+                        cb.0(code_res.map(move |x| {
+                            if stdout_buf.is_empty() {
+                                format!("{:?}", x)
+                            } else {
+                                format!("{}\n{:?}", stdout_buf, x)
+                            }
+                        }));
+
+                        rt.eval(
+                            r#"
+                            _G.print = _G.__old_print
+                            _G.__stdout_buf = nil
+                            _G.__old_print = nil
+                                    "#,
+                        )
+                        .unwrap();
+                    } else {
+                        cb.0(rt.eval(&code).map(|x| format!("{:?}", x)));
                     }
                 }
-            }
+                event::Action::CreateKeybinding {
+                    mode,
+                    key_combination,
+                } => {
+                    KeybindingEventLoop::add_keybinding(key_combination.get_id());
+                    info!("Created {:?} keybinding: {:#?}", mode, key_combination);
+                }
+                event::Action::RemoveKeybinding { key } => {
+                    info!("Removed keybinding: {:#?}", key);
+                }
+            },
         }
     }
 }

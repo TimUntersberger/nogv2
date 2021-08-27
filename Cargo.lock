@@ -259,6 +259,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mlua",
+ "nog-protocol",
  "rustyline",
  "serde",
  "winapi 0.1.0",
@@ -271,9 +272,17 @@ version = "0.1.0"
 [[package]]
 name = "nog-cli"
 version = "0.1.0"
+dependencies = [
+ "nog-protocol",
+ "rustyline",
+]
 
 [[package]]
 name = "nog-menu"
+version = "0.1.0"
+
+[[package]]
+name = "nog-protocol"
 version = "0.1.0"
 
 [[package]]

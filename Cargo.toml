@@ -3,5 +3,6 @@ members = [
   "nog", 
   "nog-cli", 
   "nog-bar", 
-  "nog-menu"
+  "nog-menu",
+  "nog-protocol"
 ]

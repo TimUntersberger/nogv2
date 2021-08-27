@@ -4,7 +4,10 @@ mod namespace;
 pub mod repl;
 mod runtime;
 
-use std::{path::PathBuf, sync::{Arc, mpsc::Sender}};
+use std::{
+    path::PathBuf,
+    sync::{mpsc::Sender, Arc},
+};
 
 pub use namespace::LuaNamespace;
 pub use runtime::LuaRuntime;
@@ -12,7 +15,12 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 use std::str::FromStr;
 
-use crate::{keybinding::KeybindingMode, event::{Action, Event}, lua::config_proxy::ConfigProxy};
+use crate::{
+    event::{Action, Event},
+    keybinding::KeybindingMode,
+    key_combination::KeyCombination,
+    lua::config_proxy::ConfigProxy,
+};
 
 fn get_runtime_path() -> PathBuf {
     #[cfg(debug_assertions)]
@@ -43,20 +51,24 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
     rt.namespace
         .add_constant("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
 
-    rt.namespace.add_function("bind", |tx, _lua, (mode, key, cb): (KeybindingMode, String, mlua::Function)| {
-        tx.send(Event::Action(Action::CreateKeybinding {
-            mode,
-            key
-        })).unwrap();
-        Ok(())
-    })?;
+    rt.namespace.add_function(
+        "bind",
+        |tx,
+         lua,
+         (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
+            lua.set_named_registry_value(&key_combination.get_id().to_string(), cb)?;
+            tx.send(Event::Action(Action::CreateKeybinding { mode, key_combination }))
+                .unwrap();
+            Ok(())
+        },
+    )?;
 
-    rt.namespace.add_function("unbind", |tx, _lua, key: String| {
-        tx.send(Event::Action(Action::RemoveKeybinding {
-            key
-        })).unwrap();
-        Ok(())
-    })?;
+    rt.namespace
+        .add_function("unbind", |tx, _lua, key: String| {
+            tx.send(Event::Action(Action::RemoveKeybinding { key }))
+                .unwrap();
+            Ok(())
+        })?;
 
     rt.namespace.add_constant("config", ConfigProxy::new(tx))?;
 

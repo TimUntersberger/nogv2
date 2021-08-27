@@ -6,10 +6,9 @@ use winapi::Windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::event::Event;
-use crate::keybinding_event_loop::Modifiers;
 use crate::EventLoop;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::{debug, warn};
 use std::mem;
 use std::sync::atomic;
 use std::sync::{
@@ -18,7 +17,11 @@ use std::sync::{
     Arc, Mutex, RwLock,
 };
 
-use super::{InputEvent, Keybinding, KeybindingEventLoop};
+use super::{InputEvent, KeybindingEventLoop};
+use crate::keybinding::Keybinding;
+use crate::modifiers::Modifiers;
+use crate::key_combination::KeyCombination;
+use crate::key::Key;
 
 lazy_static! {
     static ref CHAN: (SyncSender<InputEvent>, Arc<Mutex<Receiver<InputEvent>>>) = {
@@ -33,9 +36,8 @@ lazy_static! {
 }
 
 impl KeybindingEventLoop {
-    pub fn update_keybindings(keybindings: Vec<Keybinding>) {
-        *KEYBINDING_IDS.write().unwrap() = keybindings.iter().map(|kb| kb.get_id()).collect();
-        info!("Keybinding event loop received new keybindings");
+    pub fn add_keybinding(id: usize) {
+        KEYBINDING_IDS.write().unwrap().push(id);
     }
 }
 
@@ -60,7 +62,7 @@ impl EventLoop for KeybindingEventLoop {
 
         while let Ok(event) = CHAN.1.lock().unwrap().recv() {
             if let InputEvent::KeyUp(kb) = event {
-                tx.send(Event::Keybinding(kb)).unwrap();
+                tx.send(Event::Keybinding(Keybinding { key_combination: kb })).unwrap();
             }
         }
     }
@@ -109,10 +111,14 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
                     164 => MODIFIERS.lock().unwrap().lalt = true,
                     165 => MODIFIERS.lock().unwrap().ralt = true,
                     key => {
-                        event = Some(InputEvent::KeyDown(Keybinding {
-                            key_code: key as usize,
-                            modifiers: MODIFIERS.lock().unwrap().clone(),
-                        }));
+                        if let Some(key) = Key::from_usize(key as usize) {
+                            event = Some(InputEvent::KeyDown(KeyCombination {
+                                key,
+                                modifiers: MODIFIERS.lock().unwrap().clone(),
+                            }));
+                        } else {
+                            warn!("Unknown key code '{}'", key);
+                        }
                     }
                 };
             }
@@ -124,10 +130,14 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
                     164 => MODIFIERS.lock().unwrap().lalt = false,
                     165 => MODIFIERS.lock().unwrap().ralt = false,
                     key => {
-                        event = Some(InputEvent::KeyUp(Keybinding {
-                            key_code: key as usize,
-                            modifiers: MODIFIERS.lock().unwrap().clone(),
-                        }));
+                        if let Some(key) = Key::from_usize(key as usize) {
+                            event = Some(InputEvent::KeyUp(KeyCombination {
+                                key,
+                                modifiers: MODIFIERS.lock().unwrap().clone(),
+                            }));
+                        } else {
+                            warn!("Unknown key code '{}'", key);
+                        }
                     }
                 };
             }

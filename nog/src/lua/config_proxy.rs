@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use crate::{config::Config, event::{Action, ActionFn, Event}};
+use crate::{config::Config, event::{Action, UpdateConfigActionFn, Event}};
 use mlua::prelude::*;
 
 pub struct ConfigProxy {
@@ -63,7 +63,7 @@ impl mlua::UserData for ConfigProxy {
                         match key.as_str() {
                             $(stringify!($name) => {
                                 let value = <$ty>::from_lua(value, lua)?;
-                                Some(ActionFn::new(move |config: &mut Config| {
+                                Some(UpdateConfigActionFn::new(move |config: &mut Config| {
                                     config.$name = value.clone();
                                 }))
                             }),*

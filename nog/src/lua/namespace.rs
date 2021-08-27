@@ -32,7 +32,7 @@ impl<'a> LuaNamespace<'a> {
         self.tbl.set(
             name,
             self.rt.create_function(move |lua, args: A| {
-                f(&tx, lua, args);
+                f(&tx, lua, args)?;
                 Ok(())
             })?,
         )
