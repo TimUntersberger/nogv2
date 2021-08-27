@@ -117,7 +117,7 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
                                 modifiers: MODIFIERS.lock().unwrap().clone(),
                             }));
                         } else {
-                            warn!("Unknown key code '{}'", key);
+                            // warn!("Unknown key code '{}'", key);
                         }
                     }
                 };
@@ -136,7 +136,7 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
                                 modifiers: MODIFIERS.lock().unwrap().clone(),
                             }));
                         } else {
-                            warn!("Unknown key code '{}'", key);
+                            // warn!("Unknown key code '{}'", key);
                         }
                     }
                 };

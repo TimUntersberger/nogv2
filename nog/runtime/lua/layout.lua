@@ -42,7 +42,9 @@ local function manual_layout(event, grid)
   end
 end
 
-nog.set_custom_layout(manual_layout)
+nog.layout = function(graph, event, win_id)
+  print(event, win_id)
+end
 -- inspect(graph)
 -- layout({ kind = "MANAGE", window = 1 }, grid)
 -- inspect(graph)

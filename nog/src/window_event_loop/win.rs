@@ -1,15 +1,7 @@
-use winapi::Windows::Win32::{
-    Foundation::{HINSTANCE, HWND},
-    UI::WindowsAndMessaging::{
-        DispatchMessageW, TranslateMessage, EVENT_MAX, EVENT_MIN, EVENT_OBJECT_DESTROY,
-        EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-        EVENT_SYSTEM_MINIMIZESTART, MSG,
-    },
-    UI::{
+use winapi::Windows::Win32::{Foundation::{HINSTANCE, HWND}, UI::WindowsAndMessaging::{DispatchMessageW, EVENT_MAX, EVENT_MIN, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GetWindowLongA, MSG, TranslateMessage, WINDOW_LONG_PTR_INDEX}, UI::{
         Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
         WindowsAndMessaging::{PeekMessageW, PM_REMOVE},
-    },
-};
+    }};
 
 use super::WindowEventLoop;
 use crate::event::Event;
@@ -117,7 +109,7 @@ impl EventLoop for WindowEventLoop {
                 tx.send(Event::Window(WindowEvent { kind, window }))
                     .unwrap();
             } else {
-                warn!("The following event is not supported: {:#?}", event)
+                // warn!("The following event is not supported: {:#?}", event)
             }
         }
     }
@@ -131,6 +123,9 @@ impl EventLoop for WindowEventLoop {
 }
 
 const OBJID_WINDOW: i32 = 0;
+const GWL_STYLE: WINDOW_LONG_PTR_INDEX = WINDOW_LONG_PTR_INDEX(-16);
+const WS_CHILD: u32 = 0x40000000;
+const WS_POPUP: u32 = 0x80000000;
 
 unsafe extern "system" fn win_event_hook(
     _hook: HWINEVENTHOOK,
@@ -142,6 +137,14 @@ unsafe extern "system" fn win_event_hook(
     _dwmseventtime: u32,
 ) {
     if idobject != OBJID_WINDOW {
+        return;
+    }
+
+    let style = GetWindowLongA(hwnd, GWL_STYLE) as u32;
+    let is_child_window = (style & WS_CHILD) == WS_CHILD;
+    let is_popup_window = (style & WS_POPUP) == WS_POPUP;
+
+    if is_child_window || is_popup_window {
         return;
     }
 

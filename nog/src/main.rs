@@ -8,6 +8,9 @@ use std::{
     thread,
 };
 use window_event_loop::WindowEventLoop;
+use lua::graph_proxy::GraphProxy;
+
+use crate::{config::Config, platform::NativeWindow, window_event_loop::WindowEventKind};
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -39,6 +42,7 @@ fn main() {
 
     let (tx, rx) = channel::<Event>();
     let mut rt = lua::init(tx.clone()).unwrap();
+    let mut config = Config::default();
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
@@ -46,23 +50,36 @@ fn main() {
     Server::spawn(tx.clone());
     info!("IPC Server started");
 
-    // WindowEventLoop::spawn(tx.clone());
-    // info!("Window event loop spawned");
+    WindowEventLoop::spawn(tx.clone());
+    info!("Window event loop spawned");
 
-    // KeybindingEventLoop::spawn(tx.clone());
-    // info!("Keybinding event loop spawned");
+    KeybindingEventLoop::spawn(tx.clone());
+    info!("Keybinding event loop spawned");
 
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
         match event {
             Event::Window(win_event) => {
-                info!("{:?} {:?}", win_event.kind, win_event.window);
+                //info!("{:?} {:?}", win_event.kind, win_event.window);
+                match win_event.kind {
+                    WindowEventKind::Created => {
+                        let (width, height) = win_event.window.get_size();
+
+                        if width >= config.min_width && height >= config.min_height {
+                            info!("{}", win_event.window.get_title());
+                        }
+
+                        rt.call_fn("nog.layout", (GraphProxy, "created", win_event.window.0.0)).unwrap();
+                    },
+                    WindowEventKind::Deleted => {},
+                };
             }
             Event::Keybinding(kb) => {
                 info!("Keybinding {}", kb.to_string());
             }
             Event::Action(action) => match action {
                 event::Action::UpdateConfig { key, update_fn } => {
+                    update_fn.0(&mut config);
                     info!("Updated config property: {:#?}", key);
                 }
                 event::Action::ExecuteLua {
@@ -124,6 +141,7 @@ fn main() {
                     info!("Created {:?} keybinding: {:#?}", mode, key_combination);
                 }
                 event::Action::RemoveKeybinding { key } => {
+                    // KeybindingEventLoop::remove_keybinding(key_combination.get_id());
                     info!("Removed keybinding: {:#?}", key);
                 }
             },

@@ -79,8 +79,8 @@ impl mlua::UserData for ConfigProxy {
                     font_name: String,
                     use_border: bool,
                     enable_hot_reloading: bool,
-                    min_width: u32,
-                    min_height: u32,
+                    min_width: usize,
+                    min_height: usize,
                     work_mode: bool,
                     light_theme: bool,
                     multi_monitor: bool,
@@ -104,4 +104,6 @@ impl mlua::UserData for ConfigProxy {
             },
         );
     }
+
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(_fields: &mut F) {}
 }

@@ -12,7 +12,7 @@ pub struct LuaRuntime<'a> {
     /// Holds the latest callback id. This is only increases and is meant as a primitive auto
     /// increment id.
     latest_callback_id: u32,
-    callback_store: HashMap<u32, mlua::Function<'a>>
+    callback_store: HashMap<u32, mlua::Function<'a>>,
 }
 
 impl<'a> LuaRuntime<'a> {
@@ -24,7 +24,7 @@ impl<'a> LuaRuntime<'a> {
             namespace: LuaNamespace::new(&rt, tx.clone(), "nog")?,
             tx,
             latest_callback_id: 0,
-            callback_store: HashMap::new()
+            callback_store: HashMap::new(),
         })
     }
 
@@ -43,5 +43,12 @@ impl<'a> LuaRuntime<'a> {
 
     pub fn create_namespace(&self, s: &str) -> LuaResult<LuaNamespace<'a>> {
         LuaNamespace::new(self.rt, self.tx.clone(), s)
+    }
+
+    pub fn call_fn<A>(&'a self, path: &str, args: A) -> LuaResult<mlua::Value>
+    where
+        A: ToLuaMulti<'a>,
+    {
+        mlua::Function::from_lua(self.eval(path)?, self.rt)?.call(args)
     }
 }

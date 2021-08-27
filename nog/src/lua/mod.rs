@@ -1,8 +1,9 @@
-mod config_proxy;
-mod conversions;
-mod namespace;
+pub mod config_proxy;
+pub mod conversions;
+pub mod namespace;
 pub mod repl;
-mod runtime;
+pub mod runtime;
+pub mod graph_proxy;
 
 use std::{
     path::PathBuf,

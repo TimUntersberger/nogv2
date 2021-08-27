@@ -6,9 +6,9 @@ pub struct Config {
     pub use_border: bool,
     pub enable_hot_reloading: bool,
     /// Any window with a smaller width than this won't get managed automatically
-    pub min_width: u32,
+    pub min_width: usize,
     /// Any window with a smaller height than this won't get managed automatically
-    pub min_height: u32,
+    pub min_height: usize,
     /// Whether to startin work mode
     pub work_mode: bool,
     /// This only changes the way the different colors get derived from the color provied by the
