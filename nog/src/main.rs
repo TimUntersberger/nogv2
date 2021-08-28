@@ -1,16 +1,23 @@
 use event::Event;
+use graph::GraphNodeId;
 use keybinding_event_loop::KeybindingEventLoop;
-use log::info;
+use log::{error, info};
+use lua::graph_proxy::GraphProxy;
 use mlua::FromLua;
+use platform::{Window, WindowId, WindowPosition, WindowSize};
 use server::Server;
 use std::{
     sync::mpsc::{channel, Sender},
     thread,
 };
 use window_event_loop::WindowEventLoop;
-use lua::graph_proxy::GraphProxy;
 
-use crate::{config::Config, platform::NativeWindow, window_event_loop::WindowEventKind};
+use crate::{
+    config::Config,
+    graph::{Graph, GraphNode, GraphNodeGroupKind},
+    platform::NativeWindow,
+    window_event_loop::WindowEventKind,
+};
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -25,6 +32,7 @@ pub trait EventLoop {
 
 mod config;
 mod event;
+mod graph;
 mod key;
 mod key_combination;
 mod keybinding;
@@ -36,13 +44,124 @@ mod platform;
 mod server;
 mod window_event_loop;
 
+enum WindowEventEffect {
+    None,
+    // the name of the event as string and the id of the window
+    Layout(String, WindowId),
+}
+
+fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: WindowSize) {
+    let node = graph
+        .get_node(id)
+        .expect("Cannot render a node that doesn't exist");
+
+    match node {
+        GraphNode::Group(kind) => {
+            let children = graph.get_children(id);
+
+            if children.len() == 0 {
+                return;
+            }
+
+            match kind {
+                GraphNodeGroupKind::Row => {
+                    let col_width = size.width / children.len();
+                    let mut x = pos.x;
+                    for child_id in children {
+                        render_node(
+                            child_id,
+                            graph,
+                            WindowPosition::new(x, pos.y),
+                            WindowSize::new(col_width, size.height),
+                        );
+                        x += col_width as isize;
+                    }
+                }
+                GraphNodeGroupKind::Col => {
+                    let row_height = size.height / children.len();
+                    let mut y = pos.y;
+                    for child_id in children {
+                        render_node(
+                            child_id,
+                            graph,
+                            WindowPosition::new(pos.x, y),
+                            WindowSize::new(size.width, row_height),
+                        );
+                        y += row_height as isize;
+                    }
+                },
+            }
+        }
+        GraphNode::Window(win_id) => {
+            let win = Window::new(*win_id);
+            win.reposition(pos);
+            win.resize(size);
+        }
+    }
+}
+
+fn render_graph(graph: &Graph) {
+    // - 40 because of taskbar
+    render_node(
+        graph.root_node_id,
+        graph,
+        WindowPosition::new(0, 0),
+        WindowSize::new(1920, 1040),
+    );
+}
+
+fn print_node(depth: usize, id: GraphNodeId, graph: &Graph) {
+    let node = graph
+        .get_node(id)
+        .expect("Cannot print a node that doesn't exist");
+
+    let indent = "|   ".repeat(depth);
+
+    match node {
+        GraphNode::Group(kind) => {
+            let children = graph.get_children(id);
+
+            let tag = match kind {
+                GraphNodeGroupKind::Row => "Row",
+                GraphNodeGroupKind::Col => "Col"
+            };
+
+            println!("{}{}", indent, tag);
+
+            for child_id in children {
+                print_node(
+                    depth + 1,
+                    child_id,
+                    graph
+                );
+            }
+
+        }
+        GraphNode::Window(win_id) => {
+            println!("{}Win({})", indent, win_id);
+        }
+    }
+}
+
+fn print_graph(graph: &Graph) {
+    print_node(0, graph.root_node_id, graph)
+}
+
 fn main() {
     logging::init().expect("Failed to initialize logging");
     info!("Initialized logging");
 
     let (tx, rx) = channel::<Event>();
-    let mut rt = lua::init(tx.clone()).unwrap();
+    let mut rt = match lua::init(tx.clone()) {
+        Ok(x) => x,
+        Err(e) => {
+            error!("{}", e);
+            return;
+        }
+    };
     let mut config = Config::default();
+    // Graph for managed windows
+    let mut graph = Graph::new();
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
@@ -60,18 +179,58 @@ fn main() {
     while let Ok(event) = rx.recv() {
         match event {
             Event::Window(win_event) => {
-                //info!("{:?} {:?}", win_event.kind, win_event.window);
-                match win_event.kind {
+                let effect = match win_event.kind {
                     WindowEventKind::Created => {
-                        let (width, height) = win_event.window.get_size();
+                        let size = win_event.window.get_size();
 
-                        if width >= config.min_width && height >= config.min_height {
-                            info!("{}", win_event.window.get_title());
+                        if size.width >= config.min_width && size.height >= config.min_height {
+                            info!("'{}' created", win_event.window.get_title());
+
+                            WindowEventEffect::Layout(
+                                String::from("created"),
+                                win_event.window.get_id(),
+                            )
+                        } else {
+                            WindowEventEffect::None
+                        }
+                    }
+                    WindowEventKind::Deleted => {
+                        info!("'{}' deleted", win_event.window.get_title());
+                        WindowEventEffect::Layout(
+                            String::from("deleted"),
+                            win_event.window.get_id(),
+                        )
+                    },
+                    WindowEventKind::Minimized => WindowEventEffect::Layout(
+                        String::from("minimized"),
+                        win_event.window.get_id(),
+                    ),
+                };
+
+                match effect {
+                    WindowEventEffect::None => {}
+                    WindowEventEffect::Layout(event, win_id) => {
+                        // We need to use the scope here to make the rust type system happy.
+                        // scope drops the userdata when the function has finished.
+                        let res = rt.rt
+                            .scope(|scope| {
+                                let ud = scope.create_nonstatic_userdata(GraphProxy(&mut graph))?;
+                                mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
+                                    .call((ud, event, win_id))?;
+                                Ok(())
+                            });
+
+                        if let Err(e) = res {
+                            error!("{}", e);
                         }
 
-                        rt.call_fn("nog.layout", (GraphProxy, "created", win_event.window.0.0)).unwrap();
-                    },
-                    WindowEventKind::Deleted => {},
+                        if graph.dirty {
+                            info!("Have to rerender!");
+                            render_graph(&graph);
+                            print_graph(&graph);
+                            graph.dirty = false;
+                        }
+                    }
                 };
             }
             Event::Keybinding(kb) => {
@@ -110,8 +269,7 @@ fn main() {
                         let code_res = rt.eval(&code);
 
                         let stdout_buf =
-                            String::from_lua(rt.eval("_G.__stdout_buf").unwrap(), rt.rt)
-                                .unwrap();
+                            String::from_lua(rt.eval("_G.__stdout_buf").unwrap(), rt.rt).unwrap();
 
                         cb.0(code_res.map(move |x| {
                             if stdout_buf.is_empty() {

@@ -6,6 +6,7 @@ mod win;
 pub enum WindowEventKind {
     Created,
     Deleted,
+    Minimized,
 }
 
 #[derive(Debug, Clone)]

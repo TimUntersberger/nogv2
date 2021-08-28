@@ -1,11 +1,143 @@
-use super::NativeWindow;
+use std::ffi::c_void;
+use std::mem;
+
+use super::{Rect, NativeWindow, WindowId, WindowPosition, WindowSize};
 use winapi::Windows::Win32::Foundation::{HWND, PWSTR, RECT};
-use winapi::Windows::Win32::UI::WindowsAndMessaging::{GetWindowTextLengthW, GetWindowTextW, GetWindowRect};
+use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+use winapi::Windows::Win32::UI::WindowsAndMessaging::{
+    GetWindowRect, GetWindowTextLengthW, GetWindowTextW, SetWindowPos, SWP_NOMOVE, SWP_NOSIZE,
+};
 
 #[derive(Debug, Clone)]
-pub struct Window(pub HWND);
+pub struct Window(HWND);
+
+impl From<HWND> for WindowId {
+    fn from(hwnd: HWND) -> Self {
+        Self(hwnd.0 as usize)
+    }
+}
+
+impl From<WindowId> for HWND {
+    fn from(hwnd: WindowId) -> Self {
+        Self(hwnd.0 as isize)
+    }
+}
+
+impl From<RECT> for WindowSize {
+    fn from(rect: RECT) -> Self {
+        Self {
+            width: (rect.right - rect.left) as usize,
+            height: (rect.bottom - rect.top) as usize,
+        }
+    }
+}
+
+impl From<RECT> for Rect {
+    fn from(rect: RECT) -> Self {
+        Self {
+            left: rect.left as isize,
+            right: rect.right as isize,
+            top: rect.top as isize,
+            bottom: rect.bottom as isize
+        }
+    }
+}
+
+impl Window {
+    pub fn from_hwnd(hwnd: HWND) -> Self {
+        Self(hwnd)
+    }
+}
+
+const HWND_NOTOPMOST: isize = -2;
+
+impl Window {
+    /// This function returns the size of the window INCLUDING the extend window frame
+    pub fn get_full_size(&self) -> WindowSize {
+        unsafe {
+            let mut rect = RECT::default();
+            GetWindowRect(self.0, &mut rect);
+
+            WindowSize::from(rect)
+        }
+    }
+
+    pub fn get_extended_window_frame(&self) -> Rect {
+        unsafe {
+            let mut full_rect = RECT::default();
+            GetWindowRect(self.0, &mut full_rect);
+
+            let mut win_rect = RECT::default();
+            DwmGetWindowAttribute(
+                self.0,
+                DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
+                &mut win_rect as *mut RECT as *mut c_void,
+                mem::size_of::<RECT>() as u32,
+            );
+
+            Rect::from(full_rect) - Rect::from(win_rect)
+        }
+    }
+
+    /// This function returns the size of the window EXCLUDING the extend window frame
+    pub fn get_window_size(&self) -> WindowSize {
+        unsafe {
+            let mut rect = RECT::default();
+            DwmGetWindowAttribute(
+                self.0,
+                DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
+                &mut rect as *mut RECT as *mut c_void,
+                mem::size_of::<RECT>() as u32,
+            );
+            WindowSize::from(rect)
+        }
+    }
+}
 
 impl NativeWindow for Window {
+    fn new(id: WindowId) -> Self {
+        Self(id.into())
+    }
+
+    fn resize(&self, mut size: WindowSize) {
+        let frame_rect = self.get_extended_window_frame();
+        size.width = (size.width as isize + frame_rect.right - frame_rect.left) as usize;
+        size.height = (size.height as isize + frame_rect.bottom - frame_rect.top) as usize;
+
+        unsafe {
+            SetWindowPos(
+                self.0,
+                HWND(HWND_NOTOPMOST),
+                0,
+                0,
+                size.width as i32,
+                size.height as i32,
+                SWP_NOMOVE,
+            );
+        }
+    }
+
+    fn reposition(&self, mut pos: WindowPosition) {
+        let frame_rect = self.get_extended_window_frame();
+        pos.x += frame_rect.left;
+        pos.y += frame_rect.top;
+        unsafe {
+            SetWindowPos(
+                self.0,
+                HWND(HWND_NOTOPMOST),
+                pos.x as i32,
+                pos.y as i32,
+                0,
+                0,
+                SWP_NOSIZE,
+            );
+        }
+    }
+
+    fn get_id(&self) -> WindowId {
+        self.0.into()
+    }
+
     fn get_title(&self) -> String {
         unsafe {
             // GetWindowTextLengthW returns the length of the title without the null character,
@@ -18,12 +150,7 @@ impl NativeWindow for Window {
         }
     }
 
-    fn get_size(&self) -> (usize, usize) {
-        unsafe {
-            let mut rect = RECT::default();
-            GetWindowRect(self.0, &mut rect);
-
-            ((rect.right - rect.left) as usize, (rect.bottom - rect.top) as usize)
-        }
+    fn get_size(&self) -> WindowSize {
+        self.get_window_size()
     }
 }

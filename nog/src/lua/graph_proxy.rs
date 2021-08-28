@@ -1,9 +1,71 @@
 use mlua::prelude::*;
 
-pub struct GraphProxy;
+use crate::graph::{Graph, GraphNode, GraphNodeId, WindowNodeId};
 
-impl mlua::UserData for GraphProxy {
+pub struct GraphProxy<'a>(pub &'a mut Graph);
+
+impl<'a> mlua::UserData for GraphProxy<'a> {
     fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(_fields: &mut F) {}
 
-    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(_methods: &mut M) {}
+    fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method_mut(
+            "add_window_node",
+            |_lua, this, (parent_id, win_id): (Option<GraphNodeId>, WindowNodeId)| {
+                let parent_id = parent_id.unwrap_or(this.0.root_node_id);
+                Ok(this.0.add_window(parent_id, win_id).ok())
+            },
+        );
+
+        methods.add_method_mut(
+            "add_column_node",
+            |_lua, this, parent_id: Option<GraphNodeId>| {
+                let parent_id = parent_id.unwrap_or(this.0.root_node_id);
+                Ok(this.0.add_col(parent_id).ok())
+            },
+        );
+
+        methods.add_method_mut(
+            "add_row_node",
+            |_lua, this, parent_id: Option<GraphNodeId>| {
+                let parent_id = parent_id.unwrap_or(this.0.root_node_id);
+                Ok(this.0.add_row(parent_id).ok())
+            },
+        );
+
+        methods.add_method_mut(
+            "del_node",
+            |_lua, this, node: GraphNodeId| {
+                this.0.delete_node(node).ok();
+                Ok(())
+            },
+        );
+
+        methods.add_method_mut(
+            "move_node",
+            |_lua, this, (parent_id, node_id, index): (Option<GraphNodeId>, GraphNodeId, Option<usize>)| {
+                let parent_id = parent_id.unwrap_or(this.0.root_node_id);
+                Ok(this.0.move_node(parent_id, node_id, index))
+            },
+        );
+
+        methods.add_method_mut("del_window_node", |_lua, this, (win_id): (WindowNodeId)| {
+            let maybe_node_id = this
+                .0
+                .nodes
+                .iter()
+                .find(|(id, node)| match node {
+                    GraphNode::Group(_) => false,
+                    GraphNode::Window(id) => *id == win_id,
+                })
+                .map(|(id, _)| *id);
+
+            if let Some(node_id) = maybe_node_id {
+                if let Ok(_) = this.0.delete_node(node_id) {
+                    return Ok(Some(node_id));
+                }
+            }
+
+            Ok(None)
+        });
+    }
 }

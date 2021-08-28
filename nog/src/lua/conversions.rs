@@ -1,5 +1,6 @@
 use crate::keybinding::KeybindingMode;
 use crate::key_combination::KeyCombination;
+use crate::platform::WindowId;
 use mlua::prelude::*;
 use std::str::FromStr;
 
@@ -36,5 +37,17 @@ impl<'lua> FromLua<'lua> for KeyCombination {
                 message: Some("Expected a type that can be coerced into a string".into()),
             }),
         }
+    }
+}
+
+impl <'lua> ToLua<'lua> for WindowId {
+    fn to_lua(self, _lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        Ok(mlua::Value::Number(self.0 as f64))
+    }
+}
+
+impl <'lua> FromLua<'lua> for WindowId {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        Ok(WindowId(usize::from_lua(lua_value, lua)?))
     }
 }

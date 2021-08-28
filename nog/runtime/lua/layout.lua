@@ -1,54 +1,63 @@
-local graph = {}
--- test implementation for master slave layout
-local function master_slave_layout(event, grid)
-  if event.kind == "MANAGE" then
-    local node_count = #graph
-    if node_count == 0 then
-      local idx = grid:add_node(nil, event.window)
-      graph[1] = {
-        id = idx,
-        win = event.window
-      }
-    elseif node_count == 1 then
-      local idx = grid:add_column_node(nil)
-      graph[2] = {
-        id = idx,
-        children = {}
-      }
-      idx = grid:add_node(graph[2].id, event.window)
-      table.insert(graph[2].children, {
-        id = idx,
-        win = event.window
-      })
-    else
-      local idx = grid:add_node(graph[2].id, event.window)
-      table.insert(graph[2].children, {
-        id = idx,
-        win = event.window
-      })
+local function manual_layout(graph, event, win_id)
+  if event == "created" then
+    graph:add_window_node(nil, win_id)
+  elseif event == "deleted" or event == "minimized" then
+    graph:del_window_node(win_id)
+  end
+end
+
+local state = {
+  master = nil,
+  slave_group = nil,
+  slaves = {}
+}
+
+function state.remove_slave(self, id)
+  self.slaves = nog.tbl_filter(
+    self.slaves, 
+    function(slave)
+      return slave ~= id
     end
-  elseif event.kind == "UNMANAGE" then
-  end
+  )
 end
 
-local function manual_layout(event, grid)
-  if event.kind == "MANAGE" then
-    local idx = grid:add_window_node(nil, event.window)
-    table.insert(graph[2].children, {
-      id = idx,
-      win = event.window
-    })
-  elseif event.kind == "UNMANAGE" then
+local function master_slave_layout(graph, event, win_id)
+  if event == "created" then
+    local slave_count = #state.slaves
+    if state.master == nil then
+      state.master = graph:add_window_node(nil, win_id)
+    elseif slave_count == 0 then
+      state.slave_group = graph:add_column_node(nil)
+      table.insert(
+        state.slaves, 
+        graph:add_window_node(state.slave_group, win_id)
+      )
+    else
+      table.insert(
+        state.slaves, 
+        graph:add_window_node(state.slave_group, win_id)
+      )
+    end
+  elseif event == "deleted" or event == "minimized" then
+    local deleted_id = graph:del_window_node(win_id)
+
+    if state.master == deleted_id then
+      state.master = state.slaves[1]
+      if state.master then
+        graph:move_node(nil, state.master, 0)
+        state:remove_slave(state.master)
+      end
+    else
+      state:remove_slave(deleted_id)
+    end
+
+    if #state.slaves == 0 and state.slave_group then
+      graph:del_node(state.slave_group)
+      state.slave_group = nil
+    end
   end
+
+  -- print(nog.inspect(state))
 end
 
-nog.layout = function(graph, event, win_id)
-  print(event, win_id)
-end
--- inspect(graph)
--- layout({ kind = "MANAGE", window = 1 }, grid)
--- inspect(graph)
--- layout({ kind = "MANAGE", window = 2 }, grid)
--- inspect(graph)
--- layout({ kind = "MANAGE", window = 3 }, grid)
--- inspect(graph)
+nog.layout = master_slave_layout

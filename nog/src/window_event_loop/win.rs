@@ -1,6 +1,6 @@
 use winapi::Windows::Win32::{Foundation::{HINSTANCE, HWND}, UI::WindowsAndMessaging::{DispatchMessageW, EVENT_MAX, EVENT_MIN, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GetWindowLongA, MSG, TranslateMessage, WINDOW_LONG_PTR_INDEX}, UI::{
         Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
-        WindowsAndMessaging::{PeekMessageW, PM_REMOVE},
+        WindowsAndMessaging::{PeekMessageW, PM_REMOVE, GetWindowTextLengthW},
     }};
 
 use super::WindowEventLoop;
@@ -98,10 +98,11 @@ impl EventLoop for WindowEventLoop {
         });
 
         while let Ok(event) = CHAN.1.lock().unwrap().recv() {
-            let window = Window(event.hwnd);
+            let window = Window::from_hwnd(event.hwnd);
             let kind = match event.kind {
                 WinApiWindowEventKind::Show => Some(WindowEventKind::Created),
                 WinApiWindowEventKind::Destroy => Some(WindowEventKind::Deleted),
+                WinApiWindowEventKind::Minimize | WinApiWindowEventKind::Hide => Some(WindowEventKind::Minimized),
                 _ => None,
             };
 
@@ -145,6 +146,12 @@ unsafe extern "system" fn win_event_hook(
     let is_popup_window = (style & WS_POPUP) == WS_POPUP;
 
     if is_child_window || is_popup_window {
+        return;
+    }
+
+    // A bit hacky, but windows without a title are usually irrelevant. At least I haven't found a
+    // window yet where this isn't the case.
+    if GetWindowTextLengthW(hwnd) == 0 {
         return;
     }
 
