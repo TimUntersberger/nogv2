@@ -1,9 +1,9 @@
 pub mod config_proxy;
 pub mod conversions;
+pub mod graph_proxy;
 pub mod namespace;
 pub mod repl;
 pub mod runtime;
-pub mod graph_proxy;
 
 use std::{
     path::PathBuf,
@@ -18,8 +18,8 @@ use std::str::FromStr;
 
 use crate::{
     event::{Action, Event},
-    keybinding::KeybindingMode,
     key_combination::KeyCombination,
+    keybinding::KeybindingMode,
     lua::config_proxy::ConfigProxy,
 };
 
@@ -54,12 +54,13 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
 
     rt.namespace.add_function(
         "bind",
-        |tx,
-         lua,
-         (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
+        |tx, lua, (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
             lua.set_named_registry_value(&key_combination.get_id().to_string(), cb)?;
-            tx.send(Event::Action(Action::CreateKeybinding { mode, key_combination }))
-                .unwrap();
+            tx.send(Event::Action(Action::CreateKeybinding {
+                mode,
+                key_combination,
+            }))
+            .unwrap();
             Ok(())
         },
     )?;
@@ -73,6 +74,7 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
 
     rt.namespace
         .add_function("update_window_layout", |tx, _lua, (): ()| {
+            dbg!("update");
             tx.send(Event::RenderGraph).unwrap();
             Ok(())
         })?;

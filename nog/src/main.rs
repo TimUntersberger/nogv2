@@ -89,7 +89,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: Window
                         );
                         y += row_height as isize;
                     }
-                },
+                }
             }
         }
         GraphNode::Window(win_id) => {
@@ -123,19 +123,14 @@ fn print_node(depth: usize, id: GraphNodeId, graph: &Graph) {
 
             let tag = match kind {
                 GraphNodeGroupKind::Row => "Row",
-                GraphNodeGroupKind::Col => "Col"
+                GraphNodeGroupKind::Col => "Col",
             };
 
             println!("{}{}", indent, tag);
 
             for child_id in children {
-                print_node(
-                    depth + 1,
-                    child_id,
-                    graph
-                );
+                print_node(depth + 1, child_id, graph);
             }
-
         }
         GraphNode::Window(win_id) => {
             println!("{}Win({})", indent, win_id);
@@ -200,7 +195,7 @@ fn main() {
                             String::from("deleted"),
                             win_event.window.get_id(),
                         )
-                    },
+                    }
                     WindowEventKind::Minimized => WindowEventEffect::Layout(
                         String::from("minimized"),
                         win_event.window.get_id(),
@@ -212,13 +207,12 @@ fn main() {
                     WindowEventEffect::Layout(event, win_id) => {
                         // We need to use the scope here to make the rust type system happy.
                         // scope drops the userdata when the function has finished.
-                        let res = rt.rt
-                            .scope(|scope| {
-                                let ud = scope.create_nonstatic_userdata(GraphProxy(&mut graph))?;
-                                mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
-                                    .call((ud, event, win_id))?;
-                                Ok(())
-                            });
+                        let res = rt.rt.scope(|scope| {
+                            let ud = scope.create_nonstatic_userdata(GraphProxy(&mut graph))?;
+                            mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
+                                .call((ud, event, win_id))?;
+                            Ok(())
+                        });
 
                         if let Err(e) = res {
                             error!("{}", e);
@@ -234,7 +228,16 @@ fn main() {
                 };
             }
             Event::Keybinding(kb) => {
-                info!("Keybinding {}", kb.to_string());
+                info!("Received keybinding {}", kb.to_string());
+
+                let cb = rt
+                    .rt
+                    .named_registry_value::<str, mlua::Function>(&kb.get_id().to_string())
+                    .expect("Registry value of a keybinding somehow disappeared?");
+
+                if let Err(e) = cb.call::<(), ()>(()) {
+                    error!("{}", e);
+                }
             }
             Event::Action(action) => match action {
                 event::Action::UpdateConfig { key, update_fn } => {
@@ -305,7 +308,7 @@ fn main() {
             },
             Event::RenderGraph => {
                 render_graph(&graph);
-            },
+            }
         }
     }
 }
