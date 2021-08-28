@@ -10,7 +10,7 @@ nog.uv = require 'luv'
 
 execute_runtime_file("util.lua")
 execute_runtime_file("keybindings.lua")
-execute_runtime_file("layout.lua")
+nog.layout = execute_runtime_file("layouts/manual.lua")
 
 -- local modes = {}
 -- local previous_kbs = nil

@@ -1,11 +1,3 @@
-local function manual_layout(graph, event, win_id)
-  if event == "created" then
-    graph:add_window_node(nil, win_id)
-  elseif event == "deleted" or event == "minimized" then
-    graph:del_window_node(win_id)
-  end
-end
-
 local state = {
   master = nil,
   slave_group = nil,
@@ -21,7 +13,7 @@ function state.remove_slave(self, id)
   )
 end
 
-local function master_slave_layout(graph, event, win_id)
+local function layout(graph, event, win_id)
   if event == "created" then
     local slave_count = #state.slaves
     if state.master == nil then
@@ -60,4 +52,4 @@ local function master_slave_layout(graph, event, win_id)
   -- print(nog.inspect(state))
 end
 
-nog.layout = master_slave_layout
+return layout
