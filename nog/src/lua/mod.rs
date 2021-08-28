@@ -71,6 +71,12 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
             Ok(())
         })?;
 
+    rt.namespace
+        .add_function("update_window_layout", |tx, _lua, (): ()| {
+            tx.send(Event::RenderGraph).unwrap();
+            Ok(())
+        })?;
+
     rt.namespace.add_constant("config", ConfigProxy::new(tx))?;
 
     rt.namespace.register(None)?;

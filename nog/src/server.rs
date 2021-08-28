@@ -28,11 +28,11 @@ impl Server {
         let listener = TcpListener::bind(format!("{}:{}", self.host, self.port)).unwrap();
 
         for stream in listener.incoming() {
-            if let Ok(mut stream) = stream {
+            if let Ok(stream) = stream {
                 let tx = self.tx.clone();
                 std::thread::spawn(move || {
-                    if let Err(e) = handle_client(stream, tx) {
-                        error!("{:?}", e);
+                    if let Err(_e) = handle_client(stream, tx) {
+                        // error!("{:?}", e);
                     }
                 });
             }

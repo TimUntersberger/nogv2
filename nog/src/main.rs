@@ -303,6 +303,9 @@ fn main() {
                     info!("Removed keybinding: {:#?}", key);
                 }
             },
+            Event::RenderGraph => {
+                render_graph(&graph);
+            },
         }
     }
 }
