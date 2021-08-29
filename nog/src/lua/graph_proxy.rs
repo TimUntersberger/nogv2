@@ -49,15 +49,7 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
         );
 
         methods.add_method_mut("del_window_node", |_lua, this, (win_id): (WindowNodeId)| {
-            let maybe_node_id = this
-                .0
-                .nodes
-                .iter()
-                .find(|(id, node)| match node {
-                    GraphNode::Group(_) => false,
-                    GraphNode::Window(id) => *id == win_id,
-                })
-                .map(|(id, _)| *id);
+            let maybe_node_id = this.0.get_window_node(win_id);
 
             if let Some(node_id) = maybe_node_id {
                 if let Ok(_) = this.0.delete_node(node_id) {

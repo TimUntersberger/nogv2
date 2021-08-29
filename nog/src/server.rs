@@ -1,7 +1,11 @@
 use crate::event::{Action, Event, ExecuteLuaActionFn};
-use nog_protocol::Message;
 use log::error;
-use std::{io::{Read, Write}, net::{TcpListener, TcpStream}, sync::mpsc::{sync_channel, Sender}};
+use nog_protocol::Message;
+use std::{
+    io::{Read, Write},
+    net::{TcpListener, TcpStream},
+    sync::mpsc::{sync_channel, Sender},
+};
 
 pub struct Server {
     tx: Sender<Event>,
@@ -66,10 +70,18 @@ fn handle_client(mut stream: TcpStream, tx: Sender<Event>) -> std::io::Result<()
                     }))
                     .unwrap();
 
-                    match result_rx.recv().unwrap() {
+                    let res = result_rx.recv();
+
+                    match res.unwrap() {
                         Ok(output) => format!("Ok:{}", output),
                         // TODO: add support for incomplete Syntax
-                        Err(err) => format!("Err:{}", err),
+                        Err(err) => format!(
+                            "Err:{}",
+                            match err {
+                                mlua::Error::CallbackError { cause, .. } => cause.to_string(),
+                                e => e.to_string(),
+                            }
+                        ),
                     }
                 }
             };

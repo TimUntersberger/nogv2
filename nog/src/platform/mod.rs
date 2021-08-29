@@ -2,6 +2,8 @@ pub trait NativeWindow: Clone + std::fmt::Debug {
     fn new(id: WindowId) -> Self;
     fn reposition(&self, pos: WindowPosition);
     fn resize(&self, size: WindowSize);
+    fn focus(&self);
+    fn close(&self);
     fn get_id(&self) -> WindowId;
     fn get_title(&self) -> String;
     fn get_size(&self) -> WindowSize;

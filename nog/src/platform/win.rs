@@ -1,11 +1,15 @@
 use std::ffi::c_void;
 use std::mem;
 
-use super::{Rect, NativeWindow, WindowId, WindowPosition, WindowSize};
-use winapi::Windows::Win32::Foundation::{HWND, PWSTR, RECT};
+use super::{NativeWindow, Rect, WindowId, WindowPosition, WindowSize};
+use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use winapi::Windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowRect, GetWindowTextLengthW, GetWindowTextW, SetWindowPos, SWP_NOMOVE, SWP_NOSIZE,
+use winapi::Windows::Win32::UI::{
+    KeyboardAndMouseInput::keybd_event,
+    WindowsAndMessaging::{
+        GetWindowRect, GetWindowTextLengthW, GetWindowTextW, PostMessageW, SetForegroundWindow,
+        SetWindowPos, SWP_NOMOVE, SWP_NOSIZE, WM_CLOSE,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -38,7 +42,7 @@ impl From<RECT> for Rect {
             left: rect.left as isize,
             right: rect.right as isize,
             top: rect.top as isize,
-            bottom: rect.bottom as isize
+            bottom: rect.bottom as isize,
         }
     }
 }
@@ -97,6 +101,19 @@ impl Window {
 impl NativeWindow for Window {
     fn new(id: WindowId) -> Self {
         Self(id.into())
+    }
+
+    fn focus(&self) {
+        unsafe {
+            keybd_event(0, 0, Default::default(), 0);
+            SetForegroundWindow(self.0);
+        }
+    }
+
+    fn close(&self) {
+        unsafe {
+            PostMessageW(self.0, WM_CLOSE, WPARAM(0), LPARAM(0));
+        }
     }
 
     fn resize(&self, mut size: WindowSize) {

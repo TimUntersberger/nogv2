@@ -5,12 +5,33 @@ local function execute_runtime_file(path)
   return dofile(nog.runtime_path .. "/lua/" .. path)
 end
 
+execute_runtime_file("util.lua")
+
 nog.uv = require 'luv'
 nog.inspect = execute_runtime_file("inspect.lua")
 nog.layout = execute_runtime_file("layouts/master_slave.lua")
 
-execute_runtime_file("util.lua")
 execute_runtime_file("keybindings.lua")
+
+nog.nbind("alt+h", function()
+  nog.ws_focus(nil, "left")
+end)
+
+nog.nbind("alt+j", function()
+  nog.ws_focus(nil, "down")
+end)
+
+nog.nbind("alt+l", function()
+  nog.ws_focus(nil, "right")
+end)
+
+nog.nbind("alt+k", function()
+  nog.ws_focus(nil, "up")
+end)
+
+nog.nbind("alt+q", function()
+  nog.win_close(nil)
+end)
 
 -- local modes = {}
 -- local previous_kbs = nil

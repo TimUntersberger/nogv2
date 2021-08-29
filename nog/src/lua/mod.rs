@@ -16,12 +16,7 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 use std::str::FromStr;
 
-use crate::{
-    event::{Action, Event},
-    key_combination::KeyCombination,
-    keybinding::KeybindingMode,
-    lua::config_proxy::ConfigProxy,
-};
+use crate::{direction::Direction, event::{Action, Event, WindowAction, WorkspaceAction}, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, platform::WindowId, workspace::WorkspaceId};
 
 fn get_runtime_path() -> PathBuf {
     #[cfg(debug_assertions)]
@@ -76,6 +71,24 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
         .add_function("update_window_layout", |tx, _lua, (): ()| {
             dbg!("update");
             tx.send(Event::RenderGraph).unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace.add_function(
+        "ws_focus",
+        |tx, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
+            tx.send(Event::Action(Action::Workspace(WorkspaceAction::Focus(
+                ws_id, direction,
+            ))))
+            .unwrap();
+            Ok(())
+        },
+    )?;
+
+    rt.namespace
+        .add_function("win_close", |tx, _lua, win_id: Option<WindowId>| {
+            tx.send(Event::Action(Action::Window(WindowAction::Close(win_id))))
+                .unwrap();
             Ok(())
         })?;
 

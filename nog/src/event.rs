@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use crate::config::Config;
+use crate::workspace::WorkspaceId;
+use crate::direction::Direction;
 use crate::keybinding::{Keybinding, KeybindingMode};
 use crate::key_combination::KeyCombination;
-use crate::platform::Window;
+use crate::platform::{Window, WindowId};
 use crate::window_event_loop::WindowEvent;
 
 
@@ -30,7 +32,20 @@ action_fn!(UpdateConfigActionFn, &mut Config);
 action_fn!(ExecuteLuaActionFn, mlua::Result<String>);
 
 #[derive(Debug, Clone)]
+pub enum WorkspaceAction {
+    Focus(Option<WorkspaceId>, Direction)
+}
+
+#[derive(Debug, Clone)]
+pub enum WindowAction {
+    Focus(WindowId),
+    Close(Option<WindowId>)
+}
+
+#[derive(Debug, Clone)]
 pub enum Action {
+    Window(WindowAction),
+    Workspace(WorkspaceAction),
     UpdateConfig {
         key: String,
         update_fn: UpdateConfigActionFn

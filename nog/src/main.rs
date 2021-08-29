@@ -1,4 +1,4 @@
-use event::Event;
+use event::{Action, Event, WindowAction, WorkspaceAction};
 use graph::GraphNodeId;
 use keybinding_event_loop::KeybindingEventLoop;
 use log::{error, info};
@@ -11,6 +11,7 @@ use std::{
     thread,
 };
 use window_event_loop::WindowEventLoop;
+use workspace::Workspace;
 
 use crate::{
     config::Config,
@@ -31,6 +32,7 @@ pub trait EventLoop {
 }
 
 mod config;
+mod direction;
 mod event;
 mod graph;
 mod key;
@@ -43,6 +45,7 @@ mod modifiers;
 mod platform;
 mod server;
 mod window_event_loop;
+mod workspace;
 
 enum WindowEventEffect {
     None,
@@ -126,14 +129,14 @@ fn print_node(depth: usize, id: GraphNodeId, graph: &Graph) {
                 GraphNodeGroupKind::Col => "Col",
             };
 
-            println!("{}{}", indent, tag);
+            println!("{}[{}]{}", indent, id, tag);
 
             for child_id in children {
                 print_node(depth + 1, child_id, graph);
             }
         }
         GraphNode::Window(win_id) => {
-            println!("{}Win({})", indent, win_id);
+            println!("{}[{}]Win({})", indent, id, win_id);
         }
     }
 }
@@ -155,8 +158,7 @@ fn main() {
         }
     };
     let mut config = Config::default();
-    // Graph for managed windows
-    let mut graph = Graph::new();
+    let mut workspace = Workspace::new(tx.clone());
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
@@ -175,6 +177,13 @@ fn main() {
         match event {
             Event::Window(win_event) => {
                 let effect = match win_event.kind {
+                    WindowEventKind::FocusChanged => {
+                        if workspace.focus_window(win_event.window.get_id()).is_ok() {
+                            info!("Focused window with id {}", win_event.window.get_id());
+                            win_event.window.focus();
+                        }
+                        WindowEventEffect::None
+                    }
                     WindowEventKind::Created => {
                         let size = win_event.window.get_size();
 
@@ -208,7 +217,8 @@ fn main() {
                         // We need to use the scope here to make the rust type system happy.
                         // scope drops the userdata when the function has finished.
                         let res = rt.rt.scope(|scope| {
-                            let ud = scope.create_nonstatic_userdata(GraphProxy(&mut graph))?;
+                            let ud = scope
+                                .create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
                             mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
                                 .call((ud, event, win_id))?;
                             Ok(())
@@ -218,11 +228,11 @@ fn main() {
                             error!("{}", e);
                         }
 
-                        if graph.dirty {
+                        if workspace.graph.dirty {
                             info!("Have to rerender!");
-                            render_graph(&graph);
-                            print_graph(&graph);
-                            graph.dirty = false;
+                            render_graph(&workspace.graph);
+                            print_graph(&workspace.graph);
+                            workspace.graph.dirty = false;
                         }
                     }
                 };
@@ -236,15 +246,48 @@ fn main() {
                     .expect("Registry value of a keybinding somehow disappeared?");
 
                 if let Err(e) = cb.call::<(), ()>(()) {
-                    error!("{}", e);
+                    error!("{}", match e {
+                        mlua::Error::CallbackError { cause, .. } => cause.to_string(),
+                        e => e.to_string(),
+                    });
                 }
             }
             Event::Action(action) => match action {
-                event::Action::UpdateConfig { key, update_fn } => {
+                Action::Window(action) => match action {
+                    WindowAction::Focus(win_id) => {
+                        let win = Window::new(win_id);
+                        win.focus();
+                    }
+                    WindowAction::Close(maybe_win_id) => {
+                        let maybe_win_id = maybe_win_id.or_else(|| {
+                            workspace.get_focused_node().and_then(|n| n.try_get_window_id())
+                        });
+                        
+                        if let Some(id) = maybe_win_id {
+                            Window::new(id).close();
+                        }
+                    }
+                },
+                Action::Workspace(action) => match action {
+                    WorkspaceAction::Focus(maybe_id, dir) => {
+                        if let Some(id) = workspace.focus_in_direction(dir) {
+                            let win_id = workspace
+                                .graph
+                                .get_node(id)
+                                .expect("The returned node has to exist")
+                                .try_get_window_id()
+                                .expect("The focused node has to be a window node");
+
+                            tx.send(Event::Action(Action::Window(WindowAction::Focus(win_id))))
+                                .unwrap()
+                        }
+                    }
+                },
+                Action::UpdateConfig { key, update_fn } => {
                     update_fn.0(&mut config);
                     info!("Updated config property: {:#?}", key);
                 }
-                event::Action::ExecuteLua {
+                Action::ExecuteLua {
                     code,
                     capture_stdout,
                     cb,
@@ -294,20 +337,20 @@ fn main() {
                         cb.0(rt.eval(&code).map(|x| format!("{:?}", x)));
                     }
                 }
-                event::Action::CreateKeybinding {
+                Action::CreateKeybinding {
                     mode,
                     key_combination,
                 } => {
                     KeybindingEventLoop::add_keybinding(key_combination.get_id());
                     info!("Created {:?} keybinding: {:#?}", mode, key_combination);
                 }
-                event::Action::RemoveKeybinding { key } => {
+                Action::RemoveKeybinding { key } => {
                     // KeybindingEventLoop::remove_keybinding(key_combination.get_id());
                     info!("Removed keybinding: {:#?}", key);
                 }
             },
             Event::RenderGraph => {
-                render_graph(&graph);
+                render_graph(&workspace.graph);
             }
         }
     }

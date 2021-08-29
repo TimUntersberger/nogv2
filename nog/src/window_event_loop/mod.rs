@@ -7,6 +7,7 @@ pub enum WindowEventKind {
     Created,
     Deleted,
     Minimized,
+    FocusChanged,
 }
 
 #[derive(Debug, Clone)]

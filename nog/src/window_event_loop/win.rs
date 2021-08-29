@@ -102,6 +102,7 @@ impl EventLoop for WindowEventLoop {
             let kind = match event.kind {
                 WinApiWindowEventKind::Show => Some(WindowEventKind::Created),
                 WinApiWindowEventKind::Destroy => Some(WindowEventKind::Deleted),
+                WinApiWindowEventKind::FocusChange => Some(WindowEventKind::FocusChanged),
                 WinApiWindowEventKind::Minimize | WinApiWindowEventKind::Hide => Some(WindowEventKind::Minimized),
                 _ => None,
             };
