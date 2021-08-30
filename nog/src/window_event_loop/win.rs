@@ -1,7 +1,15 @@
-use winapi::Windows::Win32::{Foundation::{HINSTANCE, HWND}, UI::WindowsAndMessaging::{DispatchMessageW, EVENT_MAX, EVENT_MIN, EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, GetWindowLongA, MSG, TranslateMessage, WINDOW_LONG_PTR_INDEX}, UI::{
+use winapi::Windows::Win32::{
+    Foundation::{HINSTANCE, HWND},
+    UI::WindowsAndMessaging::{
+        DispatchMessageW, GetWindowLongA, TranslateMessage, EVENT_MAX, EVENT_MIN,
+        EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_SHOW, EVENT_SYSTEM_FOREGROUND,
+        EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART, MSG, WINDOW_LONG_PTR_INDEX,
+    },
+    UI::{
         Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
-        WindowsAndMessaging::{PeekMessageW, PM_REMOVE, GetWindowTextLengthW},
-    }};
+        WindowsAndMessaging::{GetWindowTextLengthW, PeekMessageW, PM_REMOVE},
+    },
+};
 
 use super::WindowEventLoop;
 use crate::event::Event;
@@ -103,7 +111,9 @@ impl EventLoop for WindowEventLoop {
                 WinApiWindowEventKind::Show => Some(WindowEventKind::Created),
                 WinApiWindowEventKind::Destroy => Some(WindowEventKind::Deleted),
                 WinApiWindowEventKind::FocusChange => Some(WindowEventKind::FocusChanged),
-                WinApiWindowEventKind::Minimize | WinApiWindowEventKind::Hide => Some(WindowEventKind::Minimized),
+                WinApiWindowEventKind::Minimize | WinApiWindowEventKind::Hide => {
+                    Some(WindowEventKind::Minimized)
+                }
                 _ => None,
             };
 

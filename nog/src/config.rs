@@ -18,7 +18,7 @@ pub struct Config {
     pub launch_on_startup: bool,
     pub outer_gap: u32,
     pub inner_gap: u32,
-    pub remove_title_bar: bool,
+    pub remove_decorations: bool,
     pub remove_task_bar: bool,
     /// When enabled nog won't respond to the following actions when a window is fullscreened:
     ///     * swap
@@ -47,7 +47,7 @@ impl Default for Config {
             launch_on_startup: true,
             outer_gap: 0,
             inner_gap: 0,
-            remove_title_bar: true,
+            remove_decorations: true,
             remove_task_bar: true,
             ignore_fullscreen_actions: false,
             display_app_bar: true,

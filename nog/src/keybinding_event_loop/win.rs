@@ -18,10 +18,10 @@ use std::sync::{
 };
 
 use super::{InputEvent, KeybindingEventLoop};
+use crate::key::Key;
+use crate::key_combination::KeyCombination;
 use crate::keybinding::Keybinding;
 use crate::modifiers::Modifiers;
-use crate::key_combination::KeyCombination;
-use crate::key::Key;
 
 lazy_static! {
     static ref CHAN: (SyncSender<InputEvent>, Arc<Mutex<Receiver<InputEvent>>>) = {
@@ -62,7 +62,10 @@ impl EventLoop for KeybindingEventLoop {
 
         while let Ok(event) = CHAN.1.lock().unwrap().recv() {
             if let InputEvent::KeyUp(kb) = event {
-                tx.send(Event::Keybinding(Keybinding { key_combination: kb })).unwrap();
+                tx.send(Event::Keybinding(Keybinding {
+                    key_combination: kb,
+                }))
+                .unwrap();
             }
         }
     }

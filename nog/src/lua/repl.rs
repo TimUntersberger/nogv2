@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Sender, sync_channel};
+use std::sync::mpsc::{sync_channel, Sender};
 
 use mlua::Error;
 use rustyline::Editor;
@@ -27,8 +27,9 @@ pub fn start(tx: Sender<Event>) {
                 capture_stdout: false,
                 cb: ExecuteLuaActionFn::new(move |res| {
                     result_tx.send(res).unwrap();
-                })
-            })).unwrap();
+                }),
+            }))
+            .unwrap();
 
             match result_rx.recv().unwrap() {
                 Ok(output) => {
@@ -48,8 +49,8 @@ pub fn start(tx: Sender<Event>) {
                     match e {
                         Error::CallbackError { traceback, cause } => {
                             eprintln!("error: {}\n{}", cause, traceback);
-                        },
-                        _ => eprintln!("error: {}", e)
+                        }
+                        _ => eprintln!("error: {}", e),
                     }
                     break;
                 }

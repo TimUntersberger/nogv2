@@ -32,13 +32,10 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
             },
         );
 
-        methods.add_method_mut(
-            "del_node",
-            |_lua, this, node: GraphNodeId| {
-                this.0.delete_node(node).ok();
-                Ok(())
-            },
-        );
+        methods.add_method_mut("del_node", |_lua, this, node: GraphNodeId| {
+            this.0.delete_node(node).ok();
+            Ok(())
+        });
 
         methods.add_method_mut(
             "move_node",

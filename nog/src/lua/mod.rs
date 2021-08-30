@@ -16,7 +16,15 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 use std::str::FromStr;
 
-use crate::{direction::Direction, event::{Action, Event, WindowAction, WorkspaceAction}, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, platform::WindowId, workspace::WorkspaceId};
+use crate::{
+    direction::Direction,
+    event::{Action, Event, WindowAction, WorkspaceAction},
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    lua::config_proxy::ConfigProxy,
+    platform::WindowId,
+    workspace::WorkspaceId,
+};
 
 fn get_runtime_path() -> PathBuf {
     #[cfg(debug_assertions)]
@@ -89,6 +97,22 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
         .add_function("win_close", |tx, _lua, win_id: Option<WindowId>| {
             tx.send(Event::Action(Action::Window(WindowAction::Close(win_id))))
                 .unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace
+        .add_function("win_manage", |tx, _lua, win_id: Option<WindowId>| {
+            tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
+                .unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace
+        .add_function("win_unmanage", |tx, _lua, win_id: Option<WindowId>| {
+            tx.send(Event::Action(Action::Window(WindowAction::Unmanage(
+                win_id,
+            ))))
+            .unwrap();
             Ok(())
         })?;
 

@@ -1,8 +1,6 @@
 #[derive(Debug)]
 pub enum Message {
-    ExecuteLua {
-        code: String
-    }
+    ExecuteLua { code: String },
 }
 
 impl Message {
@@ -10,9 +8,7 @@ impl Message {
         use Message::*;
 
         let mut serialized = match self {
-            ExecuteLua { code } => {
-                format!("ExecuteLua:{}", code).as_bytes().to_vec()
-            }
+            ExecuteLua { code } => format!("ExecuteLua:{}", code).as_bytes().to_vec(),
         };
 
         // header size is 2 bytes
@@ -28,8 +24,8 @@ impl Message {
     pub fn deserialize(s: &str) -> Result<Self, ()> {
         if let Some(code) = s.strip_prefix("ExecuteLua:") {
             return Ok(Message::ExecuteLua {
-                code: code.to_string()
-            })
+                code: code.to_string(),
+            });
         }
 
         Err(())

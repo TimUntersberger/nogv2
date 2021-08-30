@@ -2,11 +2,12 @@ use event::{Action, Event, WindowAction, WorkspaceAction};
 use graph::GraphNodeId;
 use keybinding_event_loop::KeybindingEventLoop;
 use log::{error, info};
-use lua::graph_proxy::GraphProxy;
+use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
 use platform::{Window, WindowId, WindowPosition, WindowSize};
 use server::Server;
 use std::{
+    collections::HashMap,
     sync::mpsc::{channel, Sender},
     thread,
 };
@@ -14,6 +15,7 @@ use window_event_loop::WindowEventLoop;
 use workspace::Workspace;
 
 use crate::{
+    cleanup::WindowCleanup,
     config::Config,
     graph::{Graph, GraphNode, GraphNodeGroupKind},
     platform::NativeWindow,
@@ -31,6 +33,7 @@ pub trait EventLoop {
     }
 }
 
+mod cleanup;
 mod config;
 mod direction;
 mod event;
@@ -145,6 +148,33 @@ fn print_graph(graph: &Graph) {
     print_node(0, graph.root_node_id, graph)
 }
 
+fn call_layout_function(
+    rt: &LuaRuntime,
+    workspace: &mut Workspace,
+    event: String,
+    win_id: WindowId,
+) {
+    // We need to use the scope here to make the rust type system happy.
+    // scope drops the userdata when the function has finished.
+    let res = rt.rt.scope(|scope| {
+        let ud = scope.create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
+        mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
+            .call((ud, event, win_id))?;
+        Ok(())
+    });
+
+    if let Err(e) = res {
+        error!("{}", e);
+    }
+
+    if workspace.graph.dirty {
+        info!("Have to rerender!");
+        render_graph(&workspace.graph);
+        print_graph(&workspace.graph);
+        workspace.graph.dirty = false;
+    }
+}
+
 fn main() {
     logging::init().expect("Failed to initialize logging");
     info!("Initialized logging");
@@ -159,6 +189,7 @@ fn main() {
     };
     let mut config = Config::default();
     let mut workspace = Workspace::new(tx.clone());
+    let mut window_cleanup: HashMap<WindowId, WindowCleanup> = HashMap::new();
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
@@ -175,68 +206,59 @@ fn main() {
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
         match event {
-            Event::Window(win_event) => {
-                let effect = match win_event.kind {
-                    WindowEventKind::FocusChanged => {
-                        if workspace.focus_window(win_event.window.get_id()).is_ok() {
-                            info!("Focused window with id {}", win_event.window.get_id());
-                            win_event.window.focus();
-                        }
-                        WindowEventEffect::None
+            Event::Window(win_event) => match win_event.kind {
+                WindowEventKind::FocusChanged => {
+                    if workspace.focus_window(win_event.window.get_id()).is_ok() {
+                        info!("Focused window with id {}", win_event.window.get_id());
+                        win_event.window.focus();
                     }
-                    WindowEventKind::Created => {
-                        let size = win_event.window.get_size();
+                }
+                WindowEventKind::Created => {
+                    let win = win_event.window;
+                    let size = win.get_size();
+                    let pos = win.get_position();
 
-                        if size.width >= config.min_width && size.height >= config.min_height {
-                            info!("'{}' created", win_event.window.get_title());
+                    if size.width >= config.min_width && size.height >= config.min_height {
+                        info!("'{}' created", win.get_title());
 
-                            WindowEventEffect::Layout(
-                                String::from("created"),
-                                win_event.window.get_id(),
-                            )
-                        } else {
-                            WindowEventEffect::None
+                        let cleanup = window_cleanup.entry(win.get_id()).or_default();
+
+                        cleanup.reset_transform = Some(Box::new(move || {
+                            win.reposition(pos);
+                            win.resize(size);
+                        }));
+
+                        if config.remove_decorations {
+                            cleanup.add_decorations = Some(win.remove_decorations())
                         }
+
+                        call_layout_function(
+                            &rt,
+                            &mut workspace,
+                            String::from("created"),
+                            win.get_id(),
+                        );
                     }
-                    WindowEventKind::Deleted => {
-                        info!("'{}' deleted", win_event.window.get_title());
-                        WindowEventEffect::Layout(
-                            String::from("deleted"),
-                            win_event.window.get_id(),
-                        )
-                    }
-                    WindowEventKind::Minimized => WindowEventEffect::Layout(
+                }
+                WindowEventKind::Deleted => {
+                    info!("'{}' deleted", win_event.window.get_title());
+
+                    call_layout_function(
+                        &rt,
+                        &mut workspace,
+                        String::from("deleted"),
+                        win_event.window.get_id(),
+                    );
+                }
+                WindowEventKind::Minimized => {
+                    call_layout_function(
+                        &rt,
+                        &mut workspace,
                         String::from("minimized"),
                         win_event.window.get_id(),
-                    ),
-                };
-
-                match effect {
-                    WindowEventEffect::None => {}
-                    WindowEventEffect::Layout(event, win_id) => {
-                        // We need to use the scope here to make the rust type system happy.
-                        // scope drops the userdata when the function has finished.
-                        let res = rt.rt.scope(|scope| {
-                            let ud = scope
-                                .create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
-                            mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
-                                .call((ud, event, win_id))?;
-                            Ok(())
-                        });
-
-                        if let Err(e) = res {
-                            error!("{}", e);
-                        }
-
-                        if workspace.graph.dirty {
-                            info!("Have to rerender!");
-                            render_graph(&workspace.graph);
-                            print_graph(&workspace.graph);
-                            workspace.graph.dirty = false;
-                        }
-                    }
-                };
-            }
+                    );
+                }
+            },
             Event::Keybinding(kb) => {
                 info!("Received keybinding {}", kb.to_string());
 
@@ -246,10 +268,13 @@ fn main() {
                     .expect("Registry value of a keybinding somehow disappeared?");
 
                 if let Err(e) = cb.call::<(), ()>(()) {
-                    error!("{}", match e {
-                        mlua::Error::CallbackError { cause, .. } => cause.to_string(),
-                        e => e.to_string(),
-                    });
+                    error!(
+                        "{}",
+                        match e {
+                            mlua::Error::CallbackError { cause, .. } => cause.to_string(),
+                            e => e.to_string(),
+                        }
+                    );
                 }
             }
             Event::Action(action) => match action {
@@ -260,11 +285,70 @@ fn main() {
                     }
                     WindowAction::Close(maybe_win_id) => {
                         let maybe_win_id = maybe_win_id.or_else(|| {
-                            workspace.get_focused_node().and_then(|n| n.try_get_window_id())
+                            workspace
+                                .get_focused_node()
+                                .and_then(|n| n.try_get_window_id())
                         });
-                        
+
                         if let Some(id) = maybe_win_id {
                             Window::new(id).close();
+                        }
+                    }
+                    WindowAction::Manage(maybe_id) => {
+                        let win = maybe_id
+                            .map(|id| Window::new(id))
+                            .unwrap_or_else(|| Window::get_foreground_window());
+
+                        if win.exists() && !workspace.has_window(win.get_id()) {
+                            info!("'{}' managed", win.get_title());
+
+                            let cleanup = window_cleanup.entry(win.get_id()).or_default();
+                            let size = win.get_size();
+                            let pos = win.get_position();
+
+                            cleanup.reset_transform = Some(Box::new(move || {
+                                win.reposition(pos);
+                                win.resize(size);
+                            }));
+
+                            if config.remove_decorations {
+                                cleanup.add_decorations = Some(win.remove_decorations())
+                            }
+
+                            call_layout_function(
+                                &rt,
+                                &mut workspace,
+                                String::from("managed"),
+                                win.get_id(),
+                            );
+                        }
+                    }
+                    WindowAction::Unmanage(maybe_id) => {
+                        let win = maybe_id
+                            .map(|id| Window::new(id))
+                            .unwrap_or_else(|| Window::get_foreground_window());
+
+                        if workspace.has_window(win.get_id()) {
+                            info!("'{}' unmanaged", win.get_title());
+
+                            if config.remove_decorations {
+                                let cleanup = window_cleanup.get(&win.get_id()).expect("If remove_decorations is enabled there has to be some cleanup function");
+
+                                if let Some(f) = cleanup.add_decorations.as_ref() {
+                                    f();
+                                }
+
+                                if let Some(f) = cleanup.reset_transform.as_ref() {
+                                    f();
+                                }
+                            }
+
+                            call_layout_function(
+                                &rt,
+                                &mut workspace,
+                                String::from("unmanaged"),
+                                win.get_id(),
+                            );
                         }
                     }
                 },
@@ -342,11 +426,11 @@ fn main() {
                     key_combination,
                 } => {
                     KeybindingEventLoop::add_keybinding(key_combination.get_id());
-                    info!("Created {:?} keybinding: {:#?}", mode, key_combination);
+                    info!("Created {:?} keybinding: {}", mode, key_combination);
                 }
                 Action::RemoveKeybinding { key } => {
                     // KeybindingEventLoop::remove_keybinding(key_combination.get_id());
-                    info!("Removed keybinding: {:#?}", key);
+                    info!("Removed keybinding: {}", key);
                 }
             },
             Event::RenderGraph => {

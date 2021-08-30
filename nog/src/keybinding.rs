@@ -8,7 +8,7 @@ use crate::key_combination::KeyCombination;
 pub enum KeybindingMode {
     Global,
     Workspace,
-    Normal
+    Normal,
 }
 
 impl FromStr for KeybindingMode {
@@ -19,14 +19,14 @@ impl FromStr for KeybindingMode {
             "g" => KeybindingMode::Global,
             "w" => KeybindingMode::Workspace,
             "n" => KeybindingMode::Normal,
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Keybinding {
-    pub key_combination: KeyCombination
+    pub key_combination: KeyCombination,
 }
 
 impl Keybinding {

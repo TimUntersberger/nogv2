@@ -4,15 +4,20 @@ use std::mem;
 use super::{NativeWindow, Rect, WindowId, WindowPosition, WindowSize};
 use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+use winapi::Windows::Win32::UI::WindowsAndMessaging::{
+    GetForegroundWindow, GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, GWL_STYLE, WS_CAPTION,
+    WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+    WS_SYSMENU, WS_THICKFRAME,
+};
 use winapi::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
-        GetWindowRect, GetWindowTextLengthW, GetWindowTextW, PostMessageW, SetForegroundWindow,
-        SetWindowPos, SWP_NOMOVE, SWP_NOSIZE, WM_CLOSE,
+        GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindow, PostMessageW,
+        SetForegroundWindow, SetWindowPos, SWP_NOMOVE, SWP_NOSIZE, WM_CLOSE,
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Window(HWND);
 
 impl From<HWND> for WindowId {
@@ -32,6 +37,15 @@ impl From<RECT> for WindowSize {
         Self {
             width: (rect.right - rect.left) as usize,
             height: (rect.bottom - rect.top) as usize,
+        }
+    }
+}
+
+impl From<RECT> for WindowPosition {
+    fn from(rect: RECT) -> Self {
+        Self {
+            x: rect.left as isize,
+            y: rect.top as isize,
         }
     }
 }
@@ -103,6 +117,10 @@ impl NativeWindow for Window {
         Self(id.into())
     }
 
+    fn get_foreground_window() -> Self {
+        unsafe { Window::from_hwnd(GetForegroundWindow()) }
+    }
+
     fn focus(&self) {
         unsafe {
             keybd_event(0, 0, Default::default(), 0);
@@ -113,6 +131,34 @@ impl NativeWindow for Window {
     fn close(&self) {
         unsafe {
             PostMessageW(self.0, WM_CLOSE, WPARAM(0), LPARAM(0));
+        }
+    }
+
+    fn exists(&self) -> bool {
+        unsafe { IsWindow(self.0).into() }
+    }
+
+    fn remove_decorations(&self) -> Box<dyn Fn() -> () + 'static> {
+        unsafe {
+            let style = GetWindowLongW(self.0, GWL_STYLE) as u32;
+            let new_style = style
+                & !(WS_CAPTION.0
+                    | WS_THICKFRAME.0
+                    | WS_MINIMIZEBOX.0
+                    | WS_MAXIMIZEBOX.0
+                    | WS_SYSMENU.0);
+            SetWindowLongW(self.0, GWL_STYLE, new_style as i32);
+
+            let exstyle = GetWindowLongW(self.0, GWL_EXSTYLE) as u32;
+            let new_exstyle =
+                exstyle & !(WS_EX_DLGMODALFRAME.0 | WS_EX_CLIENTEDGE.0 | WS_EX_STATICEDGE.0);
+            SetWindowLongW(self.0, GWL_EXSTYLE, new_exstyle as i32);
+
+            let hwnd = self.0.clone();
+            Box::new(move || {
+                SetWindowLongW(hwnd, GWL_STYLE, style as i32);
+                SetWindowLongW(hwnd, GWL_EXSTYLE, exstyle as i32);
+            })
         }
     }
 
@@ -169,5 +215,14 @@ impl NativeWindow for Window {
 
     fn get_size(&self) -> WindowSize {
         self.get_window_size()
+    }
+
+    fn get_position(&self) -> WindowPosition {
+        unsafe {
+            let mut rect = RECT::default();
+            GetWindowRect(self.0, &mut rect);
+
+            WindowPosition::from(rect)
+        }
     }
 }

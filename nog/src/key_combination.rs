@@ -7,7 +7,7 @@ use crate::{key::Key, modifiers::Modifiers};
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct KeyCombination {
     pub key: Key,
-    pub modifiers: Modifiers
+    pub modifiers: Modifiers,
 }
 
 impl KeyCombination {
@@ -44,14 +44,15 @@ impl FromStr for KeyCombination {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<String> = s.split("+").map(|x| x.trim().to_ascii_uppercase()).collect();
+        let parts: Vec<String> = s
+            .split("+")
+            .map(|x| x.trim().to_ascii_uppercase())
+            .collect();
 
         Ok(match parts.as_slice() {
-            [key] => {
-                Self {
-                    key: Key::from_str(key)?,
-                    modifiers: Modifiers::default()
-                }
+            [key] => Self {
+                key: Key::from_str(key)?,
+                modifiers: Modifiers::default(),
             },
             [raw_modifiers @ .., key] => {
                 let mut modifiers = Modifiers::default();
@@ -63,16 +64,16 @@ impl FromStr for KeyCombination {
                         "LALT" | "ALT" => modifiers.lalt = true,
                         "RALT" => modifiers.ralt = true,
                         "MOD" | "WIN" => modifiers.win = true,
-                        m => return Err(format!("Unknown modifier '{}'", m))
+                        m => return Err(format!("Unknown modifier '{}'", m)),
                     }
                 }
 
                 Self {
                     key: Key::from_str(key)?,
-                    modifiers
+                    modifiers,
                 }
-            },
-            [] => return Err(format!("An empty string is not a valid key combination"))
+            }
+            [] => return Err(format!("An empty string is not a valid key combination")),
         })
     }
 }

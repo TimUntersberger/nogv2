@@ -1,6 +1,9 @@
 use std::sync::mpsc::Sender;
 
-use crate::{config::Config, event::{Action, UpdateConfigActionFn, Event}};
+use crate::{
+    config::Config,
+    event::{Action, Event, UpdateConfigActionFn},
+};
 use mlua::prelude::*;
 
 pub struct ConfigProxy {
@@ -12,7 +15,7 @@ impl ConfigProxy {
     pub fn new(tx: Sender<Event>) -> Self {
         Self {
             config: Config::default(),
-            tx
+            tx,
         }
     }
 }
@@ -46,7 +49,7 @@ impl mlua::UserData for ConfigProxy {
                 launch_on_startup,
                 outer_gap,
                 inner_gap,
-                remove_title_bar,
+                remove_decorations,
                 remove_task_bar,
                 ignore_fullscreen_actions,
                 display_app_bar
@@ -87,7 +90,7 @@ impl mlua::UserData for ConfigProxy {
                     launch_on_startup: bool,
                     outer_gap: u32,
                     inner_gap: u32,
-                    remove_title_bar: bool,
+                    remove_decorations: bool,
                     remove_task_bar: bool,
                     ignore_fullscreen_actions: bool,
                     display_app_bar: bool

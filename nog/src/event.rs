@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::workspace::WorkspaceId;
 use crate::direction::Direction;
-use crate::keybinding::{Keybinding, KeybindingMode};
 use crate::key_combination::KeyCombination;
+use crate::keybinding::{Keybinding, KeybindingMode};
 use crate::platform::{Window, WindowId};
 use crate::window_event_loop::WindowEvent;
-
+use crate::workspace::WorkspaceId;
 
 macro_rules! action_fn {
     ($ident: ident, $($ty:ty),*) => {
@@ -33,13 +32,15 @@ action_fn!(ExecuteLuaActionFn, mlua::Result<String>);
 
 #[derive(Debug, Clone)]
 pub enum WorkspaceAction {
-    Focus(Option<WorkspaceId>, Direction)
+    Focus(Option<WorkspaceId>, Direction),
 }
 
 #[derive(Debug, Clone)]
 pub enum WindowAction {
     Focus(WindowId),
-    Close(Option<WindowId>)
+    Manage(Option<WindowId>),
+    Unmanage(Option<WindowId>),
+    Close(Option<WindowId>),
 }
 
 #[derive(Debug, Clone)]
@@ -48,20 +49,20 @@ pub enum Action {
     Workspace(WorkspaceAction),
     UpdateConfig {
         key: String,
-        update_fn: UpdateConfigActionFn
+        update_fn: UpdateConfigActionFn,
     },
     CreateKeybinding {
         mode: KeybindingMode,
-        key_combination: KeyCombination
+        key_combination: KeyCombination,
     },
     RemoveKeybinding {
-        key: String
+        key: String,
     },
     ExecuteLua {
         code: String,
         capture_stdout: bool,
-        cb: ExecuteLuaActionFn
-    }
+        cb: ExecuteLuaActionFn,
+    },
 }
 
 #[derive(Debug, Clone)]

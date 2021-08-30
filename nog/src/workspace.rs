@@ -32,6 +32,10 @@ impl Workspace {
         self.focused_node_id.and_then(|id| self.graph.get_node(id))
     }
 
+    pub fn has_window(&self, id: WindowId) -> bool {
+        self.graph.get_window_node(id).is_some()
+    }
+
     pub fn focus_window(&mut self, id: WindowId) -> WorkspaceResult {
         let node_id = self
             .graph

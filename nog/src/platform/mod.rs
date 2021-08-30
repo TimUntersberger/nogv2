@@ -1,15 +1,19 @@
-pub trait NativeWindow: Clone + std::fmt::Debug {
+pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn new(id: WindowId) -> Self;
+    fn get_foreground_window() -> Self;
     fn reposition(&self, pos: WindowPosition);
     fn resize(&self, size: WindowSize);
     fn focus(&self);
+    fn exists(&self) -> bool;
     fn close(&self);
+    fn remove_decorations(&self) -> Box<dyn Fn() -> () + 'static>;
     fn get_id(&self) -> WindowId;
     fn get_title(&self) -> String;
     fn get_size(&self) -> WindowSize;
+    fn get_position(&self) -> WindowPosition;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct WindowId(pub usize);
 
 impl std::fmt::Display for WindowId {
@@ -21,15 +25,12 @@ impl std::fmt::Display for WindowId {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WindowSize {
     pub width: usize,
-    pub height: usize
+    pub height: usize,
 }
 
 impl WindowSize {
     pub fn new(width: usize, height: usize) -> Self {
-        Self {
-            width,
-            height
-        }
+        Self { width, height }
     }
 }
 
@@ -47,15 +48,12 @@ impl ops::Sub for WindowSize {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WindowPosition {
     pub x: isize,
-    pub y: isize
+    pub y: isize,
 }
 
 impl WindowPosition {
     pub fn new(x: isize, y: isize) -> Self {
-        Self {
-            x,
-            y
-        }
+        Self { x, y }
     }
 }
 

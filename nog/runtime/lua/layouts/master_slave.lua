@@ -14,7 +14,7 @@ function state.remove_slave(self, id)
 end
 
 local function layout(graph, event, win_id)
-  if event == "created" then
+  if event == "created" or event == "managed" then
     local slave_count = #state.slaves
     if state.master == nil then
       state.master = graph:add_window_node(nil, win_id)
@@ -30,7 +30,7 @@ local function layout(graph, event, win_id)
         graph:add_window_node(state.slave_group, win_id)
       )
     end
-  elseif event == "deleted" or event == "minimized" then
+  elseif event == "deleted" or event == "minimized" or event == "unmanaged" then
     local deleted_id = graph:del_window_node(win_id)
 
     if state.master == deleted_id then
