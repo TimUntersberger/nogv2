@@ -37,6 +37,7 @@ lazy_static! {
 
 impl KeybindingEventLoop {
     pub fn add_keybinding(id: usize) {
+        //TODO: only add id if it isn't already in the array
         KEYBINDING_IDS.write().unwrap().push(id);
     }
 }

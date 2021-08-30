@@ -148,24 +148,21 @@ fn print_graph(graph: &Graph) {
     print_node(0, graph.root_node_id, graph)
 }
 
-fn call_layout_function(
+fn call_layout_function<TArgs>(
     rt: &LuaRuntime,
     workspace: &mut Workspace,
     event: String,
-    win_id: WindowId,
-) {
+    args: TArgs,
+) -> mlua::Result<mlua::Value<'static>>
+where
+    TArgs: mlua::ToLuaMulti<'static>,
+{
     // We need to use the scope here to make the rust type system happy.
     // scope drops the userdata when the function has finished.
-    let res = rt.rt.scope(|scope| {
+    let res: mlua::Value = rt.rt.scope(|scope| {
         let ud = scope.create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
-        mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
-            .call((ud, event, win_id))?;
-        Ok(())
-    });
-
-    if let Err(e) = res {
-        error!("{}", e);
-    }
+        mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?.call((ud, event, args))
+    })?;
 
     if workspace.graph.dirty {
         info!("Have to rerender!");
@@ -173,6 +170,8 @@ fn call_layout_function(
         print_graph(&workspace.graph);
         workspace.graph.dirty = false;
     }
+
+    Ok(res)
 }
 
 fn main() {
@@ -324,31 +323,34 @@ fn main() {
                         }
                     }
                     WindowAction::Unmanage(maybe_id) => {
-                        let win = maybe_id
-                            .map(|id| Window::new(id))
-                            .unwrap_or_else(|| Window::get_foreground_window());
+                        let maybe_id = maybe_id.or(workspace
+                            .get_focused_node()
+                            .and_then(|x| x.try_get_window_id()));
 
-                        if workspace.has_window(win.get_id()) {
-                            info!("'{}' unmanaged", win.get_title());
+                        if let Some(id) = maybe_id {
+                            let win = Window::new(id);
+                            if workspace.has_window(win.get_id()) {
+                                info!("'{}' unmanaged", win.get_title());
 
-                            if config.remove_decorations {
-                                let cleanup = window_cleanup.get(&win.get_id()).expect("If remove_decorations is enabled there has to be some cleanup function");
+                                if config.remove_decorations {
+                                    let cleanup = window_cleanup.get(&win.get_id()).expect("If remove_decorations is enabled there has to be some cleanup function");
 
-                                if let Some(f) = cleanup.add_decorations.as_ref() {
-                                    f();
+                                    if let Some(f) = cleanup.add_decorations.as_ref() {
+                                        f();
+                                    }
+
+                                    if let Some(f) = cleanup.reset_transform.as_ref() {
+                                        f();
+                                    }
                                 }
 
-                                if let Some(f) = cleanup.reset_transform.as_ref() {
-                                    f();
-                                }
+                                call_layout_function(
+                                    &rt,
+                                    &mut workspace,
+                                    String::from("unmanaged"),
+                                    win.get_id(),
+                                );
                             }
-
-                            call_layout_function(
-                                &rt,
-                                &mut workspace,
-                                String::from("unmanaged"),
-                                win.get_id(),
-                            );
                         }
                     }
                 },
@@ -363,7 +365,17 @@ fn main() {
                                 .expect("The focused node has to be a window node");
 
                             tx.send(Event::Action(Action::Window(WindowAction::Focus(win_id))))
-                                .unwrap()
+                                .unwrap();
+                        }
+                    }
+                    WorkspaceAction::Swap(maybe_id, dir) => {
+                        if let Some(id) = workspace.focused_node_id {
+                            call_layout_function(
+                                &rt,
+                                &mut workspace,
+                                String::from("swapped"),
+                                (id, dir),
+                            );
                         }
                     }
                 },

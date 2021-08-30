@@ -77,7 +77,6 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
 
     rt.namespace
         .add_function("update_window_layout", |tx, _lua, (): ()| {
-            dbg!("update");
             tx.send(Event::RenderGraph).unwrap();
             Ok(())
         })?;
@@ -86,6 +85,17 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
         "ws_focus",
         |tx, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
             tx.send(Event::Action(Action::Workspace(WorkspaceAction::Focus(
+                ws_id, direction,
+            ))))
+            .unwrap();
+            Ok(())
+        },
+    )?;
+
+    rt.namespace.add_function(
+        "ws_swap",
+        |tx, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
+            tx.send(Event::Action(Action::Workspace(WorkspaceAction::Swap(
                 ws_id, direction,
             ))))
             .unwrap();

@@ -33,6 +33,7 @@ action_fn!(ExecuteLuaActionFn, mlua::Result<String>);
 #[derive(Debug, Clone)]
 pub enum WorkspaceAction {
     Focus(Option<WorkspaceId>, Direction),
+    Swap(Option<WorkspaceId>, Direction),
 }
 
 #[derive(Debug, Clone)]

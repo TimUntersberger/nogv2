@@ -13,7 +13,7 @@ function state.remove_slave(self, id)
   )
 end
 
-local function layout(graph, event, win_id)
+local function layout(graph, event, win_id, extra)
   if event == "created" or event == "managed" then
     local slave_count = #state.slaves
     if state.master == nil then
@@ -46,6 +46,12 @@ local function layout(graph, event, win_id)
     if #state.slaves == 0 and state.slave_group then
       graph:del_node(state.slave_group)
       state.slave_group = nil
+    end
+  elseif event == "swapped" then
+    local target = graph:get_window_node_in_direction(win_id, extra)
+
+    if target then
+      graph:swap_nodes(win_id, target)
     end
   end
 
