@@ -6,12 +6,9 @@ use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
 use platform::{Window, WindowId, WindowPosition, WindowSize};
 use server::Server;
-use std::{
-    collections::HashMap,
-    sync::mpsc::{channel, Sender},
-    thread,
-};
+use std::{collections::HashMap, sync::{Arc, RwLock, mpsc::{channel, Sender}}, thread};
 use window_event_loop::WindowEventLoop;
+use window_manager::WindowManager;
 use workspace::Workspace;
 
 use crate::{
@@ -45,16 +42,13 @@ mod keybinding_event_loop;
 mod logging;
 mod lua;
 mod modifiers;
+mod paths;
 mod platform;
 mod server;
+mod session;
 mod window_event_loop;
+mod window_manager;
 mod workspace;
-
-enum WindowEventEffect {
-    None,
-    // the name of the event as string and the id of the window
-    Layout(String, WindowId),
-}
 
 fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: WindowSize) {
     let node = graph
@@ -179,16 +173,21 @@ fn main() {
     info!("Initialized logging");
 
     let (tx, rx) = channel::<Event>();
-    let mut rt = match lua::init(tx.clone()) {
+    let wm = Arc::new(RwLock::new(WindowManager::new(tx.clone())));
+    let rt = match lua::init(tx.clone()) {
         Ok(x) => x,
         Err(e) => {
             error!("{}", e);
             return;
         }
     };
+
+    // Run the config
+    if let Err(e) = rt.eval("dofile(nog.config_path .. '/lua/config.lua')") {
+        error!("Error when running config: {}", e);
+    }
+
     let mut config = Config::default();
-    let mut workspace = Workspace::new(tx.clone());
-    let mut window_cleanup: HashMap<WindowId, WindowCleanup> = HashMap::new();
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
@@ -207,6 +206,8 @@ fn main() {
         match event {
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
+                    let mut wm = wm.write().unwrap();
+                    let workspace = wm.get_focused_workspace_mut();
                     if workspace.focus_window(win_event.window.get_id()).is_ok() {
                         info!("Focused window with id {}", win_event.window.get_id());
                         win_event.window.focus();
@@ -215,46 +216,41 @@ fn main() {
                 WindowEventKind::Created => {
                     let win = win_event.window;
                     let size = win.get_size();
-                    let pos = win.get_position();
 
                     if size.width >= config.min_width && size.height >= config.min_height {
                         info!("'{}' created", win.get_title());
 
-                        let cleanup = window_cleanup.entry(win.get_id()).or_default();
-
-                        cleanup.reset_transform = Some(Box::new(move || {
-                            win.reposition(pos);
-                            win.resize(size);
-                        }));
-
-                        if config.remove_decorations {
-                            cleanup.add_decorations = Some(win.remove_decorations())
-                        }
+                        let mut wm = wm.write().unwrap();
+                        wm.manage(&config, win);
 
                         call_layout_function(
                             &rt,
-                            &mut workspace,
+                            wm.get_focused_workspace_mut(),
                             String::from("created"),
                             win.get_id(),
                         );
                     }
                 }
                 WindowEventKind::Deleted => {
-                    info!("'{}' deleted", win_event.window.get_title());
+                    let win = win_event.window;
+                    info!("'{}' deleted", win.get_title());
 
                     call_layout_function(
                         &rt,
-                        &mut workspace,
-                        String::from("deleted"),
-                        win_event.window.get_id(),
+                        wm.write().unwrap().get_focused_workspace_mut(),
+                        String::from("created"),
+                        win.get_id(),
                     );
                 }
                 WindowEventKind::Minimized => {
+                    let win = win_event.window;
+                    info!("'{}' minimized", win.get_title());
+
                     call_layout_function(
                         &rt,
-                        &mut workspace,
-                        String::from("minimized"),
-                        win_event.window.get_id(),
+                        wm.write().unwrap().get_focused_workspace_mut(),
+                        String::from("created"),
+                        win.get_id(),
                     );
                 }
             },
@@ -283,6 +279,8 @@ fn main() {
                         win.focus();
                     }
                     WindowAction::Close(maybe_win_id) => {
+                        let wm = wm.read().unwrap();
+                        let workspace = wm.get_focused_workspace();
                         let maybe_win_id = maybe_win_id.or_else(|| {
                             workspace
                                 .get_focused_node()
@@ -294,6 +292,8 @@ fn main() {
                         }
                     }
                     WindowAction::Manage(maybe_id) => {
+                        let mut wm = wm.write().unwrap();
+                        let workspace = wm.get_focused_workspace_mut();
                         let win = maybe_id
                             .map(|id| Window::new(id))
                             .unwrap_or_else(|| Window::get_foreground_window());
@@ -301,28 +301,19 @@ fn main() {
                         if win.exists() && !workspace.has_window(win.get_id()) {
                             info!("'{}' managed", win.get_title());
 
-                            let cleanup = window_cleanup.entry(win.get_id()).or_default();
-                            let size = win.get_size();
-                            let pos = win.get_position();
-
-                            cleanup.reset_transform = Some(Box::new(move || {
-                                win.reposition(pos);
-                                win.resize(size);
-                            }));
-
-                            if config.remove_decorations {
-                                cleanup.add_decorations = Some(win.remove_decorations())
-                            }
+                            wm.manage(&config, win);
 
                             call_layout_function(
                                 &rt,
-                                &mut workspace,
+                                wm.get_focused_workspace_mut(),
                                 String::from("managed"),
                                 win.get_id(),
                             );
                         }
                     }
                     WindowAction::Unmanage(maybe_id) => {
+                        let mut wm = wm.write().unwrap();
+                        let workspace = wm.get_focused_workspace();
                         let maybe_id = maybe_id.or(workspace
                             .get_focused_node()
                             .and_then(|x| x.try_get_window_id()));
@@ -332,21 +323,11 @@ fn main() {
                             if workspace.has_window(win.get_id()) {
                                 info!("'{}' unmanaged", win.get_title());
 
-                                if config.remove_decorations {
-                                    let cleanup = window_cleanup.get(&win.get_id()).expect("If remove_decorations is enabled there has to be some cleanup function");
-
-                                    if let Some(f) = cleanup.add_decorations.as_ref() {
-                                        f();
-                                    }
-
-                                    if let Some(f) = cleanup.reset_transform.as_ref() {
-                                        f();
-                                    }
-                                }
+                                wm.unmanage(win.get_id());
 
                                 call_layout_function(
                                     &rt,
-                                    &mut workspace,
+                                    wm.get_focused_workspace_mut(),
                                     String::from("unmanaged"),
                                     win.get_id(),
                                 );
@@ -356,6 +337,8 @@ fn main() {
                 },
                 Action::Workspace(action) => match action {
                     WorkspaceAction::Focus(maybe_id, dir) => {
+                        let mut wm = wm.write().unwrap();
+                        let workspace = wm.get_focused_workspace_mut();
                         if let Some(id) = workspace.focus_in_direction(dir) {
                             let win_id = workspace
                                 .graph
@@ -369,16 +352,42 @@ fn main() {
                         }
                     }
                     WorkspaceAction::Swap(maybe_id, dir) => {
+                        let mut wm = wm.write().unwrap();
+                        let workspace = wm.get_focused_workspace_mut();
                         if let Some(id) = workspace.focused_node_id {
                             call_layout_function(
                                 &rt,
-                                &mut workspace,
+                                workspace,
                                 String::from("swapped"),
                                 (id, dir),
                             );
                         }
                     }
                 },
+                Action::SaveSession => {
+                    session::save_session(&wm.read().unwrap().workspaces);
+                    info!("Saved session!");
+                }
+                Action::LoadSession => {
+                    wm.write().unwrap().workspaces = session::load_session(tx.clone()).unwrap();
+                    info!("Loaded session!");
+
+                    let mut windows = Vec::new();
+
+                    for ws in &wm.read().unwrap().workspaces {
+                        for node in ws.graph.nodes.values() {
+                            if let GraphNode::Window(win_id) = node {
+                                windows.push(Window::new(*win_id));
+                            }
+                        }
+                    }
+
+                    for window in windows {
+                        wm.write().unwrap().manage(&config, window);
+                    }
+
+                    render_graph(&wm.read().unwrap().get_focused_workspace().graph);
+                }
                 Action::UpdateConfig { key, update_fn } => {
                     update_fn.0(&mut config);
                     info!("Updated config property: {:#?}", key);
@@ -446,7 +455,7 @@ fn main() {
                 }
             },
             Event::RenderGraph => {
-                render_graph(&workspace.graph);
+                render_graph(&wm.read().unwrap().get_focused_workspace().graph);
             }
         }
     }

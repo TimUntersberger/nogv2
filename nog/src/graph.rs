@@ -55,7 +55,7 @@ pub struct Graph {
     // Gets increased whenever a new node gets added.
     //
     // So basically very primitive id generation
-    max_id: GraphNodeId,
+    pub max_id: GraphNodeId,
     // Whether the graph has been modified and not yet handled
     pub dirty: bool,
     pub nodes: HashMap<GraphNodeId, GraphNode>,

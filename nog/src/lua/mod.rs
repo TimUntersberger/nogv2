@@ -6,7 +6,6 @@ pub mod repl;
 pub mod runtime;
 
 use std::{
-    path::PathBuf,
     sync::{mpsc::Sender, Arc},
 };
 
@@ -18,6 +17,7 @@ use std::str::FromStr;
 
 use crate::{
     direction::Direction,
+    paths::{get_runtime_path, get_config_path},
     event::{Action, Event, WindowAction, WorkspaceAction},
     key_combination::KeyCombination,
     keybinding::KeybindingMode,
@@ -26,31 +26,14 @@ use crate::{
     workspace::WorkspaceId,
 };
 
-fn get_runtime_path() -> PathBuf {
-    #[cfg(debug_assertions)]
-    {
-        let mut path: PathBuf = std::env::current_exe().unwrap();
-        path.pop();
-        path.pop();
-        path.pop();
-        path.push("nog");
-        path.push("runtime");
-        path
-    }
-    #[cfg(not(debug_assertions))]
-    {
-        let mut path: PathBuf = dirs::data_dir().unwrap_or_default();
-        path.push("nog");
-        path.push("runtime");
-        path
-    }
-}
-
 pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
     let rt = LuaRuntime::new(tx.clone())?;
 
     rt.namespace
         .add_constant("runtime_path", get_runtime_path().to_str().unwrap())?;
+
+    rt.namespace
+        .add_constant("config_path", get_config_path().to_str().unwrap())?;
 
     rt.namespace
         .add_constant("version", option_env!("NOG_VERSION").unwrap_or("DEV"))?;
@@ -104,8 +87,27 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
     )?;
 
     rt.namespace
+        .add_function("session_save", |tx, _lua, name: Option<String>| {
+            tx.send(Event::Action(Action::SaveSession)).unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace
+        .add_function("session_load", |tx, _lua, name: Option<String>| {
+            tx.send(Event::Action(Action::LoadSession)).unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace
         .add_function("win_close", |tx, _lua, win_id: Option<WindowId>| {
             tx.send(Event::Action(Action::Window(WindowAction::Close(win_id))))
+                .unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace
+        .add_function("win_is_managed", |tx, _lua, win_id: Option<WindowId>| {
+            tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
                 .unwrap();
             Ok(())
         })?;

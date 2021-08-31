@@ -55,4 +55,13 @@ impl Workspace {
                 node_id
             })
     }
+
+    pub fn swap_in_direction(&mut self, dir: Direction) -> Option<GraphNodeId> {
+        self.focused_node_id
+            .and_then(|id| self.graph.get_window_node_in_direction(id, dir))
+            .map(|node_id| {
+                self.focused_node_id = Some(node_id);
+                node_id
+            })
+    }
 }

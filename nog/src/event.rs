@@ -46,6 +46,8 @@ pub enum WindowAction {
 
 #[derive(Debug, Clone)]
 pub enum Action {
+    SaveSession,
+    LoadSession,
     Window(WindowAction),
     Workspace(WorkspaceAction),
     UpdateConfig {
