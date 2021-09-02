@@ -5,9 +5,7 @@ pub mod namespace;
 pub mod repl;
 pub mod runtime;
 
-use std::{
-    sync::{mpsc::Sender, Arc},
-};
+use std::{sync::{Arc, RwLock, mpsc::Sender}};
 
 pub use namespace::LuaNamespace;
 pub use runtime::LuaRuntime;
@@ -15,19 +13,10 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 use std::str::FromStr;
 
-use crate::{
-    direction::Direction,
-    paths::{get_runtime_path, get_config_path},
-    event::{Action, Event, WindowAction, WorkspaceAction},
-    key_combination::KeyCombination,
-    keybinding::KeybindingMode,
-    lua::config_proxy::ConfigProxy,
-    platform::WindowId,
-    workspace::WorkspaceId,
-};
+use crate::{direction::Direction, event::{Action, Event, WindowAction, WorkspaceAction}, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, paths::{get_runtime_path, get_config_path}, platform::{NativeWindow, Window, WindowId}, window_manager::WindowManager, workspace::WorkspaceId};
 
-pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
-    let rt = LuaRuntime::new(tx.clone())?;
+pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<LuaRuntime<'a>> {
+    let rt = LuaRuntime::new(tx.clone(), wm.clone())?;
 
     rt.namespace
         .add_constant("runtime_path", get_runtime_path().to_str().unwrap())?;
@@ -40,7 +29,7 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
 
     rt.namespace.add_function(
         "bind",
-        |tx, lua, (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
+        |tx, _wm, lua, (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
             lua.set_named_registry_value(&key_combination.get_id().to_string(), cb)?;
             tx.send(Event::Action(Action::CreateKeybinding {
                 mode,
@@ -52,21 +41,21 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
     )?;
 
     rt.namespace
-        .add_function("unbind", |tx, _lua, key: String| {
+        .add_function("unbind", |tx, _wm, _lua, key: String| {
             tx.send(Event::Action(Action::RemoveKeybinding { key }))
                 .unwrap();
             Ok(())
         })?;
 
     rt.namespace
-        .add_function("update_window_layout", |tx, _lua, (): ()| {
+        .add_function("update_window_layout", |tx, _wm, _lua, (): ()| {
             tx.send(Event::RenderGraph).unwrap();
             Ok(())
         })?;
 
     rt.namespace.add_function(
         "ws_focus",
-        |tx, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
+        |tx, _wm, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
             tx.send(Event::Action(Action::Workspace(WorkspaceAction::Focus(
                 ws_id, direction,
             ))))
@@ -77,7 +66,7 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
 
     rt.namespace.add_function(
         "ws_swap",
-        |tx, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
+        |tx, _wm, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
             tx.send(Event::Action(Action::Workspace(WorkspaceAction::Swap(
                 ws_id, direction,
             ))))
@@ -87,40 +76,39 @@ pub fn init<'a>(tx: Sender<Event>) -> LuaResult<LuaRuntime<'a>> {
     )?;
 
     rt.namespace
-        .add_function("session_save", |tx, _lua, name: Option<String>| {
+        .add_function("session_save", |tx, _wm, _lua, name: Option<String>| {
             tx.send(Event::Action(Action::SaveSession)).unwrap();
             Ok(())
         })?;
 
     rt.namespace
-        .add_function("session_load", |tx, _lua, name: Option<String>| {
+        .add_function("session_load", |tx, _wm, _lua, name: Option<String>| {
             tx.send(Event::Action(Action::LoadSession)).unwrap();
             Ok(())
         })?;
 
     rt.namespace
-        .add_function("win_close", |tx, _lua, win_id: Option<WindowId>| {
+        .add_function("win_close", |tx, _wm, _lua, win_id: Option<WindowId>| {
             tx.send(Event::Action(Action::Window(WindowAction::Close(win_id))))
                 .unwrap();
             Ok(())
         })?;
 
     rt.namespace
-        .add_function("win_is_managed", |tx, _lua, win_id: Option<WindowId>| {
+        .add_function("win_is_managed", |tx, wm, _lua, win_id: Option<WindowId>| {
+            let id = win_id.unwrap_or_else(|| Window::get_foreground_window().get_id());
+            Ok(wm.read().unwrap().is_window_managed(id))
+        })?;
+
+    rt.namespace
+        .add_function("win_manage", |tx, _wm, _lua, win_id: Option<WindowId>| {
             tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
                 .unwrap();
             Ok(())
         })?;
 
     rt.namespace
-        .add_function("win_manage", |tx, _lua, win_id: Option<WindowId>| {
-            tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
-                .unwrap();
-            Ok(())
-        })?;
-
-    rt.namespace
-        .add_function("win_unmanage", |tx, _lua, win_id: Option<WindowId>| {
+        .add_function("win_unmanage", |tx, _wm, _lua, win_id: Option<WindowId>| {
             tx.send(Event::Action(Action::Window(WindowAction::Unmanage(
                 win_id,
             ))))

@@ -1,22 +1,29 @@
-use std::sync::mpsc::Sender;
+use std::sync::{mpsc::Sender, Arc, RwLock};
 
 use mlua::prelude::*;
 
-use crate::event::Event;
+use crate::{event::Event, window_manager::WindowManager};
 
 pub struct LuaNamespace<'a> {
     rt: &'a Lua,
     tx: Sender<Event>,
+    wm: Arc<RwLock<WindowManager>>,
     name: String,
     tbl: mlua::Table<'a>,
     namespaces: Vec<LuaNamespace<'a>>,
 }
 
 impl<'a> LuaNamespace<'a> {
-    pub fn new(lua: &'a Lua, tx: Sender<Event>, name: &str) -> LuaResult<Self> {
+    pub fn new(
+        lua: &'a Lua,
+        tx: Sender<Event>,
+        wm: Arc<RwLock<WindowManager>>,
+        name: &str,
+    ) -> LuaResult<Self> {
         Ok(Self {
             rt: lua,
             tx,
+            wm,
             name: name.to_string(),
             tbl: lua.create_table()?,
             namespaces: vec![],
@@ -25,15 +32,19 @@ impl<'a> LuaNamespace<'a> {
 
     pub fn add_function<F, A, FReturn>(&self, name: &str, f: F) -> LuaResult<()>
     where
-        F: Fn(&Sender<Event>, &Lua, A) -> LuaResult<FReturn> + Send + 'static,
+        FReturn: ToLuaMulti<'a>,
+        F: Fn(&Sender<Event>, &Arc<RwLock<WindowManager>>, &Lua, A) -> LuaResult<FReturn>
+            + Send
+            + 'static,
         A: FromLuaMulti<'a>,
     {
         let tx = self.tx.clone();
+        let wm = self.wm.clone();
+
         self.tbl.set(
             name,
             self.rt.create_function(move |lua, args: A| {
-                f(&tx, lua, args)?;
-                Ok(())
+                f(&tx, &wm, lua, args)
             })?,
         )
     }

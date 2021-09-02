@@ -174,7 +174,7 @@ fn main() {
 
     let (tx, rx) = channel::<Event>();
     let wm = Arc::new(RwLock::new(WindowManager::new(tx.clone())));
-    let rt = match lua::init(tx.clone()) {
+    let rt = match lua::init(tx.clone(), wm.clone()) {
         Ok(x) => x,
         Err(e) => {
             error!("{}", e);
@@ -320,16 +320,16 @@ fn main() {
 
                         if let Some(id) = maybe_id {
                             let win = Window::new(id);
-                            if workspace.has_window(win.get_id()) {
+                            if workspace.has_window(id) {
                                 info!("'{}' unmanaged", win.get_title());
 
-                                wm.unmanage(win.get_id());
+                                wm.unmanage(id);
 
                                 call_layout_function(
                                     &rt,
                                     wm.get_focused_workspace_mut(),
                                     String::from("unmanaged"),
-                                    win.get_id(),
+                                    id,
                                 );
                             }
                         }

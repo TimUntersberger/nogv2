@@ -10,7 +10,7 @@ fern = "0.6.0"
 chrono = "0.4.19"
 lazy_static = "1.4.0"
 itertools = "0.10.1"
-mlua = { version = "0.6.2", features = ["luajit", "vendored", "send", "serialize"] }
+mlua = { version = "0.6.2", features = ["luajit", "vendored", "serialize"] }
 serde = "1.0"
 nog-protocol = { path = "../nog-protocol" }
 # Only used by the lua repl

@@ -1,9 +1,14 @@
 nog.nbind("alt+ctrl+f", function()
+  print(nog.inspect(nog.win_is_managed(nil)))
   if nog.win_is_managed(nil) then
     nog.win_unmanage(nil)
   else
     nog.win_manage(nil)
   end
+end)
+
+nog.nbind("alt+F1", function()
+  nog.update_window_layout()
 end)
 
 nog.nbind("alt+h", function()

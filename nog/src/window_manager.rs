@@ -27,6 +27,10 @@ impl WindowManager {
         &self.workspaces[self.focused_workspace_id.0]
     }
 
+    pub fn is_window_managed(&self, id: WindowId) -> bool {
+        self.workspaces.iter().map(|ws| ws.has_window(id)).any(|x| x)
+    }
+
     pub fn manage(&mut self, config: &Config, win: Window) {
         let size = win.get_size();
         let pos = win.get_position();
