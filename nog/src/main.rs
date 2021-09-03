@@ -174,6 +174,12 @@ fn main() {
 
     let (tx, rx) = channel::<Event>();
     let wm = Arc::new(RwLock::new(WindowManager::new(tx.clone())));
+
+    {
+        let tx = tx.clone();
+        ctrlc::set_handler(move || tx.send(Event::Exit).unwrap());
+    }
+
     let rt = match lua::init(tx.clone(), wm.clone()) {
         Ok(x) => x,
         Err(e) => {
@@ -238,7 +244,7 @@ fn main() {
                     call_layout_function(
                         &rt,
                         wm.write().unwrap().get_focused_workspace_mut(),
-                        String::from("created"),
+                        String::from("deleted"),
                         win.get_id(),
                     );
                 }
@@ -249,7 +255,7 @@ fn main() {
                     call_layout_function(
                         &rt,
                         wm.write().unwrap().get_focused_workspace_mut(),
-                        String::from("created"),
+                        String::from("minimized"),
                         win.get_id(),
                     );
                 }
@@ -456,6 +462,12 @@ fn main() {
             },
             Event::RenderGraph => {
                 render_graph(&wm.read().unwrap().get_focused_workspace().graph);
+            },
+            Event::Exit => {
+                WindowEventLoop::stop();
+                KeybindingEventLoop::stop();
+                wm.write().unwrap().cleanup();
+                break;
             }
         }
     }

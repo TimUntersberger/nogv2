@@ -71,6 +71,7 @@ pub enum Action {
 #[derive(Debug, Clone)]
 pub enum Event {
     RenderGraph,
+    Exit,
     Window(WindowEvent<Window>),
     Keybinding(Keybinding),
     Action(Action),

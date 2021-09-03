@@ -13,6 +13,7 @@ itertools = "0.10.1"
 mlua = { version = "0.6.2", features = ["luajit", "vendored", "serialize"] }
 serde = "1.0"
 nog-protocol = { path = "../nog-protocol" }
+ctrlc = "3.2.0"
 # Only used by the lua repl
 rustyline = "8.0.0"
 dirs = "3.0.2"

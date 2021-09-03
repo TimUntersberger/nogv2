@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::mpsc::Sender};
+use std::{collections::HashMap, mem, sync::mpsc::Sender};
 
 use crate::{cleanup::WindowCleanup, config::Config, event::Event, platform::{NativeWindow, Window, WindowId}, workspace::{Workspace, WorkspaceId}};
 
@@ -58,5 +58,16 @@ impl WindowManager {
         }
 
         self.window_cleanup.remove(&win_id);
+    }
+
+    pub fn cleanup(&mut self) {
+        for (k, v) in mem::take(&mut self.window_cleanup) {
+            if let Some(f) = v.add_decorations {
+                f();
+            }
+            if let Some(f) = v.reset_transform {
+                f();
+            }
+        }
     }
 }

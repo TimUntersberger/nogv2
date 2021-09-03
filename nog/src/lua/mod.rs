@@ -53,6 +53,12 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
             Ok(())
         })?;
 
+    rt.namespace
+        .add_function("exit", |tx, _wm, _lua, (): ()| {
+            tx.send(Event::Exit).unwrap();
+            Ok(())
+        })?;
+
     rt.namespace.add_function(
         "ws_focus",
         |tx, _wm, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {
