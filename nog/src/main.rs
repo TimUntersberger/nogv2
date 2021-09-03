@@ -6,7 +6,14 @@ use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
 use platform::{Window, WindowId, WindowPosition, WindowSize};
 use server::Server;
-use std::{collections::HashMap, sync::{Arc, RwLock, mpsc::{channel, Sender}}, thread};
+use std::{
+    collections::HashMap,
+    sync::{
+        mpsc::{channel, Sender},
+        Arc, RwLock,
+    },
+    thread,
+};
 use window_event_loop::WindowEventLoop;
 use window_manager::WindowManager;
 use workspace::Workspace;
@@ -49,124 +56,6 @@ mod session;
 mod window_event_loop;
 mod window_manager;
 mod workspace;
-
-fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: WindowSize) {
-    let node = graph
-        .get_node(id)
-        .expect("Cannot render a node that doesn't exist");
-
-    match node {
-        GraphNode::Group(kind) => {
-            let children = graph.get_children(id);
-
-            if children.len() == 0 {
-                return;
-            }
-
-            match kind {
-                GraphNodeGroupKind::Row => {
-                    let col_width = size.width / children.len();
-                    let mut x = pos.x;
-                    for child_id in children {
-                        render_node(
-                            child_id,
-                            graph,
-                            WindowPosition::new(x, pos.y),
-                            WindowSize::new(col_width, size.height),
-                        );
-                        x += col_width as isize;
-                    }
-                }
-                GraphNodeGroupKind::Col => {
-                    let row_height = size.height / children.len();
-                    let mut y = pos.y;
-                    for child_id in children {
-                        render_node(
-                            child_id,
-                            graph,
-                            WindowPosition::new(pos.x, y),
-                            WindowSize::new(size.width, row_height),
-                        );
-                        y += row_height as isize;
-                    }
-                }
-            }
-        }
-        GraphNode::Window(win_id) => {
-            let win = Window::new(*win_id);
-            win.reposition(pos);
-            win.resize(size);
-        }
-    }
-}
-
-fn render_graph(graph: &Graph) {
-    // - 40 because of taskbar
-    render_node(
-        graph.root_node_id,
-        graph,
-        WindowPosition::new(0, 0),
-        WindowSize::new(1920, 1040),
-    );
-}
-
-fn print_node(depth: usize, id: GraphNodeId, graph: &Graph) {
-    let node = graph
-        .get_node(id)
-        .expect("Cannot print a node that doesn't exist");
-
-    let indent = "|   ".repeat(depth);
-
-    match node {
-        GraphNode::Group(kind) => {
-            let children = graph.get_children(id);
-
-            let tag = match kind {
-                GraphNodeGroupKind::Row => "Row",
-                GraphNodeGroupKind::Col => "Col",
-            };
-
-            println!("{}[{}]{}", indent, id, tag);
-
-            for child_id in children {
-                print_node(depth + 1, child_id, graph);
-            }
-        }
-        GraphNode::Window(win_id) => {
-            println!("{}[{}]Win({})", indent, id, win_id);
-        }
-    }
-}
-
-fn print_graph(graph: &Graph) {
-    print_node(0, graph.root_node_id, graph)
-}
-
-fn call_layout_function<TArgs>(
-    rt: &LuaRuntime,
-    workspace: &mut Workspace,
-    event: String,
-    args: TArgs,
-) -> mlua::Result<mlua::Value<'static>>
-where
-    TArgs: mlua::ToLuaMulti<'static>,
-{
-    // We need to use the scope here to make the rust type system happy.
-    // scope drops the userdata when the function has finished.
-    let res: mlua::Value = rt.rt.scope(|scope| {
-        let ud = scope.create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
-        mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?.call((ud, event, args))
-    })?;
-
-    if workspace.graph.dirty {
-        info!("Have to rerender!");
-        render_graph(&workspace.graph);
-        print_graph(&workspace.graph);
-        workspace.graph.dirty = false;
-    }
-
-    Ok(res)
-}
 
 fn main() {
     logging::init().expect("Failed to initialize logging");
@@ -226,38 +115,22 @@ fn main() {
                     if size.width >= config.min_width && size.height >= config.min_height {
                         info!("'{}' created", win.get_title());
 
-                        let mut wm = wm.write().unwrap();
-                        wm.manage(&config, win);
-
-                        call_layout_function(
-                            &rt,
-                            wm.get_focused_workspace_mut(),
-                            String::from("created"),
-                            win.get_id(),
-                        );
+                        wm.write().unwrap().manage(&rt, &config, win);
                     }
                 }
                 WindowEventKind::Deleted => {
                     let win = win_event.window;
                     info!("'{}' deleted", win.get_title());
 
-                    call_layout_function(
-                        &rt,
-                        wm.write().unwrap().get_focused_workspace_mut(),
-                        String::from("deleted"),
-                        win.get_id(),
-                    );
+                    wm.write()
+                        .unwrap()
+                        .organize(&rt, None, String::from("deleted"), win.get_id());
                 }
                 WindowEventKind::Minimized => {
                     let win = win_event.window;
                     info!("'{}' minimized", win.get_title());
 
-                    call_layout_function(
-                        &rt,
-                        wm.write().unwrap().get_focused_workspace_mut(),
-                        String::from("minimized"),
-                        win.get_id(),
-                    );
+                    wm.write().unwrap().unmanage(&rt, win.get_id());
                 }
             },
             Event::Keybinding(kb) => {
@@ -307,14 +180,7 @@ fn main() {
                         if win.exists() && !workspace.has_window(win.get_id()) {
                             info!("'{}' managed", win.get_title());
 
-                            wm.manage(&config, win);
-
-                            call_layout_function(
-                                &rt,
-                                wm.get_focused_workspace_mut(),
-                                String::from("managed"),
-                                win.get_id(),
-                            );
+                            wm.manage(&rt, &config, win);
                         }
                     }
                     WindowAction::Unmanage(maybe_id) => {
@@ -329,14 +195,7 @@ fn main() {
                             if workspace.has_window(id) {
                                 info!("'{}' unmanaged", win.get_title());
 
-                                wm.unmanage(id);
-
-                                call_layout_function(
-                                    &rt,
-                                    wm.get_focused_workspace_mut(),
-                                    String::from("unmanaged"),
-                                    id,
-                                );
+                                wm.unmanage(&rt, id);
                             }
                         }
                     }
@@ -358,16 +217,7 @@ fn main() {
                         }
                     }
                     WorkspaceAction::Swap(maybe_id, dir) => {
-                        let mut wm = wm.write().unwrap();
-                        let workspace = wm.get_focused_workspace_mut();
-                        if let Some(id) = workspace.focused_node_id {
-                            call_layout_function(
-                                &rt,
-                                workspace,
-                                String::from("swapped"),
-                                (id, dir),
-                            );
-                        }
+                        wm.write().unwrap().swap_in_direction(&rt, None, dir);
                     }
                 },
                 Action::SaveSession => {
@@ -389,10 +239,10 @@ fn main() {
                     }
 
                     for window in windows {
-                        wm.write().unwrap().manage(&config, window);
+                        wm.write().unwrap().manage(&rt, &config, window);
                     }
 
-                    render_graph(&wm.read().unwrap().get_focused_workspace().graph);
+                    wm.read().unwrap().render();
                 }
                 Action::UpdateConfig { key, update_fn } => {
                     update_fn.0(&mut config);
@@ -461,8 +311,8 @@ fn main() {
                 }
             },
             Event::RenderGraph => {
-                render_graph(&wm.read().unwrap().get_focused_workspace().graph);
-            },
+                wm.read().unwrap().render();
+            }
             Event::Exit => {
                 WindowEventLoop::stop();
                 KeybindingEventLoop::stop();

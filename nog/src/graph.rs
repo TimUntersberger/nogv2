@@ -320,3 +320,40 @@ impl Graph {
         self.dirty = true;
     }
 }
+
+fn node_to_string(depth: usize, id: GraphNodeId, graph: &Graph) -> Vec<String> {
+    let node = graph
+        .get_node(id)
+        .expect("Cannot print a node that doesn't exist");
+
+    let indent = "|   ".repeat(depth);
+
+    match node {
+        GraphNode::Group(kind) => {
+            let children = graph.get_children(id);
+
+            let tag = match kind {
+                GraphNodeGroupKind::Row => "Row",
+                GraphNodeGroupKind::Col => "Col",
+            };
+
+            let mut s = vec![format!("{}[{}]{}", indent, id, tag)];
+
+            for child_id in children {
+                s.append(&mut node_to_string(depth + 1, child_id, graph));
+            }
+
+            s
+        }
+        GraphNode::Window(win_id) => {
+            vec![format!("{}[{}]Win({})", indent, id, win_id)]
+        }
+    }
+}
+
+
+impl std::fmt::Display for Graph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", node_to_string(0, self.root_node_id, self).join("\n"))
+    }
+}

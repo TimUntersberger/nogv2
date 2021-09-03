@@ -1,6 +1,23 @@
 use std::{collections::HashMap, mem, sync::mpsc::Sender};
 
-use crate::{cleanup::WindowCleanup, config::Config, event::Event, platform::{NativeWindow, Window, WindowId}, workspace::{Workspace, WorkspaceId}};
+use log::info;
+use mlua::FromLua;
+
+use crate::{
+    cleanup::WindowCleanup,
+    config::Config,
+    direction::Direction,
+    event::Event,
+    graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId},
+    lua::{graph_proxy::GraphProxy, LuaRuntime},
+    platform::{NativeWindow, Window, WindowId, WindowPosition, WindowSize},
+    workspace::{Workspace, WorkspaceId},
+};
+
+pub enum WindowManagerError {
+    LayoutFunctionError(String),
+}
+pub type WindowManagerResult<T = ()> = Result<T, WindowManagerError>;
 
 pub struct WindowManager {
     tx: Sender<Event>,
@@ -28,10 +45,13 @@ impl WindowManager {
     }
 
     pub fn is_window_managed(&self, id: WindowId) -> bool {
-        self.workspaces.iter().map(|ws| ws.has_window(id)).any(|x| x)
+        self.workspaces
+            .iter()
+            .map(|ws| ws.has_window(id))
+            .any(|x| x)
     }
 
-    pub fn manage(&mut self, config: &Config, win: Window) {
+    pub fn manage(&mut self, rt: &LuaRuntime, config: &Config, win: Window) {
         let size = win.get_size();
         let pos = win.get_position();
         let cleanup = self.window_cleanup.entry(win.get_id()).or_default();
@@ -44,9 +64,61 @@ impl WindowManager {
         if config.remove_decorations {
             cleanup.add_decorations = Some(win.remove_decorations())
         }
+
+        self.organize(&rt, None, String::from("managed"), win.get_id());
     }
 
-    pub fn unmanage(&mut self, win_id: WindowId) {
+    pub fn swap_in_direction(
+        &mut self,
+        rt: &LuaRuntime,
+        maybe_id: Option<WindowId>,
+        dir: Direction,
+    ) {
+        let id = maybe_id.or_else(|| {
+            self.get_focused_workspace()
+                .get_focused_node()
+                .and_then(|node| node.try_get_window_id())
+        });
+
+        if let Some(id) = id {
+            self.organize(rt, None, String::from("swapped"), (id, dir));
+        }
+    }
+
+    /// Only renders the visible workspaces
+    pub fn render(&self) {
+        self.get_focused_workspace().render();
+    }
+
+    pub fn organize<TArgs: mlua::ToLuaMulti<'static>>(
+        &mut self,
+        rt: &LuaRuntime,
+        maybe_workspace: Option<&mut Workspace>,
+        reason: String,
+        args: TArgs,
+    ) -> WindowManagerResult {
+        let workspace = maybe_workspace.unwrap_or_else(|| self.get_focused_workspace_mut());
+        // We need to use the scope here to make the rust type system happy.
+        // scope drops the userdata when the function has finished.
+        rt.rt
+            .scope(|scope| {
+                let ud = scope.create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
+                mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
+                    .call((ud, reason, args))
+            })
+            .map_err(|e| WindowManagerError::LayoutFunctionError(e.to_string()))?;
+
+        if workspace.graph.dirty {
+            info!("Have to rerender!");
+            workspace.render();
+            println!("{}", &workspace.graph);
+            workspace.graph.dirty = false;
+        }
+
+        Ok(())
+    }
+
+    pub fn unmanage(&mut self, rt: &LuaRuntime, win_id: WindowId) {
         if let Some(cleanup) = self.window_cleanup.get(&win_id) {
             if let Some(f) = cleanup.add_decorations.as_ref() {
                 f();
@@ -56,6 +128,8 @@ impl WindowManager {
                 f();
             }
         }
+
+        self.organize(&rt, None, String::from("unmanaged"), win_id);
 
         self.window_cleanup.remove(&win_id);
     }
