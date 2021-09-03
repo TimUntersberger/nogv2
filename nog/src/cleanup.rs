@@ -5,3 +5,12 @@ pub struct WindowCleanup {
     /// only change the size or position and not the other one.
     pub reset_transform: Option<Box<dyn Fn() -> ()>>,
 }
+
+#[derive(Default)]
+pub struct WorkspaceCleanup {
+}
+
+#[derive(Default)]
+pub struct DisplayCleanup {
+    pub show_taskbar: Option<Box<dyn Fn() -> ()>>,
+}

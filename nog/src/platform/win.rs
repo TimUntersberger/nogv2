@@ -1,18 +1,21 @@
 use std::ffi::c_void;
-use std::mem;
+use std::{mem, ptr};
 
-use super::{NativeWindow, Rect, WindowId, WindowPosition, WindowSize};
+use crate::config::Config;
+
+use super::{NativeApi, NativeDisplay, NativeWindow, Rect, WindowId, Position, Size};
 use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, GWL_STYLE, WS_CAPTION,
-    WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
-    WS_SYSMENU, WS_THICKFRAME,
+    GetForegroundWindow, GetWindowLongW, SetWindowLongW, ShowWindow, SystemParametersInfoW,
+    GWL_EXSTYLE, GWL_STYLE, SPI_SETWORKAREA, SW_HIDE, SW_SHOW, WS_CAPTION, WS_EX_CLIENTEDGE,
+    WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU,
+    WS_THICKFRAME,
 };
 use winapi::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
-        GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindow, PostMessageW,
+        FindWindowW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindow, PostMessageW,
         SetForegroundWindow, SetWindowPos, SWP_NOMOVE, SWP_NOSIZE, WM_CLOSE,
     },
 };
@@ -32,7 +35,7 @@ impl From<WindowId> for HWND {
     }
 }
 
-impl From<RECT> for WindowSize {
+impl From<RECT> for Size {
     fn from(rect: RECT) -> Self {
         Self {
             width: (rect.right - rect.left) as usize,
@@ -41,7 +44,7 @@ impl From<RECT> for WindowSize {
     }
 }
 
-impl From<RECT> for WindowPosition {
+impl From<RECT> for Position {
     fn from(rect: RECT) -> Self {
         Self {
             x: rect.left as isize,
@@ -71,12 +74,12 @@ const HWND_NOTOPMOST: isize = -2;
 
 impl Window {
     /// This function returns the size of the window INCLUDING the extend window frame
-    pub fn get_full_size(&self) -> WindowSize {
+    pub fn get_full_size(&self) -> Size {
         unsafe {
             let mut rect = RECT::default();
             GetWindowRect(self.0, &mut rect);
 
-            WindowSize::from(rect)
+            Size::from(rect)
         }
     }
 
@@ -98,7 +101,7 @@ impl Window {
     }
 
     /// This function returns the size of the window EXCLUDING the extend window frame
-    pub fn get_window_size(&self) -> WindowSize {
+    pub fn get_window_size(&self) -> Size {
         unsafe {
             let mut rect = RECT::default();
             DwmGetWindowAttribute(
@@ -107,7 +110,7 @@ impl Window {
                 &mut rect as *mut RECT as *mut c_void,
                 mem::size_of::<RECT>() as u32,
             );
-            WindowSize::from(rect)
+            Size::from(rect)
         }
     }
 }
@@ -115,10 +118,6 @@ impl Window {
 impl NativeWindow for Window {
     fn new(id: WindowId) -> Self {
         Self(id.into())
-    }
-
-    fn get_foreground_window() -> Self {
-        unsafe { Window::from_hwnd(GetForegroundWindow()) }
     }
 
     fn focus(&self) {
@@ -162,7 +161,7 @@ impl NativeWindow for Window {
         }
     }
 
-    fn resize(&self, mut size: WindowSize) {
+    fn resize(&self, mut size: Size) {
         let frame_rect = self.get_extended_window_frame();
         size.width = (size.width as isize + frame_rect.right - frame_rect.left) as usize;
         size.height = (size.height as isize + frame_rect.bottom - frame_rect.top) as usize;
@@ -180,7 +179,7 @@ impl NativeWindow for Window {
         }
     }
 
-    fn reposition(&self, mut pos: WindowPosition) {
+    fn reposition(&self, mut pos: Position) {
         let frame_rect = self.get_extended_window_frame();
         pos.x += frame_rect.left;
         pos.y += frame_rect.top;
@@ -213,16 +212,91 @@ impl NativeWindow for Window {
         }
     }
 
-    fn get_size(&self) -> WindowSize {
+    fn get_size(&self) -> Size {
         self.get_window_size()
     }
 
-    fn get_position(&self) -> WindowPosition {
+    fn get_position(&self) -> Position {
         unsafe {
             let mut rect = RECT::default();
             GetWindowRect(self.0, &mut rect);
 
-            WindowPosition::from(rect)
+            Position::from(rect)
+        }
+    }
+}
+
+pub struct Api;
+
+impl NativeApi for Api {
+    type Window = Window;
+    type Display = Display;
+
+    fn get_foreground_window() -> Self::Window {
+        unsafe { Window::from_hwnd(GetForegroundWindow()) }
+    }
+
+    fn get_displays() -> Vec<Self::Display> {
+        vec![Display::new(true)]
+    }
+}
+
+pub struct Display {
+    primary: bool,
+    taskbar_hwnd: HWND,
+}
+
+impl Display {
+    pub fn new(primary: bool) -> Self {
+        let taskbar_hwnd = unsafe {
+            FindWindowW(
+                PWSTR(
+                    "Shell_TrayWnd"
+                        .encode_utf16()
+                        .collect::<Vec<_>>()
+                        .as_mut_ptr(),
+                ),
+                PWSTR(ptr::null_mut()),
+            )
+        };
+
+        assert!(taskbar_hwnd.0 != 0, "The taskbar of some display couldn't be found!");
+
+
+        Self {
+            primary,
+            taskbar_hwnd,
+        }
+    }
+}
+
+impl NativeDisplay for Display {
+    fn get_id() -> String {
+        todo!()
+    }
+
+    fn get_size(&self, config: &Config) -> Size {
+        unsafe {
+            let win = Window::from_hwnd(self.taskbar_hwnd);
+            let mut size = Size::new(1920, 1080);
+
+            if !config.remove_task_bar {
+                size.height -= win.get_size().height;
+            }
+
+            size
+        }
+    }
+
+    fn hide_taskbar(&self) {
+        unsafe {
+            ShowWindow(self.taskbar_hwnd, SW_HIDE);
+        }
+    }
+
+    fn show_taskbar(&self) {
+        unsafe {
+            ShowWindow(self.taskbar_hwnd, SW_SHOW);
         }
     }
 }

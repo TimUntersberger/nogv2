@@ -4,7 +4,7 @@ use keybinding_event_loop::KeybindingEventLoop;
 use log::{error, info};
 use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
-use platform::{Window, WindowId, WindowPosition, WindowSize};
+use platform::{Position, Size, Window, WindowId};
 use server::Server;
 use std::{
     collections::HashMap,
@@ -19,10 +19,10 @@ use window_manager::WindowManager;
 use workspace::Workspace;
 
 use crate::{
-    cleanup::WindowCleanup,
+    cleanup::{DisplayCleanup, WindowCleanup},
     config::Config,
     graph::{Graph, GraphNode, GraphNodeGroupKind},
-    platform::NativeWindow,
+    platform::{Api, Display, NativeApi, NativeDisplay, NativeWindow},
     window_event_loop::WindowEventKind,
 };
 
@@ -63,6 +63,7 @@ fn main() {
 
     let (tx, rx) = channel::<Event>();
     let wm = Arc::new(RwLock::new(WindowManager::new(tx.clone())));
+    let displays = Api::get_displays();
 
     {
         let tx = tx.clone();
@@ -83,6 +84,10 @@ fn main() {
     }
 
     let mut config = Config::default();
+
+    if config.remove_task_bar {
+        tx.send(Event::Action(Action::HideTaskbars)).unwrap();
+    }
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
@@ -115,22 +120,29 @@ fn main() {
                     if size.width >= config.min_width && size.height >= config.min_height {
                         info!("'{}' created", win.get_title());
 
-                        wm.write().unwrap().manage(&rt, &config, win);
+                        wm.write().unwrap().manage(&rt, &config, &displays[0], win);
                     }
                 }
                 WindowEventKind::Deleted => {
                     let win = win_event.window;
                     info!("'{}' deleted", win.get_title());
 
-                    wm.write()
-                        .unwrap()
-                        .organize(&rt, &config, None, String::from("deleted"), win.get_id());
+                    wm.write().unwrap().organize(
+                        &rt,
+                        &config,
+                        &displays[0],
+                        None,
+                        String::from("deleted"),
+                        win.get_id(),
+                    );
                 }
                 WindowEventKind::Minimized => {
                     let win = win_event.window;
                     info!("'{}' minimized", win.get_title());
 
-                    wm.write().unwrap().unmanage(&rt, &config, win.get_id());
+                    wm.write()
+                        .unwrap()
+                        .unmanage(&rt, &config, &displays[0], win.get_id());
                 }
             },
             Event::Keybinding(kb) => {
@@ -175,12 +187,12 @@ fn main() {
                         let workspace = wm.get_focused_workspace_mut();
                         let win = maybe_id
                             .map(|id| Window::new(id))
-                            .unwrap_or_else(|| Window::get_foreground_window());
+                            .unwrap_or_else(|| Api::get_foreground_window());
 
                         if win.exists() && !workspace.has_window(win.get_id()) {
                             info!("'{}' managed", win.get_title());
 
-                            wm.manage(&rt, &config, win);
+                            wm.manage(&rt, &config, &displays[0], win);
                         }
                     }
                     WindowAction::Unmanage(maybe_id) => {
@@ -195,7 +207,7 @@ fn main() {
                             if workspace.has_window(id) {
                                 info!("'{}' unmanaged", win.get_title());
 
-                                wm.unmanage(&rt, &config, id);
+                                wm.unmanage(&rt, &config, &displays[0], id);
                             }
                         }
                     }
@@ -217,7 +229,13 @@ fn main() {
                         }
                     }
                     WorkspaceAction::Swap(maybe_id, dir) => {
-                        wm.write().unwrap().swap_in_direction(&rt, &config, None, dir);
+                        wm.write().unwrap().swap_in_direction(
+                            &rt,
+                            &config,
+                            &displays[0],
+                            None,
+                            dir,
+                        );
                     }
                 },
                 Action::SaveSession => {
@@ -239,10 +257,24 @@ fn main() {
                     }
 
                     for window in windows {
-                        wm.write().unwrap().manage(&rt, &config, window);
+                        wm.write()
+                            .unwrap()
+                            .manage(&rt, &config, &displays[0], window);
                     }
 
-                    wm.read().unwrap().render(&config,);
+                    wm.read()
+                        .unwrap()
+                        .render(&config, displays[0].get_size(&config));
+                }
+                Action::ShowTaskbars => {
+                    for display in &displays {
+                        display.show_taskbar();
+                    }
+                }
+                Action::HideTaskbars => {
+                    for display in &displays {
+                        display.hide_taskbar();
+                    }
                 }
                 Action::UpdateConfig { key, update_fn } => {
                     update_fn.0(&mut config);
@@ -311,12 +343,18 @@ fn main() {
                 }
             },
             Event::RenderGraph => {
-                wm.read().unwrap().render(&config);
+                wm.read().unwrap().render(&config, displays[0].get_size(&config));
             }
             Event::Exit => {
+                for display in &displays {
+                    display.show_taskbar();
+                }
+
                 WindowEventLoop::stop();
                 KeybindingEventLoop::stop();
+
                 wm.write().unwrap().cleanup();
+
                 break;
             }
         }

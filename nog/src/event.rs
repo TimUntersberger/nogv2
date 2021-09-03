@@ -48,6 +48,8 @@ pub enum WindowAction {
 pub enum Action {
     SaveSession,
     LoadSession,
+    ShowTaskbars,
+    HideTaskbars,
     Window(WindowAction),
     Workspace(WorkspaceAction),
     UpdateConfig {

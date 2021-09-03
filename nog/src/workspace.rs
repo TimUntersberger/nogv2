@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::direction::Direction;
 use crate::event::{Action, Event, WindowAction};
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
-use crate::platform::{NativeWindow, Window, WindowId, WindowPosition, WindowSize};
+use crate::platform::{NativeWindow, Window, WindowId, Position, Size};
 use std::sync::mpsc::Sender;
 
 #[derive(Clone, Debug)]
@@ -37,13 +37,8 @@ impl Workspace {
         self.graph.get_window_node(id).is_some()
     }
 
-    pub fn render(&self, config: &Config) {
-        let mut pos = WindowPosition::new(0, 0);
-        let mut size = WindowSize::new(1920, 1080);
-
-        // if !config.remove_task_bar {
-        size.height -= 40;
-        // }
+    pub fn render(&self, config: &Config, mut size: Size) {
+        let mut pos = Position::new(0, 0);
 
         pos.x += config.outer_gap as isize;
         pos.y += config.outer_gap as isize;
@@ -88,8 +83,8 @@ fn render_node(
     id: GraphNodeId,
     graph: &Graph,
     config: &Config,
-    mut pos: WindowPosition,
-    mut size: WindowSize,
+    mut pos: Position,
+    mut size: Size,
 ) {
     let node = graph
         .get_node(id)
@@ -112,8 +107,8 @@ fn render_node(
                             child_id,
                             graph,
                             config,
-                            WindowPosition::new(x, pos.y),
-                            WindowSize::new(col_width, size.height),
+                            Position::new(x, pos.y),
+                            Size::new(col_width, size.height),
                         );
                         x += col_width as isize;
                     }
@@ -126,8 +121,8 @@ fn render_node(
                             child_id,
                             graph,
                             config,
-                            WindowPosition::new(pos.x, y),
-                            WindowSize::new(size.width, row_height),
+                            Position::new(pos.x, y),
+                            Size::new(size.width, row_height),
                         );
                         y += row_height as isize;
                     }

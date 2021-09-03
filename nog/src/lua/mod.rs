@@ -5,7 +5,7 @@ pub mod namespace;
 pub mod repl;
 pub mod runtime;
 
-use std::{sync::{Arc, RwLock, mpsc::Sender}};
+use std::sync::{mpsc::Sender, Arc, RwLock};
 
 pub use namespace::LuaNamespace;
 pub use runtime::LuaRuntime;
@@ -13,7 +13,17 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 use std::str::FromStr;
 
-use crate::{direction::Direction, event::{Action, Event, WindowAction, WorkspaceAction}, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, paths::{get_runtime_path, get_config_path}, platform::{NativeWindow, Window, WindowId}, window_manager::WindowManager, workspace::WorkspaceId};
+use crate::{
+    direction::Direction,
+    event::{Action, Event, WindowAction, WorkspaceAction},
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    lua::config_proxy::ConfigProxy,
+    paths::{get_config_path, get_runtime_path},
+    platform::{Api, NativeApi, NativeWindow, WindowId},
+    window_manager::WindowManager,
+    workspace::WorkspaceId,
+};
 
 pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<LuaRuntime<'a>> {
     let rt = LuaRuntime::new(tx.clone(), wm.clone())?;
@@ -29,7 +39,10 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
 
     rt.namespace.add_function(
         "bind",
-        |tx, _wm, lua, (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
+        |tx,
+         _wm,
+         lua,
+         (mode, key_combination, cb): (KeybindingMode, KeyCombination, mlua::Function)| {
             lua.set_named_registry_value(&key_combination.get_id().to_string(), cb)?;
             tx.send(Event::Action(Action::CreateKeybinding {
                 mode,
@@ -53,11 +66,10 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
             Ok(())
         })?;
 
-    rt.namespace
-        .add_function("exit", |tx, _wm, _lua, (): ()| {
-            tx.send(Event::Exit).unwrap();
-            Ok(())
-        })?;
+    rt.namespace.add_function("exit", |tx, _wm, _lua, (): ()| {
+        tx.send(Event::Exit).unwrap();
+        Ok(())
+    })?;
 
     rt.namespace.add_function(
         "ws_focus",
@@ -100,11 +112,13 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
             Ok(())
         })?;
 
-    rt.namespace
-        .add_function("win_is_managed", |tx, wm, _lua, win_id: Option<WindowId>| {
-            let id = win_id.unwrap_or_else(|| Window::get_foreground_window().get_id());
+    rt.namespace.add_function(
+        "win_is_managed",
+        |tx, wm, _lua, win_id: Option<WindowId>| {
+            let id = win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
             Ok(wm.read().unwrap().is_window_managed(id))
-        })?;
+        },
+    )?;
 
     rt.namespace
         .add_function("win_manage", |tx, _wm, _lua, win_id: Option<WindowId>| {
