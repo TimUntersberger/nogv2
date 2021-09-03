@@ -65,12 +65,13 @@ impl WindowManager {
             cleanup.add_decorations = Some(win.remove_decorations())
         }
 
-        self.organize(&rt, None, String::from("managed"), win.get_id());
+        self.organize(&rt, config, None, String::from("managed"), win.get_id());
     }
 
     pub fn swap_in_direction(
         &mut self,
         rt: &LuaRuntime,
+        config: &Config,
         maybe_id: Option<WindowId>,
         dir: Direction,
     ) {
@@ -81,18 +82,19 @@ impl WindowManager {
         });
 
         if let Some(id) = id {
-            self.organize(rt, None, String::from("swapped"), (id, dir));
+            self.organize(rt, config, None, String::from("swapped"), (id, dir));
         }
     }
 
     /// Only renders the visible workspaces
-    pub fn render(&self) {
-        self.get_focused_workspace().render();
+    pub fn render(&self, config: &Config) {
+        self.get_focused_workspace().render(&config);
     }
 
     pub fn organize<TArgs: mlua::ToLuaMulti<'static>>(
         &mut self,
         rt: &LuaRuntime,
+        config: &Config,
         maybe_workspace: Option<&mut Workspace>,
         reason: String,
         args: TArgs,
@@ -110,7 +112,7 @@ impl WindowManager {
 
         if workspace.graph.dirty {
             info!("Have to rerender!");
-            workspace.render();
+            workspace.render(&config);
             println!("{}", &workspace.graph);
             workspace.graph.dirty = false;
         }
@@ -118,7 +120,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn unmanage(&mut self, rt: &LuaRuntime, win_id: WindowId) {
+    pub fn unmanage(&mut self, rt: &LuaRuntime, config: &Config, win_id: WindowId) {
         if let Some(cleanup) = self.window_cleanup.get(&win_id) {
             if let Some(f) = cleanup.add_decorations.as_ref() {
                 f();
@@ -129,7 +131,7 @@ impl WindowManager {
             }
         }
 
-        self.organize(&rt, None, String::from("unmanaged"), win_id);
+        self.organize(&rt, config, None, String::from("unmanaged"), win_id);
 
         self.window_cleanup.remove(&win_id);
     }

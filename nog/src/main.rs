@@ -124,13 +124,13 @@ fn main() {
 
                     wm.write()
                         .unwrap()
-                        .organize(&rt, None, String::from("deleted"), win.get_id());
+                        .organize(&rt, &config, None, String::from("deleted"), win.get_id());
                 }
                 WindowEventKind::Minimized => {
                     let win = win_event.window;
                     info!("'{}' minimized", win.get_title());
 
-                    wm.write().unwrap().unmanage(&rt, win.get_id());
+                    wm.write().unwrap().unmanage(&rt, &config, win.get_id());
                 }
             },
             Event::Keybinding(kb) => {
@@ -195,7 +195,7 @@ fn main() {
                             if workspace.has_window(id) {
                                 info!("'{}' unmanaged", win.get_title());
 
-                                wm.unmanage(&rt, id);
+                                wm.unmanage(&rt, &config, id);
                             }
                         }
                     }
@@ -217,7 +217,7 @@ fn main() {
                         }
                     }
                     WorkspaceAction::Swap(maybe_id, dir) => {
-                        wm.write().unwrap().swap_in_direction(&rt, None, dir);
+                        wm.write().unwrap().swap_in_direction(&rt, &config, None, dir);
                     }
                 },
                 Action::SaveSession => {
@@ -242,7 +242,7 @@ fn main() {
                         wm.write().unwrap().manage(&rt, &config, window);
                     }
 
-                    wm.read().unwrap().render();
+                    wm.read().unwrap().render(&config,);
                 }
                 Action::UpdateConfig { key, update_fn } => {
                     update_fn.0(&mut config);
@@ -311,7 +311,7 @@ fn main() {
                 }
             },
             Event::RenderGraph => {
-                wm.read().unwrap().render();
+                wm.read().unwrap().render(&config);
             }
             Event::Exit => {
                 WindowEventLoop::stop();

@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::direction::Direction;
 use crate::event::{Action, Event, WindowAction};
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
@@ -36,13 +37,21 @@ impl Workspace {
         self.graph.get_window_node(id).is_some()
     }
 
-    pub fn render(&self) {
-        render_node(
-            self.graph.root_node_id,
-            &self.graph,
-            WindowPosition::new(0, 0),
-            WindowSize::new(1920, 1040),
-        );
+    pub fn render(&self, config: &Config) {
+        let mut pos = WindowPosition::new(0, 0);
+        let mut size = WindowSize::new(1920, 1080);
+
+        // if !config.remove_task_bar {
+        size.height -= 40;
+        // }
+
+        pos.x += config.outer_gap as isize;
+        pos.y += config.outer_gap as isize;
+
+        size.width -= config.outer_gap as usize * 2;
+        size.height -= config.outer_gap as usize * 2;
+
+        render_node(self.graph.root_node_id, &self.graph, config, pos, size);
     }
 
     pub fn focus_window(&mut self, id: WindowId) -> WorkspaceResult {
@@ -75,7 +84,13 @@ impl Workspace {
     }
 }
 
-fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: WindowSize) {
+fn render_node(
+    id: GraphNodeId,
+    graph: &Graph,
+    config: &Config,
+    mut pos: WindowPosition,
+    mut size: WindowSize,
+) {
     let node = graph
         .get_node(id)
         .expect("Cannot render a node that doesn't exist");
@@ -96,6 +111,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: Window
                         render_node(
                             child_id,
                             graph,
+                            config,
                             WindowPosition::new(x, pos.y),
                             WindowSize::new(col_width, size.height),
                         );
@@ -109,6 +125,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: Window
                         render_node(
                             child_id,
                             graph,
+                            config,
                             WindowPosition::new(pos.x, y),
                             WindowSize::new(size.width, row_height),
                         );
@@ -118,6 +135,11 @@ fn render_node(id: GraphNodeId, graph: &Graph, pos: WindowPosition, size: Window
             }
         }
         GraphNode::Window(win_id) => {
+            pos.x += config.inner_gap as isize;
+            pos.y += config.inner_gap as isize;
+            size.width -= config.inner_gap as usize * 2;
+            size.height -= config.inner_gap as usize * 2;
+
             let win = Window::new(*win_id);
             win.reposition(pos);
             win.resize(size);
