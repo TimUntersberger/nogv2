@@ -43,9 +43,8 @@ impl<'a> LuaNamespace<'a> {
 
         self.tbl.set(
             name,
-            self.rt.create_function(move |lua, args: A| {
-                f(&tx, &wm, lua, args)
-            })?,
+            self.rt
+                .create_function(move |lua, args: A| f(&tx, &wm, lua, args))?,
         )
     }
 

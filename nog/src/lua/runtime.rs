@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::{Arc, RwLock, mpsc::Sender}};
+use std::{
+    collections::HashMap,
+    sync::{mpsc::Sender, Arc, RwLock},
+};
 
 use crate::{event::Event, window_manager::WindowManager};
 
@@ -9,7 +12,7 @@ pub struct LuaRuntime<'a> {
     pub rt: &'static Lua,
     pub namespace: LuaNamespace<'a>,
     tx: Sender<Event>,
-    wm: Arc<RwLock<WindowManager>>
+    wm: Arc<RwLock<WindowManager>>,
 }
 
 impl<'a> LuaRuntime<'a> {
@@ -20,7 +23,7 @@ impl<'a> LuaRuntime<'a> {
             rt,
             namespace: LuaNamespace::new(&rt, tx.clone(), wm.clone(), "nog")?,
             tx,
-            wm
+            wm,
         })
     }
 

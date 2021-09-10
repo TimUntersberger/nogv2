@@ -112,6 +112,17 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
         },
     )?;
 
+    rt.namespace
+        .add_function("ws_get_all", |_tx, wm, _lua, (): ()| {
+            Ok(wm
+                .read()
+                .unwrap()
+                .workspaces
+                .iter()
+                .map(|w| w.id)
+                .collect::<Vec<_>>())
+        })?;
+
     rt.namespace.add_function(
         "ws_swap",
         |tx, _wm, _lua, (ws_id, direction): (Option<WorkspaceId>, Direction)| {

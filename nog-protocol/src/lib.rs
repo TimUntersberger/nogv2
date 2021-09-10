@@ -1,10 +1,10 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BarItemAlignment {
     Left,
     Center,
-    Right
+    Right,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -12,13 +12,13 @@ pub struct BarItem {
     pub alignment: BarItemAlignment,
     pub fg: [f32; 3],
     pub bg: [f32; 3],
-    pub text: String
+    pub text: String,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct BarContent {
     pub bg: [f32; 3],
-    pub items: Vec<BarItem>
+    pub items: Vec<BarItem>,
 }
 
 #[derive(Debug)]

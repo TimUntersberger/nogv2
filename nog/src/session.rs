@@ -40,7 +40,7 @@ use crate::event::Event;
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
 use crate::paths::get_config_path;
 use crate::platform::WindowId;
-use crate::workspace::Workspace;
+use crate::workspace::{Workspace, WorkspaceId};
 
 use itertools::Itertools;
 
@@ -77,7 +77,7 @@ pub fn save_session(workspaces: &Vec<Workspace>) {
                 .filter(|s| !s.is_empty())
                 .join("\n\n");
 
-            format!("@workspace\n{}\n@endworkspace", sections)
+            format!("@workspace {}\n{}\n@endworkspace", workspace.id.0, sections)
         })
         .join("\n");
 
@@ -111,7 +111,8 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
     while i < lines.len() {
         let line = lines[i];
 
-        if line == "@workspace" {
+        if let Some(rest) = line.strip_prefix("@workspace") {
+            let id = WorkspaceId(rest.trim().parse::<usize>().ok()?);
             let mut graph = Graph {
                 max_id: 0,
                 dirty: false,
@@ -147,7 +148,7 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
 
             i += 1;
 
-            while i < lines.len() && lines[i] != "@endworkspace"  {
+            while i < lines.len() && lines[i] != "@endworkspace" {
                 let line = lines[i];
                 let parts = line.split(":").collect::<Vec<&str>>();
 
@@ -159,7 +160,7 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
                 i += 1;
             }
 
-            let mut workspace = Workspace::new(tx.clone());
+            let mut workspace = Workspace::new(id, tx.clone());
             workspace.graph = graph;
             workspaces.push(workspace);
         }

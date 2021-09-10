@@ -351,9 +351,12 @@ fn node_to_string(depth: usize, id: GraphNodeId, graph: &Graph) -> Vec<String> {
     }
 }
 
-
 impl std::fmt::Display for Graph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", node_to_string(0, self.root_node_id, self).join("\n"))
+        write!(
+            f,
+            "{}",
+            node_to_string(0, self.root_node_id, self).join("\n")
+        )
     }
 }

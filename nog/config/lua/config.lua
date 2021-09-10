@@ -66,7 +66,13 @@ end)
 nog.bar_set_layout {
   left = {
     function()
-      return tostring(os.time())
+      return nog.tbl_map(nog.ws_get_all(), function(id)
+        return { 
+          string.format(" %d ", id),
+          fg = "3f3f3f",
+          bg = "ffffff",
+        }
+      end)
     end
   }
 }

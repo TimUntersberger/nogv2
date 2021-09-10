@@ -32,7 +32,8 @@ impl Client {
     pub fn reconnect(&mut self) -> io::Result<()> {
         self.stream = TcpStream::connect(self.addr.clone())?;
         self.stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-        self.stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+        self.stream
+            .set_write_timeout(Some(Duration::from_secs(2)))?;
 
         Ok(())
     }

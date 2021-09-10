@@ -7,8 +7,7 @@ pub struct WindowCleanup {
 }
 
 #[derive(Default)]
-pub struct WorkspaceCleanup {
-}
+pub struct WorkspaceCleanup {}
 
 #[derive(Default)]
 pub struct DisplayCleanup {

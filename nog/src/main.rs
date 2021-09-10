@@ -40,6 +40,7 @@ pub trait EventLoop {
 }
 
 mod cleanup;
+mod color;
 mod config;
 mod direction;
 mod event;
@@ -58,6 +59,50 @@ mod session;
 mod window_event_loop;
 mod window_manager;
 mod workspace;
+
+fn lua_value_to_bar_item<'a>(
+    lua: &mlua::Lua,
+    align: BarItemAlignment,
+    value: mlua::Value<'a>,
+    default_fg: [f32; 3],
+    default_bg: [f32; 3],
+) -> mlua::Result<BarItem> {
+    Ok(match value {
+        tbl @ mlua::Value::Table(..) => {
+            let tbl = mlua::Table::from_lua(tbl, lua).unwrap();
+            let text = String::from_lua(tbl.get(1).unwrap_or(mlua::Value::Nil), lua).unwrap();
+            let fg = tbl
+                .get::<&str, String>("fg")
+                .map(|x| i32::from_str_radix(&x, 16).unwrap())
+                .map(color::hex_to_rgb)
+                .unwrap_or(default_fg);
+            let bg = tbl
+                .get::<&str, String>("bg")
+                .map(|x| i32::from_str_radix(&x, 16).unwrap())
+                .map(color::hex_to_rgb)
+                .unwrap_or(default_bg);
+            BarItem {
+                text,
+                alignment: align,
+                fg,
+                bg,
+            }
+        }
+        value => {
+            let text = lua
+                .coerce_string(value)?
+                .map(|s| s.to_str().unwrap().to_string())
+                .unwrap_or(String::from("nil"));
+
+            BarItem {
+                text,
+                alignment: align,
+                fg: default_fg,
+                bg: default_bg,
+            }
+        }
+    })
+}
 
 fn main() {
     logging::init().expect("Failed to initialize logging");
@@ -166,25 +211,44 @@ fn main() {
                             let mut result = Vec::new();
                             $(
                                 //TODO: proper error handling instead of expecting values
-                                for item in rt
+                                for value in rt
                                     .rt
                                     .named_registry_value::<str, mlua::Table>($s)
                                     .expect(&format!("Registry value of {} bar layout section missing", $s))
                                     .sequence_values()
-                                    .map(|v| {
-                                        let text = mlua::Function::from_lua(v.unwrap(), &rt.rt)
+                                    .map(|v| mlua::Function::from_lua(v.unwrap(), &rt.rt)
                                             .expect("Has to be a function")
-                                            .call::<(), String>(())
-                                            .expect("Cannot error");
+                                            .call::<(), mlua::Value>(())
+                                            .expect("Cannot error")
 
-                                        BarItem {
-                                            text,
-                                            alignment: BarItemAlignment::$ident,
-                                            fg: [1.0, 1.0, 1.0],
-                                            bg: [0.0, 0.0, 0.0]
-                                        }
-                                    }) {
-                                        result.push(item);
+                                    ) {
+                                        match value {
+                                            tbl @ mlua::Value::Table(..) => {
+                                                let tbl = mlua::Table::from_lua(tbl, rt.rt).unwrap();
+                                                for value in tbl.sequence_values() {
+                                                    result.push(
+                                                        lua_value_to_bar_item(
+                                                            &rt.rt,
+                                                            BarItemAlignment::$ident,
+                                                            value.unwrap(),
+                                                            [1.0, 1.0, 1.0],
+                                                            [0.0, 0.0, 0.0]
+                                                        ).unwrap()
+                                                    );
+                                                }
+                                            },
+                                            value => {
+                                                result.push(
+                                                    lua_value_to_bar_item(
+                                                        &rt.rt,
+                                                        BarItemAlignment::$ident,
+                                                        value,
+                                                        [1.0, 1.0, 1.0],
+                                                        [0.0, 0.0, 0.0]
+                                                    ).unwrap()
+                                                );
+                                            }
+                                        };
                                     }
                             )*
                             result
@@ -197,6 +261,8 @@ fn main() {
                     (Center, "center"),
                     (Right, "right")
                 };
+
+                dbg!(&items);
 
                 *bar_content.write().unwrap() = BarContent {
                     bg: [0.0, 0.0, 0.0],
@@ -419,6 +485,4 @@ fn main() {
             }
         }
     }
-
-    drop(bar_content_timer);
 }

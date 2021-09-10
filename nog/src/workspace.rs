@@ -2,13 +2,14 @@ use crate::config::Config;
 use crate::direction::Direction;
 use crate::event::{Action, Event, WindowAction};
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
-use crate::platform::{NativeWindow, Window, WindowId, Position, Size};
+use crate::platform::{NativeWindow, Position, Size, Window, WindowId};
 use std::sync::mpsc::Sender;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct WorkspaceId(pub usize);
 
 pub struct Workspace {
+    pub id: WorkspaceId,
     pub graph: Graph,
     pub focused_node_id: Option<GraphNodeId>,
     tx: Sender<Event>,
@@ -21,8 +22,9 @@ pub enum WorkspaceError {
 pub type WorkspaceResult<T = ()> = Result<T, WorkspaceError>;
 
 impl Workspace {
-    pub fn new(tx: Sender<Event>) -> Self {
+    pub fn new(id: WorkspaceId, tx: Sender<Event>) -> Self {
         Self {
+            id,
             graph: Graph::new(),
             focused_node_id: None,
             tx,
@@ -79,13 +81,7 @@ impl Workspace {
     }
 }
 
-fn render_node(
-    id: GraphNodeId,
-    graph: &Graph,
-    config: &Config,
-    mut pos: Position,
-    mut size: Size,
-) {
+fn render_node(id: GraphNodeId, graph: &Graph, config: &Config, mut pos: Position, mut size: Size) {
     let node = graph
         .get_node(id)
         .expect("Cannot render a node that doesn't exist");

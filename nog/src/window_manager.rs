@@ -30,7 +30,7 @@ pub struct WindowManager {
 impl WindowManager {
     pub fn new(tx: Sender<Event>) -> Self {
         Self {
-            workspaces: vec![Workspace::new(tx.clone())],
+            workspaces: vec![Workspace::new(WorkspaceId(1), tx.clone())],
             focused_workspace_id: WorkspaceId(0),
             window_cleanup: HashMap::new(),
             workspace_cleanup: HashMap::new(),

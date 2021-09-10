@@ -3,7 +3,7 @@ use std::{mem, ptr};
 
 use crate::config::Config;
 
-use super::{NativeApi, NativeDisplay, NativeWindow, Rect, WindowId, Position, Size};
+use super::{NativeApi, NativeDisplay, NativeWindow, Position, Rect, Size, WindowId};
 use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{
@@ -260,8 +260,10 @@ impl Display {
             )
         };
 
-        assert!(taskbar_hwnd.0 != 0, "The taskbar of some display couldn't be found!");
-
+        assert!(
+            taskbar_hwnd.0 != 0,
+            "The taskbar of some display couldn't be found!"
+        );
 
         Self {
             primary,

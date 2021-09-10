@@ -20,8 +20,7 @@ pub trait NativeDisplay {
     // fn get_name() -> String;
 }
 
-pub trait NativeApi
-{
+pub trait NativeApi {
     type Window: NativeWindow;
     type Display: NativeDisplay;
 

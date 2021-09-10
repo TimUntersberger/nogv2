@@ -27,6 +27,14 @@ function nog.tbl_filter(tbl, f)
   return res
 end
 
+function nog.tbl_map(tbl, f)
+  local res = {}
+  for _, x in ipairs(tbl) do
+    table.insert(res, f(x))
+  end
+  return res
+end
+
 function nog.split(s, sep)
   if sep == nil then
     sep = "%s"
