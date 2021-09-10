@@ -1,29 +1,34 @@
 use crate::event::{Action, Event, ExecuteLuaActionFn};
 use log::error;
-use nog_protocol::Message;
+use nog_protocol::{BarContent, BarItem, BarItemAlignment, Message};
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    sync::mpsc::{sync_channel, Sender},
+    sync::{
+        mpsc::{sync_channel, Sender},
+        Arc, RwLock,
+    },
 };
 
 pub struct Server {
     tx: Sender<Event>,
+    bar_content: Arc<RwLock<BarContent>>,
     host: String,
     port: u32,
 }
 
 impl Server {
-    pub fn new(tx: Sender<Event>) -> Self {
+    pub fn new(tx: Sender<Event>, bar_content: Arc<RwLock<BarContent>>) -> Self {
         Self {
             tx,
+            bar_content,
             host: "localhost".into(),
             port: 8080,
         }
     }
-    pub fn spawn(tx: Sender<Event>) {
+    pub fn spawn(tx: Sender<Event>, bar_content: Arc<RwLock<BarContent>>) {
         std::thread::spawn(move || {
-            let server = Server::new(tx);
+            let server = Server::new(tx, bar_content);
             server.start();
         });
     }
@@ -34,8 +39,9 @@ impl Server {
         for stream in listener.incoming() {
             if let Ok(stream) = stream {
                 let tx = self.tx.clone();
+                let bar_content = self.bar_content.clone();
                 std::thread::spawn(move || {
-                    if let Err(_e) = handle_client(stream, tx) {
+                    if let Err(_e) = handle_client(stream, tx, bar_content) {
                         // error!("{:?}", e);
                     }
                 });
@@ -44,7 +50,11 @@ impl Server {
     }
 }
 
-fn handle_client(mut stream: TcpStream, tx: Sender<Event>) -> std::io::Result<()> {
+fn handle_client(
+    mut stream: TcpStream,
+    tx: Sender<Event>,
+    bar_content: Arc<RwLock<BarContent>>,
+) -> std::io::Result<()> {
     loop {
         let mut header_buffer = [0u8; 2];
         stream.read_exact(&mut header_buffer)?;
@@ -58,6 +68,8 @@ fn handle_client(mut stream: TcpStream, tx: Sender<Event>) -> std::io::Result<()
 
         if let Ok(msg) = Message::deserialize(&msg) {
             let response = match msg {
+                Message::GetBarContent => serde_json::to_string(&*bar_content.read().unwrap())
+                    .expect("Serde failed to serialize the bar content"),
                 Message::ExecuteLua { code } => {
                     let (result_tx, result_rx) = sync_channel(1);
 

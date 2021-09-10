@@ -62,3 +62,11 @@ end)
 nog.nbind("alt+q", function()
   nog.win_close(nil)
 end)
+
+nog.bar_set_layout {
+  left = {
+    function()
+      return tostring(os.time())
+    end
+  }
+}

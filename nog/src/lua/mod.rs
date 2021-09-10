@@ -25,6 +25,27 @@ use crate::{
     workspace::WorkspaceId,
 };
 
+struct BarLayout<'a> {
+    left: mlua::Table<'a>,
+    center: mlua::Table<'a>,
+    right: mlua::Table<'a>,
+}
+
+impl<'lua> FromLua<'lua> for BarLayout<'lua> {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        let tbl = mlua::Table::from_lua(lua_value, lua)?;
+        let left = tbl.get("left").or_else(|_| lua.create_table())?;
+        let center = tbl.get("center").or_else(|_| lua.create_table())?;
+        let right = tbl.get("right").or_else(|_| lua.create_table())?;
+
+        Ok(BarLayout {
+            left,
+            center,
+            right,
+        })
+    }
+}
+
 pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<LuaRuntime<'a>> {
     let rt = LuaRuntime::new(tx.clone(), wm.clone())?;
 
@@ -63,6 +84,15 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
     rt.namespace
         .add_function("update_window_layout", |tx, _wm, _lua, (): ()| {
             tx.send(Event::RenderGraph).unwrap();
+            Ok(())
+        })?;
+
+    rt.namespace
+        .add_function("bar_set_layout", |tx, _wm, lua, layout: BarLayout| {
+            lua.set_named_registry_value("left", layout.left)?;
+            lua.set_named_registry_value("center", layout.center)?;
+            lua.set_named_registry_value("right", layout.right)?;
+            tx.send(Event::RenderBarLayout).unwrap();
             Ok(())
         })?;
 

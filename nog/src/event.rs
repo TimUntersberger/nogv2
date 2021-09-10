@@ -74,6 +74,7 @@ pub enum Action {
 pub enum Event {
     RenderGraph,
     Exit,
+    RenderBarLayout,
     Window(WindowEvent<Window>),
     Keybinding(Keybinding),
     Action(Action),

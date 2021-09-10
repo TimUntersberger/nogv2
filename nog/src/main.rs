@@ -1,9 +1,11 @@
+use chrono::Duration;
 use event::{Action, Event, WindowAction, WorkspaceAction};
 use graph::GraphNodeId;
 use keybinding_event_loop::KeybindingEventLoop;
 use log::{error, info};
 use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
+use nog_protocol::{BarContent, BarItem, BarItemAlignment};
 use platform::{Position, Size, Window, WindowId};
 use server::Server;
 use std::{
@@ -64,6 +66,18 @@ fn main() {
     let (tx, rx) = channel::<Event>();
     let wm = Arc::new(RwLock::new(WindowManager::new(tx.clone())));
     let displays = Api::get_displays();
+    let bar_content = Arc::new(RwLock::new(BarContent::default()));
+
+    let bar_content_timer = {
+        let timer = timer::Timer::new();
+        let tx = tx.clone();
+        (
+            timer.schedule_repeating(Duration::milliseconds(100), move || {
+                tx.send(Event::RenderBarLayout).unwrap();
+            }),
+            timer,
+        )
+    };
 
     {
         let tx = tx.clone();
@@ -92,7 +106,7 @@ fn main() {
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
 
-    Server::spawn(tx.clone());
+    Server::spawn(tx.clone(), bar_content.clone());
     info!("IPC Server started");
 
     WindowEventLoop::spawn(tx.clone());
@@ -145,6 +159,50 @@ fn main() {
                         .unmanage(&rt, &config, &displays[0], win.get_id());
                 }
             },
+            Event::RenderBarLayout => {
+                macro_rules! convert_sections {
+                    {$(($ident:ident, $s:expr)),*} => {
+                        {
+                            let mut result = Vec::new();
+                            $(
+                                //TODO: proper error handling instead of expecting values
+                                for item in rt
+                                    .rt
+                                    .named_registry_value::<str, mlua::Table>($s)
+                                    .expect(&format!("Registry value of {} bar layout section missing", $s))
+                                    .sequence_values()
+                                    .map(|v| {
+                                        let text = mlua::Function::from_lua(v.unwrap(), &rt.rt)
+                                            .expect("Has to be a function")
+                                            .call::<(), String>(())
+                                            .expect("Cannot error");
+
+                                        BarItem {
+                                            text,
+                                            alignment: BarItemAlignment::$ident,
+                                            fg: [1.0, 1.0, 1.0],
+                                            bg: [0.0, 0.0, 0.0]
+                                        }
+                                    }) {
+                                        result.push(item);
+                                    }
+                            )*
+                            result
+                        }
+                    }
+                }
+
+                let items = convert_sections! {
+                    (Left, "left"),
+                    (Center, "center"),
+                    (Right, "right")
+                };
+
+                *bar_content.write().unwrap() = BarContent {
+                    bg: [0.0, 0.0, 0.0],
+                    items,
+                };
+            }
             Event::Keybinding(kb) => {
                 info!("Received keybinding {}", kb.to_string());
 
@@ -343,7 +401,9 @@ fn main() {
                 }
             },
             Event::RenderGraph => {
-                wm.read().unwrap().render(&config, displays[0].get_size(&config));
+                wm.read()
+                    .unwrap()
+                    .render(&config, displays[0].get_size(&config));
             }
             Event::Exit => {
                 for display in &displays {
@@ -359,4 +419,6 @@ fn main() {
             }
         }
     }
+
+    drop(bar_content_timer);
 }

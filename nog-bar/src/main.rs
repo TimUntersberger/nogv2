@@ -1,24 +1,13 @@
+use std::time::Duration;
+
 use iced::{Application, Color, Command, Container, Row, Text};
+use nog_client::{BarItem, BarItemAlignment, Client};
 
 #[derive(Debug)]
-enum Alignment {
-    Left,
-    Center,
-    Right,
-}
-
-#[derive(Debug)]
-struct Item {
-    text: String,
-    fg: Color,
-    bg: Color,
-    alignment: Alignment,
-}
-
-#[derive(Default, Debug)]
 struct AppState {
+    client: Client,
     bg: Color,
-    items: Vec<Item>,
+    items: Vec<BarItem>,
 }
 
 struct App {
@@ -46,10 +35,17 @@ impl Application for App {
 
     fn update(
         &mut self,
-        message: Self::Message,
-        clipboard: &mut iced::Clipboard,
+        _message: Self::Message,
+        _clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
-        todo!()
+        let bar_content = self.state.client.get_bar_content().unwrap();
+        self.state.bg = bar_content.bg.into();
+        self.state.items = bar_content.items;
+        Command::none()
+    }
+
+    fn subscription(&self) -> iced::Subscription<Self::Message> {
+        iced::time::every(Duration::from_millis(10)).map(|_| ())
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
@@ -59,14 +55,14 @@ impl Application for App {
 
         for item in &self.state.items {
             let new_item = Container::new(Text::new(&item.text)).style(Style {
-                fg: item.fg,
-                bg: item.bg,
+                fg: item.fg.into(),
+                bg: item.bg.into(),
             });
 
             match item.alignment {
-                Alignment::Left => left_items = left_items.push(new_item),
-                Alignment::Center => center_items = center_items.push(new_item),
-                Alignment::Right => right_items = right_items.push(new_item),
+                BarItemAlignment::Left => left_items = left_items.push(new_item),
+                BarItemAlignment::Center => center_items = center_items.push(new_item),
+                BarItemAlignment::Right => right_items = right_items.push(new_item),
             };
         }
 
@@ -97,6 +93,8 @@ impl Application for App {
 }
 
 fn main() {
+    let mut client = Client::connect("localhost:8080".into()).unwrap();
+    let bar_content = client.get_bar_content().unwrap();
     let settings = iced::Settings {
         window: iced::window::Settings {
             always_on_top: true,
@@ -106,53 +104,15 @@ fn main() {
             ..Default::default()
         },
         flags: AppState {
-            bg: Color::BLACK,
-            items: vec![
-                Item {
-                    alignment: Alignment::Left,
-                    text: String::from(" 1 "),
-                    fg: Color::WHITE,
-                    bg: Color::from_rgb(0.247, 0.247, 0.247),
-                },
-                Item {
-                    alignment: Alignment::Left,
-                    text: String::from(" 2 "),
-                    fg: Color::WHITE,
-                    bg: Color::from_rgb(0.247, 0.247, 0.247),
-                },
-                Item {
-                    alignment: Alignment::Left,
-                    text: String::from(" 3 "),
-                    fg: Color::WHITE,
-                    bg: Color::from_rgb(0.247, 0.247, 0.247),
-                },
-                Item {
-                    alignment: Alignment::Left,
-                    text: String::from(" "),
-                    fg: Color::WHITE,
-                    bg: Color::BLACK,
-                },
-                Item {
-                    alignment: Alignment::Left,
-                    text: String::from("test"),
-                    fg: Color::WHITE,
-                    bg: Color::BLACK,
-                },
-                Item {
-                    alignment: Alignment::Center,
-                    text: String::from("center"),
-                    fg: Color::WHITE,
-                    bg: Color::BLACK,
-                },
-                Item {
-                    alignment: Alignment::Right,
-                    text: String::from("right"),
-                    fg: Color::WHITE,
-                    bg: Color::BLACK,
-                },
-            ],
+            client,
+            bg: bar_content.bg.into(),
+            items: bar_content.items,
         },
-        ..Default::default()
+        default_font: None,
+        default_text_size: 20,
+        text_multithreading: false,
+        antialiasing: true,
+        exit_on_close_request: true,
     };
 
     App::run(settings);

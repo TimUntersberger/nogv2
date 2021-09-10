@@ -2,6 +2,7 @@
 members = [
   "nog", 
   "nog-cli", 
+  "nog-client", 
   "nog-bar", 
   "nog-menu",
   "nog-protocol"
