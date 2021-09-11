@@ -8,6 +8,7 @@ end
 nog.execute_runtime_file("util.lua")
 
 nog.uv = require 'luv'
+nog.components = nog.execute_runtime_file("components/init.lua")
 nog.inspect = nog.execute_runtime_file("inspect.lua")
 nog.layout = nog.execute_runtime_file("layouts/master_slave.lua")
 
@@ -85,38 +86,6 @@ nog.execute_runtime_file("keybindings.lua")
 -- nog.wbind_tbl = create_bind_tbl_fn("w")
 
 -- nog.components = {}
--- nog.components.workspaces = function()
---   return {
---     name = "Workspaces",
---     render = function(display_id)
---       local c = nog.config
---       local ws_ids = nog.get_active_ws_of_display(display_id)
---       local result = {}
---       local factor
-
---       for _, ws_id in ipairs(ws_ids) do
---         if c.light_theme then
---           factor = nog.is_ws_focused(ws_id) and 0.75 or 0.9
---         else
---           factor = nog.is_ws_focused(ws_id) and 2.0 or 1.5
---         end
-
---         local bg = nog.scale_color(c.bar.color, factor)
-
---         table.insert(result, {
---           text = nog.get_ws_text(ws_id),
---           value = ws_id,
---           bg = bg
---         })
---       end
-
---       return result
---     end,
---     on_click = function(display_id, payload)
---       nog.ws_change(payload)
---     end
---   }
--- end
 
 -- nog.components.datetime = function(format)
 --   return {

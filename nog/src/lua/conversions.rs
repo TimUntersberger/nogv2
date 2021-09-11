@@ -3,6 +3,7 @@ use crate::key_combination::KeyCombination;
 use crate::keybinding::KeybindingMode;
 use crate::platform::WindowId;
 use crate::workspace::WorkspaceId;
+use crate::display::DisplayId;
 use mlua::prelude::*;
 use std::str::FromStr;
 
@@ -63,6 +64,18 @@ impl<'lua> ToLua<'lua> for WorkspaceId {
 impl<'lua> FromLua<'lua> for WorkspaceId {
     fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         Ok(WorkspaceId(usize::from_lua(lua_value, lua)?))
+    }
+}
+
+impl<'lua> ToLua<'lua> for DisplayId {
+    fn to_lua(self, _lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        Ok(mlua::Value::Number(self.0 as f64))
+    }
+}
+
+impl<'lua> FromLua<'lua> for DisplayId {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        Ok(DisplayId(usize::from_lua(lua_value, lua)?))
     }
 }
 

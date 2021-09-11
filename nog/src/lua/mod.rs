@@ -22,6 +22,7 @@ use crate::{
     paths::{get_config_path, get_runtime_path},
     platform::{Api, NativeApi, NativeWindow, WindowId},
     window_manager::WindowManager,
+    display::DisplayId,
     workspace::WorkspaceId,
 };
 
@@ -219,6 +220,15 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
                 win_id,
             ))))
             .unwrap();
+
+            Ok(())
+        };
+
+        fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {
+            inject wm;
+
+            todo!()
+            //wm.read().unwrap().display_id = 
 
             Ok(())
         };

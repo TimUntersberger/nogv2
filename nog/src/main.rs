@@ -7,6 +7,7 @@ use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
 use nog_protocol::{BarContent, BarItem, BarItemAlignment};
 use platform::{Position, Size, Window, WindowId};
+use rgb::RGB;
 use server::Server;
 use std::{
     collections::HashMap,
@@ -40,7 +41,6 @@ pub trait EventLoop {
 }
 
 mod cleanup;
-mod color;
 mod config;
 mod direction;
 mod event;
@@ -53,7 +53,9 @@ mod logging;
 mod lua;
 mod modifiers;
 mod paths;
+mod display;
 mod platform;
+mod rgb;
 mod server;
 mod session;
 mod window_event_loop;
@@ -64,28 +66,21 @@ fn lua_value_to_bar_item<'a>(
     lua: &mlua::Lua,
     align: BarItemAlignment,
     value: mlua::Value<'a>,
-    default_fg: [f32; 3],
-    default_bg: [f32; 3],
+    default_fg: RGB,
+    default_bg: RGB,
 ) -> mlua::Result<BarItem> {
     Ok(match value {
         tbl @ mlua::Value::Table(..) => {
             let tbl = mlua::Table::from_lua(tbl, lua).unwrap();
             let text = String::from_lua(tbl.get(1).unwrap_or(mlua::Value::Nil), lua).unwrap();
-            let fg = tbl
-                .get::<&str, String>("fg")
-                .map(|x| i32::from_str_radix(&x, 16).unwrap())
-                .map(color::hex_to_rgb)
-                .unwrap_or(default_fg);
-            let bg = tbl
-                .get::<&str, String>("bg")
-                .map(|x| i32::from_str_radix(&x, 16).unwrap())
-                .map(color::hex_to_rgb)
-                .unwrap_or(default_bg);
+            let fg = tbl.get::<&str, i32>("fg").map(RGB::from_hex).unwrap_or(default_fg);
+            let bg = tbl.get::<&str, i32>("bg").map(RGB::from_hex).unwrap_or(default_bg);
+
             BarItem {
                 text,
                 alignment: align,
-                fg,
-                bg,
+                fg: fg.0,
+                bg: fg.0,
             }
         }
         value => {
@@ -97,8 +92,8 @@ fn lua_value_to_bar_item<'a>(
             BarItem {
                 text,
                 alignment: align,
-                fg: default_fg,
-                bg: default_bg,
+                fg: default_fg.0,
+                bg: default_bg.0,
             }
         }
     })
@@ -205,6 +200,9 @@ fn main() {
                 }
             },
             Event::RenderBarLayout => {
+                let default_fg = RGB([1.0, 1.0, 1.0]);
+                let default_bg = RGB([0.0, 0.0, 0.0]);
+
                 macro_rules! convert_sections {
                     {$(($ident:ident, $s:expr)),*} => {
                         {
@@ -231,8 +229,8 @@ fn main() {
                                                             &rt.rt,
                                                             BarItemAlignment::$ident,
                                                             value.unwrap(),
-                                                            [1.0, 1.0, 1.0],
-                                                            [0.0, 0.0, 0.0]
+                                                            default_fg,
+                                                            default_bg
                                                         ).unwrap()
                                                     );
                                                 }
@@ -243,8 +241,8 @@ fn main() {
                                                         &rt.rt,
                                                         BarItemAlignment::$ident,
                                                         value,
-                                                        [1.0, 1.0, 1.0],
-                                                        [0.0, 0.0, 0.0]
+                                                        default_fg,
+                                                        default_bg
                                                     ).unwrap()
                                                 );
                                             }
