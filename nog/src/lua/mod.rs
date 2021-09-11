@@ -15,7 +15,8 @@ use std::str::FromStr;
 
 use crate::{
     direction::Direction,
-    event::{Action, Event, WindowAction, WorkspaceAction},
+    action::{Action, WindowAction, WorkspaceAction}, 
+    event::Event, 
     key_combination::KeyCombination,
     keybinding::KeybindingMode,
     lua::config_proxy::ConfigProxy,
@@ -227,7 +228,7 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
         fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {
             inject wm;
 
-            todo!()
+            todo!();
             //wm.read().unwrap().display_id = 
 
             Ok(())

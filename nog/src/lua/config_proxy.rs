@@ -2,7 +2,8 @@ use std::sync::mpsc::Sender;
 
 use crate::{
     config::Config,
-    event::{Action, Event, UpdateConfigActionFn},
+    event::Event,
+    action::{Action, UpdateConfigActionFn},
 };
 use mlua::prelude::*;
 

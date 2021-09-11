@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::direction::Direction;
-use crate::event::{Action, Event, WindowAction};
+use crate::event::Event;
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
 use crate::platform::{NativeWindow, Position, Size, Window, WindowId};
 use std::sync::mpsc::Sender;

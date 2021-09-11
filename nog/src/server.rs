@@ -1,4 +1,5 @@
-use crate::event::{Action, Event, ExecuteLuaActionFn};
+use crate::{action::Action, event::Event};
+use crate::action::ExecuteLuaActionFn;
 use log::error;
 use nog_protocol::{BarContent, BarItem, BarItemAlignment, Message};
 use std::{
