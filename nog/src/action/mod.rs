@@ -1,6 +1,18 @@
 use std::sync::Arc;
 
-use crate::{config::Config, key_combination::KeyCombination, keybinding::KeybindingMode};
+use crate::{
+    config::Config,
+    event::Event,
+    graph::GraphNode,
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    keybinding_event_loop::KeybindingEventLoop,
+    platform::{Api, NativeApi, NativeWindow, NativeDisplay, Window},
+    session,
+    state::State,
+};
+use log::info;
+use mlua::FromLua;
 pub use window::WindowAction;
 pub use workspace::WorkspaceAction;
 
@@ -56,6 +68,183 @@ pub enum Action {
 }
 
 impl Action {
-    pub fn handle(&self) {
+    pub fn handle(self, state: &State) {
+        match self {
+            Action::Window(action) => match action {
+                WindowAction::Focus(win_id) => {
+                    let win = Window::new(win_id);
+                    win.focus();
+                }
+                WindowAction::Close(maybe_win_id) => {
+                    let win_id =
+                        maybe_win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
+
+                    Window::new(win_id).close();
+                }
+                WindowAction::Manage(maybe_id) => {
+                    let win = maybe_id
+                        .map(|id| Window::new(id))
+                        .unwrap_or_else(|| Api::get_foreground_window());
+
+                    state.with_focused_wm_mut(|wm| {
+                        let workspace = wm.get_focused_workspace_mut();
+
+                        if win.exists() && !workspace.has_window(win.get_id()) {
+                            info!("'{}' managed", win.get_title());
+
+                            wm.manage(&state.rt, &state.config.read(), win);
+                        }
+                    });
+                }
+                WindowAction::Unmanage(maybe_id) => state.with_focused_wm_mut(|wm| {
+                    let workspace = wm.get_focused_workspace();
+                    let maybe_id = maybe_id.or(workspace
+                        .get_focused_node()
+                        .and_then(|x| x.try_get_window_id()));
+
+                    if let Some(id) = maybe_id {
+                        let win = Window::new(id);
+                        if workspace.has_window(id) {
+                            info!("'{}' unmanaged", win.get_title());
+
+                            wm.unmanage(&state.rt, &state.config.read(), id);
+                        }
+                    }
+                }),
+            },
+            Action::Workspace(action) => match action {
+                WorkspaceAction::Focus(maybe_id, dir) => state.with_focused_wm_mut(|wm| {
+                    let workspace = wm.get_focused_workspace_mut();
+                    if let Some(id) = workspace.focus_in_direction(dir) {
+                        let win_id = workspace
+                            .graph
+                            .get_node(id)
+                            .expect("The returned node has to exist")
+                            .try_get_window_id()
+                            .expect("The focused node has to be a window node");
+
+                        state
+                            .tx
+                            .send(Event::Action(Action::Window(WindowAction::Focus(win_id))))
+                            .unwrap();
+                    }
+                }),
+                WorkspaceAction::Swap(maybe_id, dir) => state.with_focused_wm_mut(|wm| {
+                    wm.swap_in_direction(&state.rt, &state.config.read(), None, dir);
+                }),
+            },
+            Action::SaveSession => {
+                session::save_session(&state.wms.read()[0].read().workspaces);
+                info!("Saved session!");
+            }
+            Action::LoadSession => state.with_focused_wm_mut(|wm| {
+                wm.workspaces = session::load_session(state.tx.clone()).unwrap();
+                info!("Loaded session!");
+
+                let mut windows = Vec::new();
+
+                for ws in &wm.workspaces {
+                    for node in ws.graph.nodes.values() {
+                        if let GraphNode::Window(win_id) = node {
+                            windows.push(Window::new(*win_id));
+                        }
+                    }
+                }
+
+                for window in windows {
+                    wm.manage(&state.rt, &state.config.read(), window);
+                }
+
+                wm.render(&state.config.read());
+            }),
+            Action::ShowTaskbars => {
+                let wms = state.wms.read();
+
+                for wm in wms.iter() {
+                    let mut wm = wm.write();
+                    wm.display.show_taskbar();
+                    wm.cleanup();
+                }
+            }
+            Action::HideTaskbars => {
+                let wms = state.wms.read();
+
+                for wm in wms.iter() {
+                    let mut wm = wm.write();
+                    wm.display.hide_taskbar();
+                    wm.cleanup();
+                }
+            }
+            Action::UpdateConfig { key, update_fn } => {
+                update_fn.0(&mut state.config.write());
+                info!("Updated config property: {:#?}", key);
+            }
+            Action::ExecuteLua {
+                code,
+                capture_stdout,
+                cb,
+            } => {
+                if capture_stdout {
+                    state
+                        .rt
+                        .eval(
+                            r#"
+                            _G.__stdout_buf = ""
+                            _G.__old_print = print
+                            _G.print = function(...)
+                                if _G.__stdout_buf ~= "" then
+                                    _G.__stdout_buf = _G.__stdout_buf .. "\n"
+                                end
+                                local outputs = {}
+                                for _,x in ipairs({...}) do
+                                    table.insert(outputs, tostring(x))
+                                end
+                                local output = table.concat(outputs, "\t")
+                                _G.__stdout_buf = _G.__stdout_buf .. output
+                            end
+                                    "#,
+                        )
+                        .unwrap();
+
+                    let code_res = state.rt.eval(&code);
+
+                    let stdout_buf =
+                        String::from_lua(state.rt.eval("_G.__stdout_buf").unwrap(), state.rt.rt)
+                            .unwrap();
+
+                    cb.0(code_res.map(move |x| {
+                        if stdout_buf.is_empty() {
+                            format!("{:?}", x)
+                        } else {
+                            format!("{}\n{:?}", stdout_buf, x)
+                        }
+                    }));
+
+                    state
+                        .rt
+                        .eval(
+                            r#"
+                            _G.print = _G.__old_print
+                            _G.__stdout_buf = nil
+                            _G.__old_print = nil
+                                    "#,
+                        )
+                        .unwrap();
+                } else {
+                    cb.0(state.rt.eval(&code).map(|x| format!("{:?}", x)));
+                }
+            }
+            Action::CreateKeybinding {
+                mode,
+                key_combination,
+            } => {
+                KeybindingEventLoop::add_keybinding(key_combination.get_id());
+                info!("Created {:?} keybinding: {}", mode, key_combination);
+            }
+            Action::RemoveKeybinding { key } => {
+                // KeybindingEventLoop::remove_keybinding(key_combination.get_id());
+                info!("Removed keybinding: {}", key);
+            }
+        }
     }
 }

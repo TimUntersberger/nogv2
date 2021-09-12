@@ -30,7 +30,7 @@ pub struct State {
     pub bar_content: ThreadSafe<BarContent>,
     pub bar_content_timer: (timer::Guard, timer::Timer),
     pub rt: LuaRuntime<'static>,
-    pub config: Config,
+    pub config: ThreadSafe<Config>,
 }
 
 impl State {
@@ -53,11 +53,18 @@ impl State {
             tx,
             rx,
             wms,
-            bar_content: Default::default(),
             bar_content_timer,
             rt,
-            config: Config::default(),
+            bar_content: Default::default(),
+            config: Default::default(),
         })
+    }
+
+    pub fn win_is_managed(&self, win_id: WindowId) -> bool {
+        self.wms
+            .read()
+            .iter()
+            .any(|wm| wm.read().has_window(win_id))
     }
 
     /// Doesn't call the function if no wm has the window
@@ -68,13 +75,12 @@ impl State {
     ) -> Option<T> {
         self.wms
             .read()
-            .unwrap()
             .iter()
-            .find(|wm| wm.read().unwrap().has_window(win_id))
-            .map(|wm| f(&mut wm.write().unwrap()))
+            .find(|wm| wm.read().has_window(win_id))
+            .map(|wm| f(&mut wm.write()))
     }
 
     pub fn with_focused_wm_mut<T>(&self, f: impl Fn(&mut WindowManager) -> T) -> T {
-        f(&mut self.wms.read().unwrap()[0].write().unwrap())
+        f(&mut self.wms.read()[0].write())
     }
 }

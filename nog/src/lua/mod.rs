@@ -1,3 +1,7 @@
+//TODO: The only dependency we really need is a immutable reference to State.
+//
+//Maybe removing the inject stuff might be nice now?
+//  Initial thought: yes
 pub mod config_proxy;
 pub mod conversions;
 pub mod graph_proxy;
@@ -155,10 +159,10 @@ pub fn init<'a>(tx: Sender<Event>, wms: ThreadSafeWindowManagers) -> LuaResult<L
 
             let mut workspaces = vec![];
 
-            for wm in wms.read().unwrap().iter() {
+            for wm in wms.read().iter() {
                 let ws_ids = wm
                     .read()
-                    .unwrap()
+                    
                     .workspaces
                     .iter()
                     .map(|w| w.id)
@@ -212,9 +216,9 @@ pub fn init<'a>(tx: Sender<Event>, wms: ThreadSafeWindowManagers) -> LuaResult<L
             inject wms;
 
             let id = win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
-            let wms = wms.read().unwrap();
+            let wms = wms.read();
 
-            Ok(wms.iter().any(|wm| wm.read().unwrap().has_window(id)))
+            Ok(wms.iter().any(|wm| wm.read().has_window(id)))
         };
 
         fn win_is_managed(win_id: Option<WindowId>) {

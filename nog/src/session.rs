@@ -31,6 +31,8 @@
 //! `1:2`
 //! `3:2`
 //! `4:3`
+//!
+//! TODO: support serializing/deserializing multiple displays
 
 use std::collections::HashMap;
 use std::fs;

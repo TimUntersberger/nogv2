@@ -22,14 +22,7 @@ use window_event_loop::WindowEventLoop;
 use window_manager::WindowManager;
 use workspace::Workspace;
 
-use crate::{
-    cleanup::{DisplayCleanup, WindowCleanup},
-    config::Config,
-    graph::{Graph, GraphNode, GraphNodeGroupKind},
-    platform::{Api, Display, NativeApi, NativeDisplay, NativeWindow},
-    state::State,
-    window_event_loop::WindowEventKind,
-};
+use crate::{cleanup::{DisplayCleanup, WindowCleanup}, config::Config, graph::{Graph, GraphNode, GraphNodeGroupKind}, platform::{Api, Display, NativeApi, NativeDisplay, NativeWindow}, state::State, thread_safe::ThreadSafe, window_event_loop::WindowEventKind};
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -116,6 +109,10 @@ fn main() {
     info!("Initialized logging");
 
     let state = State::new().unwrap();
+    state
+        .wms
+        .write()
+        .push(ThreadSafe::new(WindowManager::new(state.tx.clone(), Display::new(true))));
 
     // Only really used in development to make sure everything is cleaned up
     let tx = state.tx.clone();
@@ -129,7 +126,7 @@ fn main() {
         error!("config error: {}", e);
     }
 
-    if state.config.remove_task_bar {
+    if state.config.read().remove_task_bar {
         state.tx.send(Event::Action(Action::HideTaskbars)).unwrap();
     }
 
@@ -163,10 +160,12 @@ fn main() {
                     let win = win_event.window;
                     let size = win.get_size();
 
-                    if size.width >= state.config.min_width && size.height >= state.config.min_height {
+                    if size.width >= state.config.read().min_width
+                        && size.height >= state.config.read().min_height
+                    {
                         info!("'{}' created", win.get_title());
                         state.with_focused_wm_mut(|wm| {
-                            wm.manage(&state.rt, &state.config, win);
+                            wm.manage(&state.rt, &state.config.read(), win);
                         });
                     }
                 }
@@ -175,7 +174,7 @@ fn main() {
                     state.with_wm_containing_win_mut(win_id, |wm| {
                         wm.organize(
                             &state.rt,
-                            &state.config,
+                            &state.config.read(),
                             None,
                             String::from("deleted"),
                             win_id,
@@ -186,15 +185,14 @@ fn main() {
                     let win_id = win_event.window.get_id();
 
                     state.with_wm_containing_win_mut(win_id, |wm| {
-                        wm.unmanage(&state.rt, &state.config, win_id);
+                        wm.unmanage(&state.rt, &state.config.read(), win_id);
                         info!("'{}' minimized", win_event.window.get_title());
                     });
-
                 }
             },
             Event::RenderBarLayout => {
-                let default_fg = state.config.get_text_color();
-                let default_bg = state.config.color;
+                let default_fg = state.config.read().get_text_color();
+                let default_bg = state.config.read().color;
 
                 macro_rules! convert_sections {
                     {$(($ident:ident, $s:expr)),*} => {
@@ -253,8 +251,8 @@ fn main() {
                     (Right, "right")
                 };
 
-                *state.bar_content.write().unwrap() = BarContent {
-                    bg: state.config.color.0,
+                *state.bar_content.write() = BarContent {
+                    bg: state.config.read().color.0,
                     items,
                 };
             }
@@ -277,17 +275,17 @@ fn main() {
                     );
                 }
             }
-            Event::Action(action) => action.handle(),
+            Event::Action(action) => action.handle(&state),
             Event::RenderGraph => {
-                for wm in state.wms.read().unwrap().iter() {
-                    wm.read().unwrap().render(&state.config);
+                for wm in state.wms.read().iter() {
+                    wm.read().render(&state.config.read());
                 }
             }
             Event::Exit => {
-                let wms = state.wms.read().unwrap();
+                let wms = state.wms.read();
 
                 for wm in wms.iter() {
-                    let mut wm = wm.write().unwrap();
+                    let mut wm = wm.write();
                     wm.display.show_taskbar();
                     wm.cleanup();
                 }

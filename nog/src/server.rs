@@ -69,7 +69,7 @@ fn handle_client(
 
         if let Ok(msg) = Message::deserialize(&msg) {
             let response = match msg {
-                Message::GetBarContent => serde_json::to_string(&*bar_content.read().unwrap())
+                Message::GetBarContent => serde_json::to_string(&*bar_content.read())
                     .expect("Serde failed to serialize the bar content"),
                 Message::ExecuteLua { code } => {
                     let (result_tx, result_rx) = sync_channel(1);
