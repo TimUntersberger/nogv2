@@ -27,6 +27,7 @@ use crate::{
     lua::config_proxy::ConfigProxy,
     paths::{get_config_path, get_runtime_path},
     platform::{Api, NativeApi, NativeWindow, WindowId},
+    state::State,
     types::ThreadSafeWindowManagers,
     window_manager::WindowManager,
     workspace::WorkspaceId,
@@ -54,115 +55,115 @@ impl<'lua> FromLua<'lua> for BarLayout<'lua> {
 }
 
 macro_rules! inject_mapper {
-    ($tx:ident, $wms:ident, $lua:ident, lua) => {
+    ($state:ident, $lua:ident, lua) => {
         $lua
     };
-    ($tx:ident, $wms:ident, $lua:ident, tx) => {
-        $tx
-    };
-    ($tx:ident, $wms:ident, $lua:ident, wms) => {
-        $wms
+    ($state:ident, $lua:ident, state) => {
+        $state
     };
 }
 
 macro_rules! namespace {
-    ($rt:ident, {
+    ($rt:ident, $ns_name:ident, {
         $(const $const_ident:ident = $expr:expr);*;
         $(fn $fn_ident:ident ($($arg_n:ident : $arg_t:ty),*) {
             inject $($inject_ident:ident),*;
             $($body:tt)*
-        });*;
+        })*
     }) => {
-        $($rt.namespace
-            .add_constant(stringify!($const_ident), $expr)?;)*
-
-        #[allow(unused_parens)]
         {
-            $($rt.namespace
-                .add_function(stringify!($fn_ident), |_tx, _wms, _lua, ($($arg_n),*): ($($arg_t),*)| {
-                    $(let $inject_ident = inject_mapper!(_tx, _wms, _lua, $inject_ident);)*
+            let ns = $rt.create_namespace(stringify!($ns_name))?;
+            $(ns.add_constant(stringify!($const_ident), $expr)?;)*
+
+            #[allow(unused_parens)]
+            {
+                $(ns.add_function(stringify!($fn_ident), |_state, _lua, ($($arg_n),*): ($($arg_t),*)| {
+                    $(let $inject_ident = inject_mapper!(_state, _lua, $inject_ident);)*
                     $($body)*
                 })?;)*
+            }
+
+            ns
         }
     };
 }
 
-pub fn init<'a>(tx: Sender<Event>, wms: ThreadSafeWindowManagers) -> LuaResult<LuaRuntime<'a>> {
-    let rt = LuaRuntime::new(tx.clone(), wms.clone())?;
+pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
+    let rt = LuaRuntime::new(state.clone())?;
 
-    namespace!(rt, {
+    let ns = namespace!(rt, nog, {
         const runtime_path = get_runtime_path().to_str().unwrap();
         const config_path = get_config_path().to_str().unwrap();
         const version = option_env!("NOG_VERSION").unwrap_or("DEV");
-        const config = ConfigProxy::new(tx);
+        const config = ConfigProxy::new(state.tx.clone());
 
         fn bind(mode: KeybindingMode, key_combination: KeyCombination, cb: mlua::Function) {
-            inject lua, tx;
+            inject lua, state;
 
             lua.set_named_registry_value(&key_combination.get_id().to_string(), cb)?;
-            tx.send(Event::Action(Action::CreateKeybinding {
+            state.tx.send(Event::Action(Action::CreateKeybinding {
                 mode,
                 key_combination,
             }))
             .unwrap();
             Ok(())
-        };
+        }
 
         fn unbind(key: String) {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::RemoveKeybinding { key }))
+            state.tx.send(Event::Action(Action::RemoveKeybinding { key }))
                 .unwrap();
             Ok(())
-        };
+        }
 
         fn update_window_layout() {
-            inject tx;
+            inject state;
 
-            tx.send(Event::RenderGraph).unwrap();
+            state.tx.send(Event::RenderGraph).unwrap();
 
             Ok(())
-        };
+        }
 
         fn bar_set_layout(layout: BarLayout) {
-            inject lua, tx;
+            inject lua, state;
 
             lua.set_named_registry_value("left", layout.left)?;
             lua.set_named_registry_value("center", layout.center)?;
             lua.set_named_registry_value("right", layout.right)?;
-            tx.send(Event::RenderBarLayout).unwrap();
+            state.tx.send(Event::RenderBarLayout).unwrap();
 
             Ok(())
-        };
+        }
 
         fn exit() {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Exit).unwrap();
+            state.tx.send(Event::Exit).unwrap();
 
             Ok(())
-        };
+        }
 
         fn ws_focus(ws_id: Option<WorkspaceId>, direction: Direction) {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::Workspace(WorkspaceAction::Focus(
+            state.tx.send(Event::Action(Action::Workspace(WorkspaceAction::Focus(
                 ws_id, direction,
             ))))
             .unwrap();
 
             Ok(())
-        };
+        }
 
         fn ws_get_all() {
-            inject wms;
+            inject state;
 
             let mut workspaces = vec![];
 
-            for wm in wms.read().iter() {
+            for wm in state.wms.read().iter() {
                 let ws_ids = wm
                     .read()
-                    
+
                     .workspaces
                     .iter()
                     .map(|w| w.id)
@@ -174,84 +175,84 @@ pub fn init<'a>(tx: Sender<Event>, wms: ThreadSafeWindowManagers) -> LuaResult<L
             }
 
             Ok(workspaces)
-        };
+        }
 
         fn ws_swap(ws_id: Option<WorkspaceId>, direction: Direction) {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::Workspace(WorkspaceAction::Swap(
+            state.tx.send(Event::Action(Action::Workspace(WorkspaceAction::Swap(
                 ws_id, direction,
             ))))
             .unwrap();
 
             Ok(())
-        };
+        }
 
         fn session_save() {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::SaveSession)).unwrap();
+            state.tx.send(Event::Action(Action::SaveSession)).unwrap();
 
             Ok(())
-        };
+        }
 
         fn session_load() {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::LoadSession)).unwrap();
+            state.tx.send(Event::Action(Action::LoadSession)).unwrap();
 
             Ok(())
-        };
+        }
 
         fn win_close(win_id: Option<WindowId>) {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::Window(WindowAction::Close(win_id))))
+            state.tx.send(Event::Action(Action::Window(WindowAction::Close(win_id))))
                 .unwrap();
 
             Ok(())
-        };
+        }
 
         fn win_is_managed(win_id: Option<WindowId>) {
-            inject wms;
+            inject state;
 
             let id = win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
-            let wms = wms.read();
+            let wms = state.wms.read();
 
             Ok(wms.iter().any(|wm| wm.read().has_window(id)))
-        };
+        }
 
         fn win_is_managed(win_id: Option<WindowId>) {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
+            state.tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
                 .unwrap();
 
             Ok(())
-        };
+        }
 
         fn win_unmanage(win_id: Option<WindowId>) {
-            inject tx;
+            inject state;
 
-            tx.send(Event::Action(Action::Window(WindowAction::Unmanage(
+            state.tx.send(Event::Action(Action::Window(WindowAction::Unmanage(
                 win_id,
             ))))
             .unwrap();
 
             Ok(())
-        };
+        }
 
         fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {
-            inject wms;
+            inject state;
 
             todo!();
             //wm.read().unwrap().display_id =
 
             Ok(())
-        };
+        }
     });
 
-    rt.namespace.register(None)?;
+    ns.register(None)?;
 
     // Run the nog init.lua
     rt.eval("dofile(nog.runtime_path .. '/lua/init.lua')")?;

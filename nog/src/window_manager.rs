@@ -108,10 +108,10 @@ impl WindowManager {
         let workspace = maybe_workspace.unwrap_or_else(|| self.get_focused_workspace_mut());
         // We need to use the scope here to make the rust type system happy.
         // scope drops the userdata when the function has finished.
-        rt.rt
+        rt.lua
             .scope(|scope| {
                 let ud = scope.create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
-                mlua::Function::from_lua(rt.rt.load("nog.layout").eval()?, rt.rt)?
+                mlua::Function::from_lua(rt.lua.load("nog.layout").eval()?, rt.lua)?
                     .call((ud, reason, args))
             })
             .map_err(|e| WindowManagerError::LayoutFunctionError(e.to_string()))?;

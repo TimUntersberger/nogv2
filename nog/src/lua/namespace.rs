@@ -2,71 +2,63 @@ use std::sync::{mpsc::Sender, Arc, RwLock};
 
 use mlua::prelude::*;
 
-use crate::{event::Event, types::ThreadSafeWindowManagers, window_manager::WindowManager};
+use crate::{
+    event::Event, state::State, types::ThreadSafeWindowManagers, window_manager::WindowManager,
+};
 
-pub struct LuaNamespace<'a> {
-    rt: &'a Lua,
-    tx: Sender<Event>,
-    wms: ThreadSafeWindowManagers,
+pub struct LuaNamespace {
+    pub lua: &'static Lua,
+    state: State,
     name: String,
-    tbl: mlua::Table<'a>,
-    namespaces: Vec<LuaNamespace<'a>>,
+    tbl: mlua::Table<'static>,
+    namespaces: Vec<LuaNamespace>,
 }
 
-impl<'a> LuaNamespace<'a> {
-    pub fn new(
-        lua: &'a Lua,
-        tx: Sender<Event>,
-        wms: ThreadSafeWindowManagers,
-        name: &str,
-    ) -> LuaResult<Self> {
+impl LuaNamespace {
+    pub fn new(state: State, lua: &'static Lua, name: &str) -> LuaResult<Self> {
         Ok(Self {
-            rt: lua,
-            tx,
-            wms,
+            state,
+            lua,
             name: name.to_string(),
             tbl: lua.create_table()?,
             namespaces: vec![],
         })
     }
 
-    pub fn add_function<F, A, FReturn>(&self, name: &str, f: F) -> LuaResult<()>
+    pub fn add_function<'a, F, A, FReturn>(&self, name: &str, f: F) -> LuaResult<()>
     where
         FReturn: ToLuaMulti<'a>,
-        F: Fn(&Sender<Event>, &ThreadSafeWindowManagers, &Lua, A) -> LuaResult<FReturn>
-            + Send
-            + 'static,
+        F: Fn(&State, &mlua::Lua, A) -> LuaResult<FReturn> + 'static,
         A: FromLuaMulti<'a>,
     {
-        let tx = self.tx.clone();
-        let wms = self.wms.clone();
-
+        let state = self.state.clone();
+        let lua = self.lua;
         self.tbl.set(
             name,
-            self.rt
-                .create_function(move |lua, args: A| f(&tx, &wms, lua, args))?,
+            self.lua
+                .create_function(move |lua, args: A| f(&state, lua, args))?,
         )
     }
 
     pub fn add_constant<T>(&self, name: &str, value: T) -> LuaResult<()>
     where
-        T: ToLua<'a>,
+        T: ToLua<'static>,
     {
         self.tbl.set(name, value)
     }
 
-    pub fn add_namespace(&mut self, ns: LuaNamespace<'a>) {
+    pub fn add_namespace(&mut self, ns: LuaNamespace) {
         self.namespaces.push(ns);
     }
 
-    pub fn register(&self, parent: Option<&LuaNamespace<'a>>) -> LuaResult<()> {
+    pub fn register(&self, parent: Option<&LuaNamespace>) -> LuaResult<()> {
         for namespace in &self.namespaces {
             namespace.register(Some(&self))?;
         }
 
         match parent {
             Some(parent) => parent.tbl.set(self.name.clone(), self.tbl.clone()),
-            None => self.rt.globals().set(self.name.clone(), self.tbl.clone()),
+            None => self.lua.globals().set(self.name.clone(), self.tbl.clone()),
         }
     }
 }

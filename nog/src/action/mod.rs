@@ -1,16 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    config::Config,
-    event::Event,
-    graph::GraphNode,
-    key_combination::KeyCombination,
-    keybinding::KeybindingMode,
-    keybinding_event_loop::KeybindingEventLoop,
-    platform::{Api, NativeApi, NativeWindow, NativeDisplay, Window},
-    session,
-    state::State,
-};
+use crate::{config::Config, event::Event, graph::GraphNode, key_combination::KeyCombination, keybinding::KeybindingMode, keybinding_event_loop::KeybindingEventLoop, lua::LuaRuntime, platform::{Api, NativeApi, NativeWindow, NativeDisplay, Window}, session, state::State};
 use log::info;
 use mlua::FromLua;
 pub use window::WindowAction;
@@ -68,7 +58,7 @@ pub enum Action {
 }
 
 impl Action {
-    pub fn handle(self, state: &State) {
+    pub fn handle(self, state: &State, rt: &LuaRuntime) {
         match self {
             Action::Window(action) => match action {
                 WindowAction::Focus(win_id) => {
@@ -92,7 +82,7 @@ impl Action {
                         if win.exists() && !workspace.has_window(win.get_id()) {
                             info!("'{}' managed", win.get_title());
 
-                            wm.manage(&state.rt, &state.config.read(), win);
+                            wm.manage(&rt, &state.config.read(), win);
                         }
                     });
                 }
@@ -107,7 +97,7 @@ impl Action {
                         if workspace.has_window(id) {
                             info!("'{}' unmanaged", win.get_title());
 
-                            wm.unmanage(&state.rt, &state.config.read(), id);
+                            wm.unmanage(&rt, &state.config.read(), id);
                         }
                     }
                 }),
@@ -130,7 +120,7 @@ impl Action {
                     }
                 }),
                 WorkspaceAction::Swap(maybe_id, dir) => state.with_focused_wm_mut(|wm| {
-                    wm.swap_in_direction(&state.rt, &state.config.read(), None, dir);
+                    wm.swap_in_direction(&rt, &state.config.read(), None, dir);
                 }),
             },
             Action::SaveSession => {
@@ -152,7 +142,7 @@ impl Action {
                 }
 
                 for window in windows {
-                    wm.manage(&state.rt, &state.config.read(), window);
+                    wm.manage(&rt, &state.config.read(), window);
                 }
 
                 wm.render(&state.config.read());
@@ -185,8 +175,7 @@ impl Action {
                 cb,
             } => {
                 if capture_stdout {
-                    state
-                        .rt
+                        rt
                         .eval(
                             r#"
                             _G.__stdout_buf = ""
@@ -206,10 +195,10 @@ impl Action {
                         )
                         .unwrap();
 
-                    let code_res = state.rt.eval(&code);
+                    let code_res = rt.eval(&code);
 
                     let stdout_buf =
-                        String::from_lua(state.rt.eval("_G.__stdout_buf").unwrap(), state.rt.rt)
+                        String::from_lua(rt.eval("_G.__stdout_buf").unwrap(), rt.lua)
                             .unwrap();
 
                     cb.0(code_res.map(move |x| {
@@ -220,8 +209,7 @@ impl Action {
                         }
                     }));
 
-                    state
-                        .rt
+                        rt
                         .eval(
                             r#"
                             _G.print = _G.__old_print
@@ -231,7 +219,7 @@ impl Action {
                         )
                         .unwrap();
                 } else {
-                    cb.0(state.rt.eval(&code).map(|x| format!("{:?}", x)));
+                    cb.0(rt.eval(&code).map(|x| format!("{:?}", x)));
                 }
             }
             Action::CreateKeybinding {
