@@ -1,6 +1,6 @@
+use action::{Action, WindowAction, WorkspaceAction};
 use chrono::Duration;
 use event::Event;
-use action::{Action, WindowAction, WorkspaceAction};
 use graph::GraphNodeId;
 use keybinding_event_loop::KeybindingEventLoop;
 use log::{error, info};
@@ -27,6 +27,7 @@ use crate::{
     config::Config,
     graph::{Graph, GraphNode, GraphNodeGroupKind},
     platform::{Api, Display, NativeApi, NativeDisplay, NativeWindow},
+    state::State,
     window_event_loop::WindowEventKind,
 };
 
@@ -41,9 +42,11 @@ pub trait EventLoop {
     }
 }
 
+mod action;
 mod cleanup;
 mod config;
 mod direction;
+mod display;
 mod event;
 mod graph;
 mod key;
@@ -54,12 +57,13 @@ mod logging;
 mod lua;
 mod modifiers;
 mod paths;
-mod display;
 mod platform;
 mod rgb;
 mod server;
-mod action;
 mod session;
+mod state;
+mod thread_safe;
+mod types;
 mod window_event_loop;
 mod window_manager;
 mod workspace;
@@ -75,8 +79,14 @@ fn lua_value_to_bar_item<'a>(
         tbl @ mlua::Value::Table(..) => {
             let tbl = mlua::Table::from_lua(tbl, lua).unwrap();
             let text = String::from_lua(tbl.get(1).unwrap_or(mlua::Value::Nil), lua).unwrap();
-            let fg = tbl.get::<&str, i32>("fg").map(RGB::from_hex).unwrap_or(default_fg);
-            let bg = tbl.get::<&str, i32>("bg").map(RGB::from_hex).unwrap_or(default_bg);
+            let fg = tbl
+                .get::<&str, i32>("fg")
+                .map(RGB::from_hex)
+                .unwrap_or(default_fg);
+            let bg = tbl
+                .get::<&str, i32>("bg")
+                .map(RGB::from_hex)
+                .unwrap_or(default_bg);
 
             BarItem {
                 text,
@@ -105,100 +115,81 @@ fn main() {
     logging::init().expect("Failed to initialize logging");
     info!("Initialized logging");
 
-    let (tx, rx) = channel::<Event>();
-    let wm = Arc::new(RwLock::new(WindowManager::new(tx.clone())));
-    let displays = Api::get_displays();
-    let bar_content = Arc::new(RwLock::new(BarContent::default()));
+    let state = State::new().unwrap();
 
-    let bar_content_timer = {
-        let timer = timer::Timer::new();
-        let tx = tx.clone();
-        (
-            timer.schedule_repeating(Duration::milliseconds(100), move || {
-                tx.send(Event::RenderBarLayout).unwrap();
-            }),
-            timer,
-        )
-    };
-
-    {
-        let tx = tx.clone();
-        ctrlc::set_handler(move || tx.send(Event::Exit).unwrap());
-    }
-
-    let rt = match lua::init(tx.clone(), wm.clone()) {
-        Ok(x) => x,
-        Err(e) => {
-            error!("{}", e);
-            return;
-        }
-    };
+    // Only really used in development to make sure everything is cleaned up
+    let tx = state.tx.clone();
+    ctrlc::set_handler(move || tx.send(Event::Exit).unwrap());
 
     // Run the config
-    if let Err(e) = rt.eval("dofile(nog.config_path .. '/lua/config.lua')") {
-        error!("Error when running config: {}", e);
+    if let Err(e) = state
+        .rt
+        .eval("dofile(nog.config_path .. '/lua/config.lua')")
+    {
+        error!("config error: {}", e);
     }
 
-    let mut config = Config::default();
-
-    if config.remove_task_bar {
-        tx.send(Event::Action(Action::HideTaskbars)).unwrap();
+    if state.config.remove_task_bar {
+        state.tx.send(Event::Action(Action::HideTaskbars)).unwrap();
     }
 
     // lua::repl::spawn(tx.clone());
     // info!("Repl started");
 
-    Server::spawn(tx.clone(), bar_content.clone());
+    Server::spawn(state.tx.clone(), state.bar_content.clone());
     info!("IPC Server started");
 
-    WindowEventLoop::spawn(tx.clone());
+    WindowEventLoop::spawn(state.tx.clone());
     info!("Window event loop spawned");
 
-    KeybindingEventLoop::spawn(tx.clone());
+    KeybindingEventLoop::spawn(state.tx.clone());
     info!("Keybinding event loop spawned");
 
     info!("Starting main event loop");
-    while let Ok(event) = rx.recv() {
+    while let Ok(event) = state.rx.recv() {
         match event {
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
-                    let mut wm = wm.write().unwrap();
-                    let workspace = wm.get_focused_workspace_mut();
-                    if workspace.focus_window(win_event.window.get_id()).is_ok() {
-                        info!("Focused window with id {}", win_event.window.get_id());
-                        win_event.window.focus();
-                    }
+                    let win_id = win_event.window.get_id();
+                    state.with_wm_containing_win_mut(win_id, |wm| {
+                        let workspace = wm.get_focused_workspace_mut();
+                        if workspace.focus_window(win_id).is_ok() {
+                            info!("Focused window with id {}", win_event.window.get_id());
+                            win_event.window.focus();
+                        }
+                    });
                 }
                 WindowEventKind::Created => {
                     let win = win_event.window;
                     let size = win.get_size();
 
-                    if size.width >= config.min_width && size.height >= config.min_height {
+                    if size.width >= state.config.min_width && size.height >= state.config.min_height {
                         info!("'{}' created", win.get_title());
-
-                        wm.write().unwrap().manage(&rt, &config, &displays[0], win);
+                        state.with_focused_wm_mut(|wm| {
+                            wm.manage(&state.rt, &state.config, win);
+                        });
                     }
                 }
                 WindowEventKind::Deleted => {
-                    let win = win_event.window;
-                    info!("'{}' deleted", win.get_title());
-
-                    wm.write().unwrap().organize(
-                        &rt,
-                        &config,
-                        &displays[0],
-                        None,
-                        String::from("deleted"),
-                        win.get_id(),
-                    );
+                    let win_id = win_event.window.get_id();
+                    state.with_wm_containing_win_mut(win_id, |wm| {
+                        wm.organize(
+                            &state.rt,
+                            &state.config,
+                            None,
+                            String::from("deleted"),
+                            win_id,
+                        );
+                    });
                 }
                 WindowEventKind::Minimized => {
-                    let win = win_event.window;
-                    info!("'{}' minimized", win.get_title());
+                    let win_id = win_event.window.get_id();
 
-                    wm.write()
-                        .unwrap()
-                        .unmanage(&rt, &config, &displays[0], win.get_id());
+                    state.with_wm_containing_win_mut(win_id, |wm| {
+                        wm.unmanage(&state.rt, &state.config, win_id);
+                        info!("'{}' minimized", win_event.window.get_title());
+                    });
+
                 }
             },
             Event::RenderBarLayout => {
@@ -211,12 +202,12 @@ fn main() {
                             let mut result = Vec::new();
                             $(
                                 //TODO: proper error handling instead of expecting values
-                                for value in rt
+                                for value in state.rt
                                     .rt
                                     .named_registry_value::<str, mlua::Table>($s)
                                     .expect(&format!("Registry value of {} bar layout section missing", $s))
                                     .sequence_values()
-                                    .map(|v| mlua::Function::from_lua(v.unwrap(), &rt.rt)
+                                    .map(|v| mlua::Function::from_lua(v.unwrap(), &state.rt.rt)
                                             .expect("Has to be a function")
                                             .call::<(), mlua::Value>(())
                                             .expect("Cannot error")
@@ -224,11 +215,11 @@ fn main() {
                                     ) {
                                         match value {
                                             tbl @ mlua::Value::Table(..) => {
-                                                let tbl = mlua::Table::from_lua(tbl, rt.rt).unwrap();
+                                                let tbl = mlua::Table::from_lua(tbl, state.rt.rt).unwrap();
                                                 for value in tbl.sequence_values() {
                                                     result.push(
                                                         lua_value_to_bar_item(
-                                                            &rt.rt,
+                                                            &state.rt.rt,
                                                             BarItemAlignment::$ident,
                                                             value.unwrap(),
                                                             default_fg,
@@ -240,7 +231,7 @@ fn main() {
                                             value => {
                                                 result.push(
                                                     lua_value_to_bar_item(
-                                                        &rt.rt,
+                                                        &state.rt.rt,
                                                         BarItemAlignment::$ident,
                                                         value,
                                                         default_fg,
@@ -262,9 +253,7 @@ fn main() {
                     (Right, "right")
                 };
 
-                dbg!(&items);
-
-                *bar_content.write().unwrap() = BarContent {
+                *state.bar_content.write().unwrap() = BarContent {
                     bg: [0.0, 0.0, 0.0],
                     items,
                 };
@@ -272,7 +261,8 @@ fn main() {
             Event::Keybinding(kb) => {
                 info!("Received keybinding {}", kb.to_string());
 
-                let cb = rt
+                let cb = state
+                    .rt
                     .rt
                     .named_registry_value::<str, mlua::Function>(&kb.get_id().to_string())
                     .expect("Registry value of a keybinding somehow disappeared?");
@@ -289,19 +279,21 @@ fn main() {
             }
             Event::Action(action) => action.handle(),
             Event::RenderGraph => {
-                wm.read()
-                    .unwrap()
-                    .render(&config, displays[0].get_size(&config));
+                for wm in state.wms.read().unwrap().iter() {
+                    wm.read().unwrap().render(&state.config);
+                }
             }
             Event::Exit => {
-                for display in &displays {
-                    display.show_taskbar();
+                let wms = state.wms.read().unwrap();
+
+                for wm in wms.iter() {
+                    let mut wm = wm.write().unwrap();
+                    wm.display.show_taskbar();
+                    wm.cleanup();
                 }
 
                 WindowEventLoop::stop();
                 KeybindingEventLoop::stop();
-
-                wm.write().unwrap().cleanup();
 
                 break;
             }

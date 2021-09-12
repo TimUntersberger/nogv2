@@ -1,4 +1,4 @@
-use crate::{action::Action, event::Event};
+use crate::{action::Action, event::Event, thread_safe::ThreadSafe};
 use crate::action::ExecuteLuaActionFn;
 use log::error;
 use nog_protocol::{BarContent, BarItem, BarItemAlignment, Message};
@@ -13,13 +13,13 @@ use std::{
 
 pub struct Server {
     tx: Sender<Event>,
-    bar_content: Arc<RwLock<BarContent>>,
+    bar_content: ThreadSafe<BarContent>,
     host: String,
     port: u32,
 }
 
 impl Server {
-    pub fn new(tx: Sender<Event>, bar_content: Arc<RwLock<BarContent>>) -> Self {
+    pub fn new(tx: Sender<Event>, bar_content: ThreadSafe<BarContent>) -> Self {
         Self {
             tx,
             bar_content,
@@ -27,7 +27,7 @@ impl Server {
             port: 8080,
         }
     }
-    pub fn spawn(tx: Sender<Event>, bar_content: Arc<RwLock<BarContent>>) {
+    pub fn spawn(tx: Sender<Event>, bar_content: ThreadSafe<BarContent>) {
         std::thread::spawn(move || {
             let server = Server::new(tx, bar_content);
             server.start();
@@ -54,7 +54,7 @@ impl Server {
 fn handle_client(
     mut stream: TcpStream,
     tx: Sender<Event>,
-    bar_content: Arc<RwLock<BarContent>>,
+    bar_content: ThreadSafe<BarContent>,
 ) -> std::io::Result<()> {
     loop {
         let mut header_buffer = [0u8; 2];

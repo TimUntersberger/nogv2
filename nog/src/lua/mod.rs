@@ -14,16 +14,17 @@ use mlua::prelude::*;
 use std::str::FromStr;
 
 use crate::{
+    action::{Action, WindowAction, WorkspaceAction},
     direction::Direction,
-    action::{Action, WindowAction, WorkspaceAction}, 
-    event::Event, 
+    display::DisplayId,
+    event::Event,
     key_combination::KeyCombination,
     keybinding::KeybindingMode,
     lua::config_proxy::ConfigProxy,
     paths::{get_config_path, get_runtime_path},
     platform::{Api, NativeApi, NativeWindow, WindowId},
+    types::ThreadSafeWindowManagers,
     window_manager::WindowManager,
-    display::DisplayId,
     workspace::WorkspaceId,
 };
 
@@ -49,14 +50,14 @@ impl<'lua> FromLua<'lua> for BarLayout<'lua> {
 }
 
 macro_rules! inject_mapper {
-    ($tx:ident, $wm:ident, $lua:ident, lua) => {
+    ($tx:ident, $wms:ident, $lua:ident, lua) => {
         $lua
     };
-    ($tx:ident, $wm:ident, $lua:ident, tx) => {
+    ($tx:ident, $wms:ident, $lua:ident, tx) => {
         $tx
     };
-    ($tx:ident, $wm:ident, $lua:ident, wm) => {
-        $wm
+    ($tx:ident, $wms:ident, $lua:ident, wms) => {
+        $wms
     };
 }
 
@@ -74,16 +75,16 @@ macro_rules! namespace {
         #[allow(unused_parens)]
         {
             $($rt.namespace
-                .add_function(stringify!($fn_ident), |_tx, _wm, _lua, ($($arg_n),*): ($($arg_t),*)| {
-                    $(let $inject_ident = inject_mapper!(_tx, _wm, _lua, $inject_ident);)*
+                .add_function(stringify!($fn_ident), |_tx, _wms, _lua, ($($arg_n),*): ($($arg_t),*)| {
+                    $(let $inject_ident = inject_mapper!(_tx, _wms, _lua, $inject_ident);)*
                     $($body)*
                 })?;)*
         }
     };
 }
 
-pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<LuaRuntime<'a>> {
-    let rt = LuaRuntime::new(tx.clone(), wm.clone())?;
+pub fn init<'a>(tx: Sender<Event>, wms: ThreadSafeWindowManagers) -> LuaResult<LuaRuntime<'a>> {
+    let rt = LuaRuntime::new(tx.clone(), wms.clone())?;
 
     namespace!(rt, {
         const runtime_path = get_runtime_path().to_str().unwrap();
@@ -150,15 +151,25 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
         };
 
         fn ws_get_all() {
-            inject wm;
+            inject wms;
 
-            Ok(wm
-                .read()
-                .unwrap()
-                .workspaces
-                .iter()
-                .map(|w| w.id)
-                .collect::<Vec<_>>())
+            let mut workspaces = vec![];
+
+            for wm in wms.read().unwrap().iter() {
+                let ws_ids = wm
+                    .read()
+                    .unwrap()
+                    .workspaces
+                    .iter()
+                    .map(|w| w.id)
+                    .collect::<Vec<_>>();
+
+                for id in ws_ids {
+                    workspaces.push(id);
+                }
+            }
+
+            Ok(workspaces)
         };
 
         fn ws_swap(ws_id: Option<WorkspaceId>, direction: Direction) {
@@ -198,11 +209,12 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
         };
 
         fn win_is_managed(win_id: Option<WindowId>) {
-            inject wm;
+            inject wms;
 
             let id = win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
+            let wms = wms.read().unwrap();
 
-            Ok(wm.read().unwrap().is_window_managed(id))
+            Ok(wms.iter().any(|wm| wm.read().unwrap().has_window(id)))
         };
 
         fn win_is_managed(win_id: Option<WindowId>) {
@@ -226,10 +238,10 @@ pub fn init<'a>(tx: Sender<Event>, wm: Arc<RwLock<WindowManager>>) -> LuaResult<
         };
 
         fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {
-            inject wm;
+            inject wms;
 
             todo!();
-            //wm.read().unwrap().display_id = 
+            //wm.read().unwrap().display_id =
 
             Ok(())
         };
