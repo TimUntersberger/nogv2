@@ -1,6 +1,17 @@
 use std::sync::Arc;
 
-use crate::{config::Config, event::Event, graph::GraphNode, key_combination::KeyCombination, keybinding::KeybindingMode, keybinding_event_loop::KeybindingEventLoop, lua::LuaRuntime, platform::{Api, NativeApi, NativeWindow, NativeDisplay, Window}, session, state::State};
+use crate::{
+    config::Config,
+    event::Event,
+    graph::GraphNode,
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    keybinding_event_loop::KeybindingEventLoop,
+    lua::LuaRuntime,
+    platform::{Api, NativeApi, NativeDisplay, NativeWindow, Window},
+    session,
+    state::State,
+};
 use log::info;
 use mlua::FromLua;
 pub use window::WindowAction;
@@ -88,17 +99,14 @@ impl Action {
                 }
                 WindowAction::Unmanage(maybe_id) => state.with_focused_wm_mut(|wm| {
                     let workspace = wm.get_focused_workspace();
-                    let maybe_id = maybe_id.or(workspace
-                        .get_focused_node()
-                        .and_then(|x| x.try_get_window_id()));
+                    let win = maybe_id
+                        .map(|id| Window::new(id))
+                        .unwrap_or_else(|| Api::get_foreground_window());
 
-                    if let Some(id) = maybe_id {
-                        let win = Window::new(id);
-                        if workspace.has_window(id) {
-                            info!("'{}' unmanaged", win.get_title());
+                    if workspace.has_window(win.get_id()) {
+                        info!("'{}' unmanaged", win.get_title());
 
-                            wm.unmanage(&rt, &state.config.read(), id);
-                        }
+                        wm.unmanage(&rt, &state.config.read(), win.get_id());
                     }
                 }),
             },
@@ -175,9 +183,8 @@ impl Action {
                 cb,
             } => {
                 if capture_stdout {
-                        rt
-                        .eval(
-                            r#"
+                    rt.eval(
+                        r#"
                             _G.__stdout_buf = ""
                             _G.__old_print = print
                             _G.print = function(...)
@@ -192,14 +199,13 @@ impl Action {
                                 _G.__stdout_buf = _G.__stdout_buf .. output
                             end
                                     "#,
-                        )
-                        .unwrap();
+                    )
+                    .unwrap();
 
                     let code_res = rt.eval(&code);
 
                     let stdout_buf =
-                        String::from_lua(rt.eval("_G.__stdout_buf").unwrap(), rt.lua)
-                            .unwrap();
+                        String::from_lua(rt.eval("_G.__stdout_buf").unwrap(), rt.lua).unwrap();
 
                     cb.0(code_res.map(move |x| {
                         if stdout_buf.is_empty() {
@@ -209,15 +215,14 @@ impl Action {
                         }
                     }));
 
-                        rt
-                        .eval(
-                            r#"
+                    rt.eval(
+                        r#"
                             _G.print = _G.__old_print
                             _G.__stdout_buf = nil
                             _G.__old_print = nil
                                     "#,
-                        )
-                        .unwrap();
+                    )
+                    .unwrap();
                 } else {
                     cb.0(rt.eval(&code).map(|x| format!("{:?}", x)));
                 }

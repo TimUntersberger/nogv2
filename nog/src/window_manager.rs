@@ -92,8 +92,11 @@ impl WindowManager {
 
     /// Only renders the visible workspace
     pub fn render(&self, config: &Config) {
-        self.get_focused_workspace()
-            .render(config, self.display.get_size(config));
+        self.get_focused_workspace().render(
+            config,
+            self.display.get_size(config),
+            self.display.get_pos(config),
+        );
     }
 
     pub fn organize<TArgs: mlua::ToLuaMulti<'static>>(
@@ -105,6 +108,7 @@ impl WindowManager {
         args: TArgs,
     ) -> WindowManagerResult {
         let size = self.display.get_size(&config);
+        let pos = self.display.get_pos(&config);
         let workspace = maybe_workspace.unwrap_or_else(|| self.get_focused_workspace_mut());
         // We need to use the scope here to make the rust type system happy.
         // scope drops the userdata when the function has finished.
@@ -118,7 +122,7 @@ impl WindowManager {
 
         if workspace.graph.dirty {
             info!("Have to rerender!");
-            workspace.render(&config, size);
+            workspace.render(&config, size, pos);
             println!("{}", &workspace.graph);
             workspace.graph.dirty = false;
         }

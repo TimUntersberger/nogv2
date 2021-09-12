@@ -5,7 +5,7 @@ use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
 use crate::platform::{NativeWindow, Position, Size, Window, WindowId};
 use std::sync::mpsc::Sender;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WorkspaceId(pub usize);
 
 pub struct Workspace {
@@ -39,9 +39,7 @@ impl Workspace {
         self.graph.get_window_node(id).is_some()
     }
 
-    pub fn render(&self, config: &Config, mut size: Size) {
-        let mut pos = Position::new(0, 0);
-
+    pub fn render(&self, config: &Config, mut size: Size, mut pos: Position) {
         pos.x += config.outer_gap as isize;
         pos.y += config.outer_gap as isize;
 

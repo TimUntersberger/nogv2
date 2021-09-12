@@ -217,12 +217,10 @@ pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
             inject state;
 
             let id = win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
-            let wms = state.wms.read();
-
-            Ok(wms.iter().any(|wm| wm.read().has_window(id)))
+            Ok(state.win_is_managed(id))
         }
 
-        fn win_is_managed(win_id: Option<WindowId>) {
+        fn win_manage(win_id: Option<WindowId>) {
             inject state;
 
             state.tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
@@ -245,10 +243,11 @@ pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
         fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {
             inject state;
 
-            todo!();
-            //wm.read().unwrap().display_id =
+            let dsp_id = dsp_id.unwrap_or(DisplayId(0));
 
-            Ok(())
+            Ok(state.with_wm_on_dsp(dsp_id, |wm| {
+                wm.workspaces.iter().any(|ws| ws.id == ws_id)
+            }).unwrap_or(false))
         }
     });
 

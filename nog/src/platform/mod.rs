@@ -13,8 +13,9 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
 }
 
 pub trait NativeDisplay {
-    fn get_id() -> String;
+    fn get_id(&self) -> DisplayId;
     fn get_size(&self, config: &Config) -> Size;
+    fn get_pos(&self, config: &Config) -> Position;
     fn hide_taskbar(&self);
     fn show_taskbar(&self);
     // fn get_name() -> String;
@@ -98,4 +99,4 @@ use std::ops;
 
 pub use win::*;
 
-use crate::config::Config;
+use crate::{config::Config, display::DisplayId};

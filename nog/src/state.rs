@@ -11,9 +11,10 @@ use nog_protocol::BarContent;
 
 use crate::{
     config::Config,
+    display::DisplayId,
     event::Event,
     lua::{self, LuaRuntime},
-    platform::WindowId,
+    platform::{NativeDisplay, WindowId},
     thread_safe::ThreadSafe,
     types::ThreadSafeWindowManagers,
     window_manager::WindowManager,
@@ -62,5 +63,14 @@ impl State {
 
     pub fn with_focused_wm_mut<T>(&self, f: impl Fn(&mut WindowManager) -> T) -> T {
         f(&mut self.wms.read()[0].write())
+    }
+
+    /// Doesn't call the function if no wm exists on the display
+    pub fn with_wm_on_dsp<T>(&self, id: DisplayId, f: impl Fn(&WindowManager) -> T) -> Option<T> {
+        self.wms
+            .read()
+            .iter()
+            .find(|wm| wm.read().display.get_id() == id)
+            .map(|wm| f(&wm.read()))
     }
 }

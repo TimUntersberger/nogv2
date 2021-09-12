@@ -2,6 +2,7 @@ use std::ffi::c_void;
 use std::{mem, ptr};
 
 use crate::config::Config;
+use crate::display::DisplayId;
 
 use super::{NativeApi, NativeDisplay, NativeWindow, Position, Rect, Size, WindowId};
 use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
@@ -273,21 +274,33 @@ impl Display {
 }
 
 impl NativeDisplay for Display {
-    fn get_id() -> String {
-        todo!()
+    fn get_id(&self) -> DisplayId {
+        DisplayId(0)
+    }
+
+    fn get_pos(&self, config: &Config) -> Position {
+        let mut pos = Position::new(0, 0);
+
+        if config.display_app_bar {
+            pos.y += config.bar_height as isize;
+        }
+
+        pos
     }
 
     fn get_size(&self, config: &Config) -> Size {
-        unsafe {
-            let win = Window::from_hwnd(self.taskbar_hwnd);
-            let mut size = Size::new(1920, 1080);
+        let win = Window::from_hwnd(self.taskbar_hwnd);
+        let mut size = Size::new(1920, 1080);
 
-            if !config.remove_task_bar {
-                size.height -= win.get_size().height;
-            }
-
-            size
+        if config.remove_task_bar {
+            size.height -= win.get_size().height;
         }
+
+        if config.display_app_bar {
+            size.height -= config.bar_height as usize;
+        }
+
+        size
     }
 
     fn hide_taskbar(&self) {

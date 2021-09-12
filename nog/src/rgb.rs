@@ -2,7 +2,7 @@
 pub struct RGB(pub [f32; 3]);
 
 impl RGB {
-    pub const WHITE: RGB = RGB([255.0, 255.0, 255.0]);
+    pub const WHITE: RGB = RGB([1.0, 1.0, 1.0]);
     pub const BLACK: RGB = RGB([0.0, 0.0, 0.0]);
 
     pub fn from_hex(hex: i32) -> Self {

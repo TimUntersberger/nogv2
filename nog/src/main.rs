@@ -84,6 +84,7 @@ fn lua_value_to_bar_item<'a>(
                 .get::<&str, i32>("fg")
                 .map(RGB::from_hex)
                 .unwrap_or(default_fg);
+
             let bg = tbl
                 .get::<&str, i32>("bg")
                 .map(RGB::from_hex)
@@ -93,7 +94,7 @@ fn lua_value_to_bar_item<'a>(
                 text,
                 alignment: align,
                 fg: fg.0,
-                bg: fg.0,
+                bg: bg.0,
             }
         }
         value => {
