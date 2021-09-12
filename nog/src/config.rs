@@ -1,5 +1,7 @@
+use crate::rgb::RGB;
+
 pub struct Config {
-    pub color: u32,
+    pub color: RGB,
     pub bar_height: u32,
     pub font_size: u32,
     pub font_name: String,
@@ -30,10 +32,20 @@ pub struct Config {
     // pub allow_alt_right: bool
 }
 
+impl Config {
+    pub fn get_text_color(&self) -> RGB {
+        if self.light_theme {
+            RGB::BLACK
+        } else {
+            RGB::WHITE
+        }
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
-            color: 0x3f3f3f,
+            color: RGB::from_hex(0x3f3f3f),
             bar_height: 20,
             font_size: 20,
             font_name: "Consolas".into(),
@@ -53,4 +65,5 @@ impl Default for Config {
             display_app_bar: true,
         }
     }
+
 }

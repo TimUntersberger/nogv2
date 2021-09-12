@@ -193,8 +193,8 @@ fn main() {
                 }
             },
             Event::RenderBarLayout => {
-                let default_fg = RGB([1.0, 1.0, 1.0]);
-                let default_bg = RGB([0.0, 0.0, 0.0]);
+                let default_fg = state.config.get_text_color();
+                let default_bg = state.config.color;
 
                 macro_rules! convert_sections {
                     {$(($ident:ident, $s:expr)),*} => {
@@ -254,7 +254,7 @@ fn main() {
                 };
 
                 *state.bar_content.write().unwrap() = BarContent {
-                    bg: [0.0, 0.0, 0.0],
+                    bg: state.config.color.0,
                     items,
                 };
             }

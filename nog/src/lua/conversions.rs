@@ -2,6 +2,7 @@ use crate::direction::Direction;
 use crate::key_combination::KeyCombination;
 use crate::keybinding::KeybindingMode;
 use crate::platform::WindowId;
+use crate::rgb::RGB;
 use crate::workspace::WorkspaceId;
 use crate::display::DisplayId;
 use mlua::prelude::*;
@@ -101,6 +102,25 @@ impl<'lua> FromLua<'lua> for Direction {
             Err(_) => Err(LuaError::FromLuaConversionError {
                 from: lua_value.type_name(),
                 to: "Direction".into(),
+                message: Some("Expected a type that can be coerced into a string".into()),
+            }),
+        }
+    }
+}
+
+impl<'lua> ToLua<'lua> for RGB {
+    fn to_lua(self, _lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        Ok(LuaValue::Number(self.to_hex() as f64))
+    }
+}
+
+impl<'lua> FromLua<'lua> for RGB {
+    fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
+        match i32::from_lua(lua_value.clone(), lua) {
+            Ok(x) => Ok(RGB::from_hex(x)),
+            Err(_) => Err(LuaError::FromLuaConversionError {
+                from: lua_value.type_name(),
+                to: "RGB".into(),
                 message: Some("Expected a type that can be coerced into a string".into()),
             }),
         }

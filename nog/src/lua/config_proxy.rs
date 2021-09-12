@@ -1,10 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use crate::{
-    config::Config,
-    event::Event,
-    action::{Action, UpdateConfigActionFn},
-};
+use crate::{action::{Action, UpdateConfigActionFn}, config::Config, event::Event, rgb::RGB};
 use mlua::prelude::*;
 
 pub struct ConfigProxy {
@@ -77,7 +73,7 @@ impl mlua::UserData for ConfigProxy {
                 }
 
                 let maybe_action = update_action_creator! {
-                    color: u32,
+                    color: RGB,
                     bar_height: u32,
                     font_size: u32,
                     font_name: String,
