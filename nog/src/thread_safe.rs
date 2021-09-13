@@ -22,7 +22,10 @@ impl<T> Clone for ThreadSafe<T> {
     }
 }
 
-impl<T> Default for ThreadSafe<T> where T: Default {
+impl<T> Default for ThreadSafe<T>
+where
+    T: Default,
+{
     fn default() -> Self {
         ThreadSafe::new(T::default())
     }

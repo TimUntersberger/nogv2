@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use instance::Instance;
-use iced_wgpu as renderer;
-use iced_run::run;
 use iced::{Application, Color, Command, Container, Row, Text};
+use iced_run::run;
+use iced_wgpu as renderer;
+use instance::Instance;
 use nog_client::{BarItem, BarItemAlignment, Client};
 
 mod iced_run;
@@ -18,6 +18,7 @@ struct AppState {
 
 struct App {
     state: AppState,
+    exit: bool,
 }
 
 impl Application for App {
@@ -28,7 +29,13 @@ impl Application for App {
     type Flags = AppState;
 
     fn new(flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
-        (Self { state: flags }, Command::none())
+        (
+            Self {
+                state: flags,
+                exit: false,
+            },
+            Command::none(),
+        )
     }
 
     fn title(&self) -> String {
@@ -40,14 +47,24 @@ impl Application for App {
     }
 
     fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
-        let bar_content = self.state.client.get_bar_content().unwrap();
-        self.state.bg = bar_content.bg.into();
-        self.state.items = bar_content.items;
+        match self.state.client.get_bar_content() {
+            Ok(bar_content) => {
+                self.state.bg = bar_content.bg.into();
+                self.state.items = bar_content.items;
+            }
+            Err(err) => {
+                self.exit = true;
+            }
+        };
         Command::none()
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         iced::time::every(Duration::from_millis(10)).map(|_| ())
+    }
+
+    fn should_exit(&self) -> bool {
+        self.exit
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
@@ -141,7 +158,7 @@ fn main() {
         exit_on_close_request: true,
     };
 
-    App::run(settings);
+    App::run(settings).expect("Failed to start nog-bar");
 }
 
 struct Style {

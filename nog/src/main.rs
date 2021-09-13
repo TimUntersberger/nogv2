@@ -7,7 +7,7 @@ use log::{error, info};
 use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
 use nog_protocol::{BarContent, BarItem, BarItemAlignment};
-use platform::{Position, Size, Window, WindowId};
+use platform::{Monitor, Position, Size, Window, WindowId};
 use rgb::RGB;
 use server::Server;
 use std::{
@@ -26,7 +26,7 @@ use crate::{
     cleanup::{DisplayCleanup, WindowCleanup},
     config::Config,
     graph::{Graph, GraphNode, GraphNodeGroupKind},
-    platform::{Api, Display, NativeApi, NativeDisplay, NativeWindow},
+    platform::{Api, NativeApi, NativeMonitor, NativeWindow},
     state::State,
     thread_safe::ThreadSafe,
     window_event_loop::WindowEventKind,
@@ -44,6 +44,7 @@ pub trait EventLoop {
 }
 
 mod action;
+mod bar;
 mod cleanup;
 mod config;
 mod direction;
@@ -113,7 +114,14 @@ fn lua_value_to_bar_item<'a>(
     })
 }
 
-fn main() {
+#[derive(Debug)]
+enum Error {
+    CtrlcInitFailed(ctrlc::Error),
+    LuaInitFailed(mlua::Error),
+    ConfigInitFailed(mlua::Error),
+}
+
+fn main() -> Result<(), Error> {
     logging::init().expect("Failed to initialize logging");
     info!("Initialized logging");
 
@@ -133,26 +141,30 @@ fn main() {
 
     let state = State::new(tx.clone());
 
-    state.wms.write().push(ThreadSafe::new(WindowManager::new(
-        tx.clone(),
-        Display::new(true),
-    )));
+    //     state.displays.wms.write().push(ThreadSafe::new(WindowManager::new(
+    //         tx.clone(),
+    //         Display::new(true, Default::default()),
+    //     )));
 
-    let rt = lua::init(state.clone()).unwrap();
+    let rt = lua::init(state.clone()).map_err(Error::LuaInitFailed)?;
 
     // Only really used in development to make sure everything is cleaned up
     {
         let tx = tx.clone();
-        ctrlc::set_handler(move || tx.send(Event::Exit).unwrap());
+        ctrlc::set_handler(move || tx.send(Event::Exit).unwrap())
+            .map_err(Error::CtrlcInitFailed)?;
     }
 
     // Run the config
-    if let Err(e) = rt.eval("dofile(nog.config_path .. '/lua/config.lua')") {
-        error!("config error: {}", e);
-    }
+    rt.eval("dofile(nog.config_path .. '/lua/config.lua')")
+        .map_err(Error::ConfigInitFailed)?;
 
     if state.config.read().remove_task_bar {
         tx.send(Event::Action(Action::HideTaskbars)).unwrap();
+    }
+
+    if state.config.read().display_app_bar {
+        tx.send(Event::Action(Action::ShowBars)).unwrap();
     }
 
     // lua::repl::spawn(tx.clone());
@@ -173,8 +185,8 @@ fn main() {
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
                     let win_id = win_event.window.get_id();
-                    state.with_wm_containing_win_mut(win_id, |wm| {
-                        let workspace = wm.get_focused_workspace_mut();
+                    state.with_dsp_containing_win_mut(win_id, |d| {
+                        let workspace = d.wm.get_focused_workspace_mut();
                         if workspace.focus_window(win_id).is_ok() {
                             info!("Focused window with id {}", win_event.window.get_id());
                             win_event.window.focus();
@@ -189,28 +201,32 @@ fn main() {
                         && size.height >= state.config.read().min_height
                     {
                         info!("'{}' created", win.get_title());
-                        state.with_focused_wm_mut(|wm| {
-                            wm.manage(&rt, &state.config.read(), win);
+                        state.with_focused_dsp_mut(|d| {
+                            let area = d.monitor.get_work_area();
+                            d.wm.manage(&rt, &state.config.read(), area, win);
                         });
                     }
                 }
                 WindowEventKind::Deleted => {
                     let win_id = win_event.window.get_id();
-                    state.with_wm_containing_win_mut(win_id, |wm| {
-                        wm.organize(
+                    state.with_dsp_containing_win_mut(win_id, |d| {
+                        let area = d.monitor.get_work_area();
+                        d.wm.organize(
                             &rt,
                             &state.config.read(),
                             None,
+                            area,
                             String::from("deleted"),
                             win_id,
-                        );
+                        )
                     });
                 }
                 WindowEventKind::Minimized => {
                     let win_id = win_event.window.get_id();
 
-                    state.with_wm_containing_win_mut(win_id, |wm| {
-                        wm.unmanage(&rt, &state.config.read(), win_id);
+                    state.with_dsp_containing_win_mut(win_id, |d| {
+                        let area = d.monitor.get_work_area();
+                        d.wm.unmanage(&rt, &state.config.read(), area, win_id);
                         info!("'{}' minimized", win_event.window.get_title());
                     });
                 }
@@ -301,17 +317,15 @@ fn main() {
             }
             Event::Action(action) => action.handle(&state, &rt),
             Event::RenderGraph => {
-                for wm in state.wms.read().iter() {
-                    wm.read().render(&state.config.read());
+                for d in state.displays.read().iter() {
+                    let area = d.monitor.get_work_area();
+                    d.wm.render(&state.config.read(), area);
                 }
             }
             Event::Exit => {
-                let wms = state.wms.read();
-
-                for wm in wms.iter() {
-                    let mut wm = wm.write();
-                    wm.display.show_taskbar();
-                    wm.cleanup();
+                for d in state.displays.write().iter_mut() {
+                    d.show_taskbar();
+                    d.wm.cleanup();
                 }
 
                 WindowEventLoop::stop();
@@ -321,4 +335,6 @@ fn main() {
             }
         }
     }
+
+    Ok(())
 }

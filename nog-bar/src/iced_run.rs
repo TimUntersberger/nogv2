@@ -98,6 +98,7 @@ where
         &mut proxy,
         &window,
     );
+
     runtime.track(subscription);
 
     let (compositor, renderer) = C::new(compositor_settings, Some(&window))?;

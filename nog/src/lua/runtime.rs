@@ -19,10 +19,7 @@ impl LuaRuntime {
     pub fn new(state: State) -> LuaResult<Self> {
         let options = LuaOptions::default();
         let lua = unsafe { Lua::unsafe_new_with(mlua::StdLib::ALL, options) }.into_static();
-        Ok(Self {
-            state,
-            lua
-        })
+        Ok(Self { state, lua })
     }
 
     pub fn eval(&self, s: &str) -> LuaResult<mlua::Value> {

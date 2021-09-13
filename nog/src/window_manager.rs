@@ -10,7 +10,7 @@ use crate::{
     event::Event,
     graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId},
     lua::{graph_proxy::GraphProxy, LuaRuntime},
-    platform::{Display, NativeDisplay, NativeWindow, Position, Size, Window, WindowId},
+    platform::{Area, Monitor, NativeMonitor, NativeWindow, Position, Size, Window, WindowId},
     workspace::{Workspace, WorkspaceId},
 };
 
@@ -21,7 +21,6 @@ pub type WindowManagerResult<T = ()> = Result<T, WindowManagerError>;
 
 pub struct WindowManager {
     tx: Sender<Event>,
-    pub display: Display,
     pub workspaces: Vec<Workspace>,
     pub focused_workspace_id: WorkspaceId,
     pub window_cleanup: HashMap<WindowId, WindowCleanup>,
@@ -29,13 +28,12 @@ pub struct WindowManager {
 }
 
 impl WindowManager {
-    pub fn new(tx: Sender<Event>, display: Display) -> Self {
+    pub fn new(tx: Sender<Event>) -> Self {
         Self {
             workspaces: vec![Workspace::new(WorkspaceId(1), tx.clone())],
             focused_workspace_id: WorkspaceId(0),
             window_cleanup: HashMap::new(),
             workspace_cleanup: HashMap::new(),
-            display,
             tx,
         }
     }
@@ -55,7 +53,7 @@ impl WindowManager {
             .any(|x| x)
     }
 
-    pub fn manage(&mut self, rt: &LuaRuntime, config: &Config, win: Window) {
+    pub fn manage(&mut self, rt: &LuaRuntime, config: &Config, area: Area, win: Window) {
         let size = win.get_size();
         let pos = win.get_position();
         let cleanup = self.window_cleanup.entry(win.get_id()).or_default();
@@ -69,13 +67,14 @@ impl WindowManager {
             cleanup.add_decorations = Some(win.remove_decorations())
         }
 
-        self.organize(&rt, config, None, String::from("managed"), win.get_id());
+        self.organize(&rt, config, None, area, String::from("managed"), win.get_id());
     }
 
     pub fn swap_in_direction(
         &mut self,
         rt: &LuaRuntime,
         config: &Config,
+        area: Area,
         maybe_id: Option<WindowId>,
         dir: Direction,
     ) {
@@ -86,17 +85,13 @@ impl WindowManager {
         });
 
         if let Some(id) = id {
-            self.organize(rt, config, None, String::from("swapped"), (id, dir));
+            self.organize(rt, config, None, area, String::from("swapped"), (id, dir));
         }
     }
 
     /// Only renders the visible workspace
-    pub fn render(&self, config: &Config) {
-        self.get_focused_workspace().render(
-            config,
-            self.display.get_size(config),
-            self.display.get_pos(config),
-        );
+    pub fn render(&self, config: &Config, area: Area) {
+        self.get_focused_workspace().render(config, area);
     }
 
     pub fn organize<TArgs: mlua::ToLuaMulti<'static>>(
@@ -104,11 +99,10 @@ impl WindowManager {
         rt: &LuaRuntime,
         config: &Config,
         maybe_workspace: Option<&mut Workspace>,
+        area: Area,
         reason: String,
         args: TArgs,
     ) -> WindowManagerResult {
-        let size = self.display.get_size(&config);
-        let pos = self.display.get_pos(&config);
         let workspace = maybe_workspace.unwrap_or_else(|| self.get_focused_workspace_mut());
         // We need to use the scope here to make the rust type system happy.
         // scope drops the userdata when the function has finished.
@@ -122,7 +116,7 @@ impl WindowManager {
 
         if workspace.graph.dirty {
             info!("Have to rerender!");
-            workspace.render(&config, size, pos);
+            workspace.render(&config, area);
             println!("{}", &workspace.graph);
             workspace.graph.dirty = false;
         }
@@ -130,7 +124,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn unmanage(&mut self, rt: &LuaRuntime, config: &Config, win_id: WindowId) {
+    pub fn unmanage(&mut self, rt: &LuaRuntime, config: &Config, area: Area, win_id: WindowId) {
         if let Some(cleanup) = self.window_cleanup.get(&win_id) {
             if let Some(f) = cleanup.add_decorations.as_ref() {
                 f();
@@ -141,7 +135,7 @@ impl WindowManager {
             }
         }
 
-        self.organize(&rt, config, None, String::from("unmanaged"), win_id);
+        self.organize(&rt, config, None, area, String::from("unmanaged"), win_id);
 
         self.window_cleanup.remove(&win_id);
     }

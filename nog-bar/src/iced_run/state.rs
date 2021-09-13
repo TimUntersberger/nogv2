@@ -1,10 +1,10 @@
 use iced_winit::conversion;
 use iced_winit::{Application, Color, Debug, Menu, Mode, Point, Size, Viewport};
 
-use std::marker::PhantomData;
 use iced_winit::winit;
 use iced_winit::winit::event::{Touch, WindowEvent};
 use iced_winit::winit::window::Window;
+use std::marker::PhantomData;
 
 /// The state of a windowed [`Application`].
 #[derive(Debug, Clone)]

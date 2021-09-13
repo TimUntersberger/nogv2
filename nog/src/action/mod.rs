@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    bar::Bar,
     config::Config,
     event::Event,
     graph::GraphNode,
@@ -8,7 +9,7 @@ use crate::{
     keybinding::KeybindingMode,
     keybinding_event_loop::KeybindingEventLoop,
     lua::LuaRuntime,
-    platform::{Api, NativeApi, NativeDisplay, NativeWindow, Window},
+    platform::{Api, NativeApi, NativeMonitor, NativeWindow, Window},
     session,
     state::State,
 };
@@ -48,6 +49,8 @@ pub enum Action {
     LoadSession,
     ShowTaskbars,
     HideTaskbars,
+    ShowBars,
+    HideBars,
     Window(WindowAction),
     Workspace(WorkspaceAction),
     UpdateConfig {
@@ -71,77 +74,20 @@ pub enum Action {
 impl Action {
     pub fn handle(self, state: &State, rt: &LuaRuntime) {
         match self {
-            Action::Window(action) => match action {
-                WindowAction::Focus(win_id) => {
-                    let win = Window::new(win_id);
-                    win.focus();
-                }
-                WindowAction::Close(maybe_win_id) => {
-                    let win_id =
-                        maybe_win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
-
-                    Window::new(win_id).close();
-                }
-                WindowAction::Manage(maybe_id) => {
-                    let win = maybe_id
-                        .map(|id| Window::new(id))
-                        .unwrap_or_else(|| Api::get_foreground_window());
-
-                    state.with_focused_wm_mut(|wm| {
-                        let workspace = wm.get_focused_workspace_mut();
-
-                        if win.exists() && !workspace.has_window(win.get_id()) {
-                            info!("'{}' managed", win.get_title());
-
-                            wm.manage(&rt, &state.config.read(), win);
-                        }
-                    });
-                }
-                WindowAction::Unmanage(maybe_id) => state.with_focused_wm_mut(|wm| {
-                    let workspace = wm.get_focused_workspace();
-                    let win = maybe_id
-                        .map(|id| Window::new(id))
-                        .unwrap_or_else(|| Api::get_foreground_window());
-
-                    if workspace.has_window(win.get_id()) {
-                        info!("'{}' unmanaged", win.get_title());
-
-                        wm.unmanage(&rt, &state.config.read(), win.get_id());
-                    }
-                }),
-            },
-            Action::Workspace(action) => match action {
-                WorkspaceAction::Focus(maybe_id, dir) => state.with_focused_wm_mut(|wm| {
-                    let workspace = wm.get_focused_workspace_mut();
-                    if let Some(id) = workspace.focus_in_direction(dir) {
-                        let win_id = workspace
-                            .graph
-                            .get_node(id)
-                            .expect("The returned node has to exist")
-                            .try_get_window_id()
-                            .expect("The focused node has to be a window node");
-
-                        state
-                            .tx
-                            .send(Event::Action(Action::Window(WindowAction::Focus(win_id))))
-                            .unwrap();
-                    }
-                }),
-                WorkspaceAction::Swap(maybe_id, dir) => state.with_focused_wm_mut(|wm| {
-                    wm.swap_in_direction(&rt, &state.config.read(), None, dir);
-                }),
-            },
+            Action::Window(action) => action.handle(state, rt),
+            Action::Workspace(action) => action.handle(state, rt),
             Action::SaveSession => {
-                session::save_session(&state.wms.read()[0].read().workspaces);
+                session::save_session(&state.displays.read()[0].wm.workspaces);
                 info!("Saved session!");
             }
-            Action::LoadSession => state.with_focused_wm_mut(|wm| {
-                wm.workspaces = session::load_session(state.tx.clone()).unwrap();
+            Action::LoadSession => state.with_focused_dsp_mut(|d| {
+                d.wm.workspaces = session::load_session(state.tx.clone()).unwrap();
+                let area = d.monitor.get_work_area();
                 info!("Loaded session!");
 
                 let mut windows = Vec::new();
 
-                for ws in &wm.workspaces {
+                for ws in &d.wm.workspaces {
                     for node in ws.graph.nodes.values() {
                         if let GraphNode::Window(win_id) = node {
                             windows.push(Window::new(*win_id));
@@ -150,27 +96,21 @@ impl Action {
                 }
 
                 for window in windows {
-                    wm.manage(&rt, &state.config.read(), window);
+                    d.wm.manage(&rt, &state.config.read(), area, window);
                 }
 
-                wm.render(&state.config.read());
+                d.wm.render(&state.config.read(), area);
             }),
             Action::ShowTaskbars => {
-                let wms = state.wms.read();
-
-                for wm in wms.iter() {
-                    let mut wm = wm.write();
-                    wm.display.show_taskbar();
-                    wm.cleanup();
+                for d in state.displays.write().iter_mut() {
+                    d.show_taskbar();
+                    d.wm.cleanup();
                 }
             }
             Action::HideTaskbars => {
-                let wms = state.wms.read();
-
-                for wm in wms.iter() {
-                    let mut wm = wm.write();
-                    wm.display.hide_taskbar();
-                    wm.cleanup();
+                for d in state.displays.write().iter_mut() {
+                    d.hide_taskbar();
+                    d.wm.cleanup();
                 }
             }
             Action::UpdateConfig { key, update_fn } => {
@@ -238,6 +178,19 @@ impl Action {
                 // KeybindingEventLoop::remove_keybinding(key_combination.get_id());
                 info!("Removed keybinding: {}", key);
             }
+            Action::ShowBars => {
+                // let mut bars = state.bars.write();
+                // for maybe_bar in state
+                //     .wms
+                //     .read()
+                //     .iter()
+                //     .map(|wm| Bar::new(wm.read().display.get_id()))
+                //     .collect::<Vec<_>>()
+                // {
+                //     bars.push(maybe_bar.unwrap());
+                // }
+            }
+            Action::HideBars => todo!(),
         }
     }
 }

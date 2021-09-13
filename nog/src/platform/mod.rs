@@ -1,3 +1,10 @@
+pub mod win;
+use std::ops;
+
+pub use win::*;
+
+use crate::config::Config;
+
 pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn new(id: WindowId) -> Self;
     fn reposition(&self, pos: Position);
@@ -12,10 +19,9 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn get_position(&self) -> Position;
 }
 
-pub trait NativeDisplay {
-    fn get_id(&self) -> DisplayId;
-    fn get_size(&self, config: &Config) -> Size;
-    fn get_pos(&self, config: &Config) -> Position;
+pub trait NativeMonitor {
+    fn get_id(&self) -> MonitorId;
+    fn get_work_area(&self) -> Area;
     fn hide_taskbar(&self);
     fn show_taskbar(&self);
     // fn get_name() -> String;
@@ -23,10 +29,19 @@ pub trait NativeDisplay {
 
 pub trait NativeApi {
     type Window: NativeWindow;
-    type Display: NativeDisplay;
+    type Monitor: NativeMonitor;
 
     fn get_foreground_window() -> Self::Window;
-    fn get_displays() -> Vec<Self::Display>;
+    fn get_displays() -> Vec<Self::Monitor>;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MonitorId(pub isize);
+
+impl std::fmt::Display for MonitorId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
@@ -35,6 +50,18 @@ pub struct WindowId(pub usize);
 impl std::fmt::Display for WindowId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Area {
+    pub size: Size,
+    pub pos: Position,
+}
+
+impl Area {
+    pub fn new(size: Size, pos: Position) -> Self {
+        Self { size, pos }
     }
 }
 
@@ -93,10 +120,3 @@ impl ops::Sub for Rect {
         }
     }
 }
-
-pub mod win;
-use std::ops;
-
-pub use win::*;
-
-use crate::{config::Config, display::DisplayId};

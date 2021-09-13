@@ -17,21 +17,7 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 use std::str::FromStr;
 
-use crate::{
-    action::{Action, WindowAction, WorkspaceAction},
-    direction::Direction,
-    display::DisplayId,
-    event::Event,
-    key_combination::KeyCombination,
-    keybinding::KeybindingMode,
-    lua::config_proxy::ConfigProxy,
-    paths::{get_config_path, get_runtime_path},
-    platform::{Api, NativeApi, NativeWindow, WindowId},
-    state::State,
-    types::ThreadSafeWindowManagers,
-    window_manager::WindowManager,
-    workspace::WorkspaceId,
-};
+use crate::{action::{Action, WindowAction, WorkspaceAction}, direction::Direction, display::DisplayId, event::Event, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, paths::{get_config_path, get_runtime_path}, platform::{Api, MonitorId, NativeApi, NativeWindow, WindowId}, state::State, types::ThreadSafeWindowManagers, window_manager::WindowManager, workspace::WorkspaceId};
 
 struct BarLayout<'a> {
     left: mlua::Table<'a>,
@@ -95,7 +81,7 @@ pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
         const runtime_path = get_runtime_path().to_str().unwrap();
         const config_path = get_config_path().to_str().unwrap();
         const version = option_env!("NOG_VERSION").unwrap_or("DEV");
-        const config = ConfigProxy::new(state.tx.clone());
+        const config = ConfigProxy::new(state.tx.clone(), state.config.clone());
 
         fn bind(mode: KeybindingMode, key_combination: KeyCombination, cb: mlua::Function) {
             inject lua, state;
@@ -160,10 +146,9 @@ pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
 
             let mut workspaces = vec![];
 
-            for wm in state.wms.read().iter() {
-                let ws_ids = wm
-                    .read()
-
+            for d in state.displays.read().iter() {
+                let ws_ids = d
+                    .wm
                     .workspaces
                     .iter()
                     .map(|w| w.id)
@@ -245,8 +230,8 @@ pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
 
             let dsp_id = dsp_id.unwrap_or(DisplayId(0));
 
-            Ok(state.with_wm_on_dsp(dsp_id, |wm| {
-                wm.workspaces.iter().any(|ws| ws.id == ws_id)
+            Ok(state.with_dsp(dsp_id, |d| {
+                d.wm.workspaces.iter().any(|ws| ws.id == ws_id)
             }).unwrap_or(false))
         }
     });

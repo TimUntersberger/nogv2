@@ -65,5 +65,4 @@ impl Default for Config {
             display_app_bar: true,
         }
     }
-
 }

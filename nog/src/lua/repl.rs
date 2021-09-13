@@ -3,8 +3,8 @@ use std::sync::mpsc::{sync_channel, Sender};
 use mlua::Error;
 use rustyline::Editor;
 
-use crate::event::Event;
 use crate::action::{Action, ExecuteLuaActionFn};
+use crate::event::Event;
 
 use super::LuaRuntime;
 

@@ -1,4 +1,4 @@
-use iced::{Application, Color, Command, Element, Menu, Subscription, window};
+use iced::{window, Application, Color, Command, Element, Menu, Subscription};
 
 pub struct Instance<A: Application>(A);
 

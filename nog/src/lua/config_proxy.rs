@@ -1,19 +1,22 @@
 use std::sync::mpsc::Sender;
 
-use crate::{action::{Action, UpdateConfigActionFn}, config::Config, event::Event, rgb::RGB};
+use crate::{
+    action::{Action, UpdateConfigActionFn},
+    config::Config,
+    event::Event,
+    rgb::RGB,
+    thread_safe::ThreadSafe,
+};
 use mlua::prelude::*;
 
 pub struct ConfigProxy {
-    config: Config,
+    config: ThreadSafe<Config>,
     tx: Sender<Event>,
 }
 
 impl ConfigProxy {
-    pub fn new(tx: Sender<Event>) -> Self {
-        Self {
-            config: Config::default(),
-            tx,
-        }
+    pub fn new(tx: Sender<Event>, config: ThreadSafe<Config>) -> Self {
+        Self { config, tx }
     }
 }
 
@@ -24,7 +27,7 @@ impl mlua::UserData for ConfigProxy {
                 {$($name:ident),*} => {
                     match key.as_str() {
                         $(stringify!($name) => {
-                            Some(this.config.$name.clone().to_lua(lua)?)
+                            Some(this.config.read().$name.clone().to_lua(lua)?)
                         },)*
                         _ => None,
                     }
@@ -94,7 +97,6 @@ impl mlua::UserData for ConfigProxy {
                 };
 
                 if let Some(f) = maybe_action {
-                    f.0(&mut this.config);
                     this.tx
                         .send(Event::Action(Action::UpdateConfig { key, update_fn: f }))
                         .unwrap();

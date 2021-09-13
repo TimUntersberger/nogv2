@@ -2,11 +2,13 @@ use std::ffi::c_void;
 use std::{mem, ptr};
 
 use crate::config::Config;
-use crate::display::DisplayId;
 
-use super::{NativeApi, NativeDisplay, NativeWindow, Position, Rect, Size, WindowId};
+use super::{
+    Area, MonitorId, NativeApi, NativeMonitor, NativeWindow, Position, Rect, Size, WindowId,
+};
 use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+use winapi::Windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{
     GetForegroundWindow, GetWindowLongW, SetWindowLongW, ShowWindow, SystemParametersInfoW,
     GWL_EXSTYLE, GWL_STYLE, SPI_SETWORKAREA, SW_HIDE, SW_SHOW, WS_CAPTION, WS_EX_CLIENTEDGE,
@@ -41,6 +43,15 @@ impl From<RECT> for Size {
         Self {
             width: (rect.right - rect.left) as usize,
             height: (rect.bottom - rect.top) as usize,
+        }
+    }
+}
+
+impl From<RECT> for Area {
+    fn from(rect: RECT) -> Self {
+        Self {
+            size: Size::from(rect),
+            pos: Position::from(rect),
         }
     }
 }
@@ -231,26 +242,29 @@ pub struct Api;
 
 impl NativeApi for Api {
     type Window = Window;
-    type Display = Display;
+    type Monitor = Monitor;
 
     fn get_foreground_window() -> Self::Window {
         unsafe { Window::from_hwnd(GetForegroundWindow()) }
     }
 
-    fn get_displays() -> Vec<Self::Display> {
-        vec![Display::new(true)]
+    fn get_displays() -> Vec<Self::Monitor> {
+        vec![]
     }
 }
 
-pub struct Display {
+pub struct Monitor {
+    id: MonitorId,
     primary: bool,
+    size: Size,
+    pos: Position,
     taskbar_hwnd: HWND,
 }
 
-impl Display {
-    pub fn new(primary: bool) -> Self {
-        let taskbar_hwnd = unsafe {
-            FindWindowW(
+impl Monitor {
+    pub fn new(primary: bool, hmonitor: HMONITOR) -> Self {
+        unsafe {
+            let taskbar_hwnd = FindWindowW(
                 PWSTR(
                     "Shell_TrayWnd"
                         .encode_utf16()
@@ -258,50 +272,67 @@ impl Display {
                         .as_mut_ptr(),
                 ),
                 PWSTR(ptr::null_mut()),
-            )
-        };
+            );
 
-        assert!(
-            taskbar_hwnd.0 != 0,
-            "The taskbar of some display couldn't be found!"
-        );
+            assert!(
+                taskbar_hwnd.0 != 0,
+                "The taskbar of some display couldn't be found!"
+            );
 
-        Self {
-            primary,
-            taskbar_hwnd,
+            let mut monitor_info = MONITORINFO::default();
+            GetMonitorInfoW(hmonitor, &mut monitor_info as *mut MONITORINFO);
+
+            Self {
+                id: MonitorId(hmonitor.0),
+                primary,
+                pos: Position::from(monitor_info.rcMonitor),
+                size: Size::from(monitor_info.rcWork),
+                taskbar_hwnd,
+            }
         }
     }
 }
 
-impl NativeDisplay for Display {
-    fn get_id(&self) -> DisplayId {
-        DisplayId(0)
+impl NativeMonitor for Monitor {
+    fn get_id(&self) -> MonitorId {
+        self.id
     }
 
-    fn get_pos(&self, config: &Config) -> Position {
-        let mut pos = Position::new(0, 0);
+    fn get_work_area(&self) -> Area {
+        let hmonitor = HMONITOR(self.id.0);
+        let mut monitor_info = MONITORINFO::default();
 
-        if config.display_app_bar {
-            pos.y += config.bar_height as isize;
+        unsafe {
+            GetMonitorInfoW(hmonitor, &mut monitor_info as *mut MONITORINFO);
         }
 
-        pos
+        Area::from(monitor_info.rcWork)
     }
 
-    fn get_size(&self, config: &Config) -> Size {
-        let win = Window::from_hwnd(self.taskbar_hwnd);
-        let mut size = Size::new(1920, 1080);
+    //     fn get_pos(&self, config: &Config) -> Position {
+    //         let mut pos = Position::new(0, 0);
 
-        if config.remove_task_bar {
-            size.height -= win.get_size().height;
-        }
+    //         if config.display_app_bar {
+    //             pos.y += config.bar_height as isize;
+    //         }
 
-        if config.display_app_bar {
-            size.height -= config.bar_height as usize;
-        }
+    //         pos
+    //     }
 
-        size
-    }
+    //     fn get_size(&self, config: &Config) -> Size {
+    //         let win = Window::from_hwnd(self.taskbar_hwnd);
+    //         let mut size = Size::new(1920, 1080);
+
+    //         if config.remove_task_bar {
+    //             size.height -= win.get_size().height;
+    //         }
+
+    //         if config.display_app_bar {
+    //             size.height -= config.bar_height as usize;
+    //         }
+
+    //         size
+    //     }
 
     fn hide_taskbar(&self) {
         unsafe {

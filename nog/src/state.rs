@@ -10,11 +10,12 @@ use chrono::Duration;
 use nog_protocol::BarContent;
 
 use crate::{
+    bar::Bar,
     config::Config,
-    display::DisplayId,
+    display::{Display, DisplayId},
     event::Event,
     lua::{self, LuaRuntime},
-    platform::{NativeDisplay, WindowId},
+    platform::{MonitorId, NativeMonitor, WindowId},
     thread_safe::ThreadSafe,
     types::ThreadSafeWindowManagers,
     window_manager::WindowManager,
@@ -23,11 +24,8 @@ use crate::{
 #[derive(Clone)]
 pub struct State {
     pub tx: Sender<Event>,
-    // pub rx: Receiver<Event>,
-    pub wms: ThreadSafeWindowManagers,
+    pub displays: ThreadSafe<Vec<Display>>,
     pub bar_content: ThreadSafe<BarContent>,
-    // pub bar_content_timer: (timer::Guard, timer::Timer),
-    // pub rt: LuaRuntime<'static>,
     pub config: ThreadSafe<Config>,
 }
 
@@ -35,42 +33,35 @@ impl State {
     pub fn new(tx: Sender<Event>) -> Self {
         Self {
             tx,
-            wms: ThreadSafeWindowManagers::default(),
+            displays: Default::default(),
             bar_content: Default::default(),
             config: Default::default(),
         }
     }
 
     pub fn win_is_managed(&self, win_id: WindowId) -> bool {
-        self.wms
-            .read()
-            .iter()
-            .any(|wm| wm.read().has_window(win_id))
+        self.displays.read().iter().any(|d| d.wm.has_window(win_id))
     }
 
     /// Doesn't call the function if no wm has the window
-    pub fn with_wm_containing_win_mut<T>(
+    pub fn with_dsp_containing_win_mut<T>(
         &self,
         win_id: WindowId,
-        f: impl Fn(&mut WindowManager) -> T,
+        f: impl Fn(&mut Display) -> T,
     ) -> Option<T> {
-        self.wms
-            .read()
-            .iter()
-            .find(|wm| wm.read().has_window(win_id))
-            .map(|wm| f(&mut wm.write()))
+        self.displays
+            .write()
+            .iter_mut()
+            .find(|d| d.wm.has_window(win_id))
+            .map(f)
     }
 
-    pub fn with_focused_wm_mut<T>(&self, f: impl Fn(&mut WindowManager) -> T) -> T {
-        f(&mut self.wms.read()[0].write())
+    pub fn with_focused_dsp_mut<T>(&self, f: impl Fn(&mut Display) -> T) -> T {
+        f(&mut self.displays.write()[0])
     }
 
     /// Doesn't call the function if no wm exists on the display
-    pub fn with_wm_on_dsp<T>(&self, id: DisplayId, f: impl Fn(&WindowManager) -> T) -> Option<T> {
-        self.wms
-            .read()
-            .iter()
-            .find(|wm| wm.read().display.get_id() == id)
-            .map(|wm| f(&wm.read()))
+    pub fn with_dsp<T>(&self, id: DisplayId, f: impl Fn(&Display) -> T) -> Option<T> {
+        self.displays.read().iter().find(|d| d.id == id).map(f)
     }
 }

@@ -10,6 +10,10 @@ nog.nbind("alt+F1", function()
   nog.update_window_layout()
 end)
 
+nog.nbind("alt+x", function()
+  nog.exit()
+end)
+
 nog.nbind("alt+h", function()
   nog.ws_focus(nil, "left")
 end)
