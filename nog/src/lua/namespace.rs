@@ -1,10 +1,6 @@
-use std::sync::{mpsc::Sender, Arc, RwLock};
-
 use mlua::prelude::*;
 
-use crate::{
-    event::Event, state::State, types::ThreadSafeWindowManagers, window_manager::WindowManager,
-};
+use crate::state::State;
 
 pub struct LuaNamespace {
     pub lua: &'static Lua,
@@ -32,7 +28,6 @@ impl LuaNamespace {
         A: FromLuaMulti<'a>,
     {
         let state = self.state.clone();
-        let lua = self.lua;
         self.tbl.set(
             name,
             self.lua
@@ -53,7 +48,7 @@ impl LuaNamespace {
 
     pub fn register(&self, parent: Option<&LuaNamespace>) -> LuaResult<()> {
         for namespace in &self.namespaces {
-            namespace.register(Some(&self))?;
+            namespace.register(Some(self))?;
         }
 
         match parent {

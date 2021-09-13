@@ -46,7 +46,7 @@ use crate::workspace::{Workspace, WorkspaceId};
 
 use itertools::Itertools;
 
-pub fn save_session(workspaces: &Vec<Workspace>) {
+pub fn save_session(workspaces: &[Workspace]) {
     let session = workspaces
         .iter()
         .map(|workspace| {
@@ -105,7 +105,7 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
     }
 
     let content = fs::read_to_string(path).unwrap();
-    let lines: Vec<&str> = content.split("\n").collect();
+    let lines: Vec<&str> = content.split('\n').collect();
     let mut i = 0;
 
     let mut workspaces = Vec::new();
@@ -127,7 +127,7 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
 
             while i < lines.len() && !lines[i].is_empty() && lines[i] != "@endworkspace" {
                 let line = lines[i];
-                let parts = line.split(":").collect::<Vec<&str>>();
+                let parts = line.split(':').collect::<Vec<&str>>();
 
                 let (id, node) = match parts.as_slice() {
                     [node_id, "row"] => (node_id, GraphNode::Group(GraphNodeGroupKind::Row)),
@@ -152,7 +152,7 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
 
             while i < lines.len() && lines[i] != "@endworkspace" {
                 let line = lines[i];
-                let parts = line.split(":").collect::<Vec<&str>>();
+                let parts = line.split(':').collect::<Vec<&str>>();
 
                 let child = parts[0].parse::<GraphNodeId>().unwrap();
                 let parent = parts[1].parse::<GraphNodeId>().unwrap();

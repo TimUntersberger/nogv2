@@ -1,8 +1,6 @@
 use std::ffi::c_void;
 use std::{mem, ptr};
 
-use crate::config::Config;
-
 use super::{
     Area, MonitorId, NativeApi, NativeMonitor, NativeWindow, Position, Rect, Size, WindowId,
 };
@@ -10,10 +8,9 @@ use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use winapi::Windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, GetWindowLongW, SetWindowLongW, ShowWindow, SystemParametersInfoW,
-    GWL_EXSTYLE, GWL_STYLE, SPI_SETWORKAREA, SW_HIDE, SW_SHOW, WS_CAPTION, WS_EX_CLIENTEDGE,
-    WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU,
-    WS_THICKFRAME,
+    GetForegroundWindow, GetWindowLongW, SetWindowLongW, ShowWindow, GWL_EXSTYLE, GWL_STYLE,
+    SW_HIDE, SW_SHOW, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE,
+    WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
 };
 use winapi::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
@@ -106,7 +103,8 @@ impl Window {
                 DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
                 &mut win_rect as *mut RECT as *mut c_void,
                 mem::size_of::<RECT>() as u32,
-            );
+            )
+            .unwrap();
 
             Rect::from(full_rect) - Rect::from(win_rect)
         }
@@ -121,7 +119,8 @@ impl Window {
                 DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
                 &mut rect as *mut RECT as *mut c_void,
                 mem::size_of::<RECT>() as u32,
-            );
+            )
+            .unwrap();
             Size::from(rect)
         }
     }
@@ -149,7 +148,7 @@ impl NativeWindow for Window {
         unsafe { IsWindow(self.0).into() }
     }
 
-    fn remove_decorations(&self) -> Box<dyn Fn() -> () + 'static> {
+    fn remove_decorations(&self) -> Box<dyn Fn() + 'static> {
         unsafe {
             let style = GetWindowLongW(self.0, GWL_STYLE) as u32;
             let new_style = style
@@ -165,7 +164,7 @@ impl NativeWindow for Window {
                 exstyle & !(WS_EX_DLGMODALFRAME.0 | WS_EX_CLIENTEDGE.0 | WS_EX_STATICEDGE.0);
             SetWindowLongW(self.0, GWL_EXSTYLE, new_exstyle as i32);
 
-            let hwnd = self.0.clone();
+            let hwnd = self.0;
             Box::new(move || {
                 SetWindowLongW(hwnd, GWL_STYLE, style as i32);
                 SetWindowLongW(hwnd, GWL_EXSTYLE, exstyle as i32);
@@ -256,8 +255,6 @@ impl NativeApi for Api {
 pub struct Monitor {
     id: MonitorId,
     primary: bool,
-    size: Size,
-    pos: Position,
     taskbar_hwnd: HWND,
 }
 
@@ -285,8 +282,6 @@ impl Monitor {
             Self {
                 id: MonitorId(hmonitor.0),
                 primary,
-                pos: Position::from(monitor_info.rcMonitor),
-                size: Size::from(monitor_info.rcWork),
                 taskbar_hwnd,
             }
         }

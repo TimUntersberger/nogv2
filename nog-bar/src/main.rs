@@ -52,7 +52,7 @@ impl Application for App {
                 self.state.bg = bar_content.bg.into();
                 self.state.items = bar_content.items;
             }
-            Err(err) => {
+            Err(_) => {
                 self.exit = true;
             }
         };

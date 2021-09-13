@@ -39,7 +39,7 @@ impl Client {
     }
 
     pub fn send_message(&mut self, msg: &Message) -> io::Result<String> {
-        self.stream.write(&msg.serialize())?;
+        self.stream.write_all(&msg.serialize())?;
 
         let mut response_header = [0u8; 2];
         self.stream.read_exact(&mut response_header)?;

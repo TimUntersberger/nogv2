@@ -8,7 +8,7 @@ use winapi::Windows::Win32::UI::WindowsAndMessaging::{
 use crate::event::Event;
 use crate::EventLoop;
 use lazy_static::lazy_static;
-use log::{debug, warn};
+use log::debug;
 use std::mem;
 use std::sync::atomic;
 use std::sync::{
@@ -55,8 +55,8 @@ impl EventLoop for KeybindingEventLoop {
 
             while !STOP.load(atomic::Ordering::SeqCst) {
                 while PeekMessageW(&mut msg, HWND::NULL, 0, 0, PM_REMOVE).into() {
-                    TranslateMessage(&mut msg);
-                    DispatchMessageW(&mut msg);
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
                 }
             }
         });
@@ -118,7 +118,7 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
                         if let Some(key) = Key::from_usize(key as usize) {
                             event = Some(InputEvent::KeyDown(KeyCombination {
                                 key,
-                                modifiers: MODIFIERS.lock().unwrap().clone(),
+                                modifiers: *MODIFIERS.lock().unwrap(),
                             }));
                         } else {
                             // warn!("Unknown key code '{}'", key);
@@ -137,7 +137,7 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
                         if let Some(key) = Key::from_usize(key as usize) {
                             event = Some(InputEvent::KeyUp(KeyCombination {
                                 key,
-                                modifiers: MODIFIERS.lock().unwrap().clone(),
+                                modifiers: *MODIFIERS.lock().unwrap(),
                             }));
                         } else {
                             // warn!("Unknown key code '{}'", key);
@@ -151,19 +151,12 @@ unsafe extern "system" fn keyboard_hook(ncode: i32, wparam: WPARAM, lparam: LPAR
             match event {
                 InputEvent::KeyUp(kb) | InputEvent::KeyDown(kb) => {
                     let ev_id = kb.get_id();
-                    if KEYBINDING_IDS
-                        .read()
-                        .unwrap()
-                        .iter()
-                        .find(|id| *id == &ev_id)
-                        .is_some()
-                    {
+                    if KEYBINDING_IDS.read().unwrap().iter().any(|id| *id == ev_id) {
                         debug!("blocking {:#?}", event);
                         CHAN.0.send(event).unwrap();
                         return LRESULT(1);
                     }
                 }
-                _ => {}
             }
         }
     }

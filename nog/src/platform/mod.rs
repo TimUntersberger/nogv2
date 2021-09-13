@@ -3,8 +3,6 @@ use std::ops;
 
 pub use win::*;
 
-use crate::config::Config;
-
 pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn new(id: WindowId) -> Self;
     fn reposition(&self, pos: Position);
@@ -12,7 +10,7 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn focus(&self);
     fn exists(&self) -> bool;
     fn close(&self);
-    fn remove_decorations(&self) -> Box<dyn Fn() -> () + 'static>;
+    fn remove_decorations(&self) -> Box<dyn Fn() + 'static>;
     fn get_id(&self) -> WindowId;
     fn get_title(&self) -> String;
     fn get_size(&self) -> Size;

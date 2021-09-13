@@ -32,7 +32,8 @@ impl WorkspaceAction {
             }),
             WorkspaceAction::Swap(maybe_id, dir) => state.with_focused_dsp_mut(|d| {
                 let area = d.monitor.get_work_area();
-                d.wm.swap_in_direction(&rt, &state.config.read(), area, None, dir);
+                d.wm.swap_in_direction(rt, &state.config.read(), area, None, dir)
+                    .unwrap();
             }),
         }
     }

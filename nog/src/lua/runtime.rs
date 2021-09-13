@@ -1,11 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{mpsc::Sender, Arc, RwLock},
-};
-
-use crate::{
-    event::Event, state::State, types::ThreadSafeWindowManagers, window_manager::WindowManager,
-};
+use crate::state::State;
 
 use super::LuaNamespace;
 use mlua::prelude::*;

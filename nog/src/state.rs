@@ -1,24 +1,13 @@
-use std::{
-    mem::{self, MaybeUninit},
-    sync::{
-        mpsc::{channel, Receiver, Sender},
-        Arc, RwLock,
-    },
-};
+use std::sync::mpsc::Sender;
 
-use chrono::Duration;
 use nog_protocol::BarContent;
 
 use crate::{
-    bar::Bar,
     config::Config,
     display::{Display, DisplayId},
     event::Event,
-    lua::{self, LuaRuntime},
-    platform::{MonitorId, NativeMonitor, WindowId},
+    platform::WindowId,
     thread_safe::ThreadSafe,
-    types::ThreadSafeWindowManagers,
-    window_manager::WindowManager,
 };
 
 #[derive(Clone)]

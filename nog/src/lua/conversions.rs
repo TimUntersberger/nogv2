@@ -3,7 +3,7 @@ use crate::display::DisplayId;
 use crate::key_combination::KeyCombination;
 use crate::keybinding::KeybindingMode;
 use crate::platform::{MonitorId, WindowId};
-use crate::rgb::RGB;
+use crate::rgb::Rgb;
 use crate::workspace::WorkspaceId;
 use mlua::prelude::*;
 use std::str::FromStr;
@@ -18,7 +18,7 @@ impl<'lua> FromLua<'lua> for KeybindingMode {
 
         Err(LuaError::FromLuaConversionError {
             from: lua_value.type_name(),
-            to: "KeybindingMode".into(),
+            to: "KeybindingMode",
             message: Some("Expected one of the following strings: 'g', 'w', 'n'".into()),
         })
     }
@@ -31,13 +31,13 @@ impl<'lua> FromLua<'lua> for KeyCombination {
                 Ok(kc) => Ok(kc),
                 Err(msg) => Err(LuaError::FromLuaConversionError {
                     from: lua_value.type_name(),
-                    to: "KeyCombination".into(),
+                    to: "KeyCombination",
                     message: Some(msg),
                 }),
             },
             Err(_) => Err(LuaError::FromLuaConversionError {
                 from: lua_value.type_name(),
-                to: "KeyCombination".into(),
+                to: "KeyCombination",
                 message: Some("Expected a type that can be coerced into a string".into()),
             }),
         }
@@ -107,32 +107,32 @@ impl<'lua> FromLua<'lua> for Direction {
                 Ok(x) => Ok(x),
                 Err(msg) => Err(LuaError::FromLuaConversionError {
                     from: lua_value.type_name(),
-                    to: "Direction".into(),
+                    to: "Direction",
                     message: Some(msg),
                 }),
             },
             Err(_) => Err(LuaError::FromLuaConversionError {
                 from: lua_value.type_name(),
-                to: "Direction".into(),
+                to: "Direction",
                 message: Some("Expected a type that can be coerced into a string".into()),
             }),
         }
     }
 }
 
-impl<'lua> ToLua<'lua> for RGB {
+impl<'lua> ToLua<'lua> for Rgb {
     fn to_lua(self, _lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
         Ok(LuaValue::Number(self.to_hex() as f64))
     }
 }
 
-impl<'lua> FromLua<'lua> for RGB {
+impl<'lua> FromLua<'lua> for Rgb {
     fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
         match i32::from_lua(lua_value.clone(), lua) {
-            Ok(x) => Ok(RGB::from_hex(x)),
+            Ok(x) => Ok(Rgb::from_hex(x)),
             Err(_) => Err(LuaError::FromLuaConversionError {
                 from: lua_value.type_name(),
-                to: "RGB".into(),
+                to: "Rgb",
                 message: Some("Expected a type that can be coerced into a string".into()),
             }),
         }

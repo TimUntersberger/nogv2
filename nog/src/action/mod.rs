@@ -1,15 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
-    bar::Bar,
     config::Config,
-    event::Event,
     graph::GraphNode,
     key_combination::KeyCombination,
     keybinding::KeybindingMode,
     keybinding_event_loop::KeybindingEventLoop,
     lua::LuaRuntime,
-    platform::{Api, NativeApi, NativeMonitor, NativeWindow, Window},
+    platform::{NativeMonitor, NativeWindow, Window},
     session,
     state::State,
 };
@@ -24,10 +22,10 @@ mod workspace;
 macro_rules! action_fn {
     ($ident: ident, $($ty:ty),*) => {
         #[derive(Clone)]
-        pub struct $ident(pub Arc<dyn Fn($($ty),*) -> () + Sync + Send>);
+        pub struct $ident(pub Arc<dyn Fn($($ty),*) + Sync + Send>);
 
         impl $ident {
-            pub fn new(f: impl Fn($($ty),*) -> () + Sync + Send + 'static) -> Self {
+            pub fn new(f: impl Fn($($ty),*) + Sync + Send + 'static) -> Self {
                 Self(Arc::new(f))
             }
         }
@@ -96,7 +94,7 @@ impl Action {
                 }
 
                 for window in windows {
-                    d.wm.manage(&rt, &state.config.read(), area, window);
+                    d.wm.manage(rt, &state.config.read(), area, window).unwrap();
                 }
 
                 d.wm.render(&state.config.read(), area);

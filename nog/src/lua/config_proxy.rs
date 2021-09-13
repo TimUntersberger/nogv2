@@ -4,7 +4,7 @@ use crate::{
     action::{Action, UpdateConfigActionFn},
     config::Config,
     event::Event,
-    rgb::RGB,
+    rgb::Rgb,
     thread_safe::ThreadSafe,
 };
 use mlua::prelude::*;
@@ -76,7 +76,7 @@ impl mlua::UserData for ConfigProxy {
                 }
 
                 let maybe_action = update_action_creator! {
-                    color: RGB,
+                    color: Rgb,
                     bar_height: u32,
                     font_size: u32,
                     font_name: String,

@@ -63,6 +63,12 @@ pub struct Graph {
     pub root_node_id: GraphNodeId,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Graph {
     pub fn new() -> Self {
         let mut nodes = HashMap::new();
@@ -243,7 +249,7 @@ impl Graph {
     }
 
     pub fn delete_node(&mut self, id: GraphNodeId) -> GraphResult {
-        if let Some(_) = self.nodes.remove(&id) {
+        if self.nodes.remove(&id).is_some() {
             self.dirty = true;
 
             if self.max_id == id {

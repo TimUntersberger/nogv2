@@ -1,7 +1,5 @@
 use std::{fmt::Display, str::FromStr};
 
-use itertools::Itertools;
-
 use crate::key_combination::KeyCombination;
 
 #[derive(Debug, Clone, Copy)]

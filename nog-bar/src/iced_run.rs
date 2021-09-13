@@ -12,26 +12,23 @@ pub use state::State;
 
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
-use iced_winit::clipboard::{self, Clipboard};
+use iced_winit::clipboard::Clipboard;
 use iced_winit::conversion;
 use iced_winit::mouse;
 use iced_winit::winit;
 use iced_winit::{
     application::{build_user_interface, requests_exit, run_command, update},
-    Application, Color, Command, Debug, Error, Executor, Mode, Proxy, Runtime, Settings, Size,
-    Subscription,
+    Application, Debug, Error, Executor, Proxy, Runtime, Settings,
 };
 use winapi::Windows::Win32::Foundation::HWND;
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongW, SetWindowLongW, GWL_EXSTYLE, WINDOW_EX_STYLE, WINDOW_STYLE, WS_DLGFRAME,
-    WS_EX_NOACTIVATE, WS_POPUP,
+    SetWindowLongW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
 };
 
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::window;
-use iced_native::Menu;
-use iced_native::{Cache, UserInterface};
+use iced_native::Cache;
 
 use std::mem::ManuallyDrop;
 
@@ -151,6 +148,7 @@ where
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
     mut application: A,
     mut compositor: C,
@@ -207,7 +205,7 @@ async fn run_instance<A, E, C>(
                 let statuses = user_interface.update(
                     &events,
                     state.cursor_position(),
-                    &mut renderer,
+                    &renderer,
                     &mut clipboard,
                     &mut messages,
                 );

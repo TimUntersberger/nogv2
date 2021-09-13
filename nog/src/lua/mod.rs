@@ -1,23 +1,27 @@
-//TODO: The only dependency we really need is a immutable reference to State.
-//
-//Maybe removing the inject stuff might be nice now?
-//  Initial thought: yes
 pub mod config_proxy;
 pub mod conversions;
 pub mod graph_proxy;
 pub mod namespace;
-pub mod repl;
 pub mod runtime;
-
-use std::sync::{mpsc::Sender, Arc, RwLock};
 
 pub use namespace::LuaNamespace;
 pub use runtime::LuaRuntime;
 
 use mlua::prelude::*;
-use std::str::FromStr;
 
-use crate::{action::{Action, WindowAction, WorkspaceAction}, direction::Direction, display::DisplayId, event::Event, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, paths::{get_config_path, get_runtime_path}, platform::{Api, MonitorId, NativeApi, NativeWindow, WindowId}, state::State, types::ThreadSafeWindowManagers, window_manager::WindowManager, workspace::WorkspaceId};
+use crate::{
+    action::{Action, WindowAction, WorkspaceAction},
+    direction::Direction,
+    display::DisplayId,
+    event::Event,
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    lua::config_proxy::ConfigProxy,
+    paths::{get_config_path, get_runtime_path},
+    platform::{Api, NativeApi, NativeWindow, WindowId},
+    state::State,
+    workspace::WorkspaceId,
+};
 
 struct BarLayout<'a> {
     left: mlua::Table<'a>,
@@ -74,14 +78,14 @@ macro_rules! namespace {
     };
 }
 
-pub fn init<'a>(state: State) -> LuaResult<LuaRuntime> {
+pub fn init(state: State) -> LuaResult<LuaRuntime> {
     let rt = LuaRuntime::new(state.clone())?;
 
     let ns = namespace!(rt, nog, {
         const runtime_path = get_runtime_path().to_str().unwrap();
         const config_path = get_config_path().to_str().unwrap();
         const version = option_env!("NOG_VERSION").unwrap_or("DEV");
-        const config = ConfigProxy::new(state.tx.clone(), state.config.clone());
+        const config = ConfigProxy::new(state.tx.clone(), state.config);
 
         fn bind(mode: KeybindingMode, key_combination: KeyCombination, cb: mlua::Function) {
             inject lua, state;

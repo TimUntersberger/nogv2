@@ -2,7 +2,7 @@ use mlua::prelude::*;
 
 use crate::{
     direction::Direction,
-    graph::{Graph, GraphNode, GraphNodeId, WindowNodeId},
+    graph::{Graph, GraphNodeId, WindowNodeId},
 };
 
 pub struct GraphProxy<'a>(pub &'a mut Graph);
@@ -52,7 +52,8 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
             "move_node",
             |_lua, this, (parent_id, node_id, index): (Option<GraphNodeId>, GraphNodeId, Option<usize>)| {
                 let parent_id = parent_id.unwrap_or(this.0.root_node_id);
-                Ok(this.0.move_node(parent_id, node_id, index))
+                this.0.move_node(parent_id, node_id, index);
+                Ok(())
             },
         );
 
@@ -63,11 +64,11 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
             },
         );
 
-        methods.add_method_mut("del_window_node", |_lua, this, (win_id): (WindowNodeId)| {
+        methods.add_method_mut("del_window_node", |_lua, this, win_id: WindowNodeId| {
             let maybe_node_id = this.0.get_window_node(win_id);
 
             if let Some(node_id) = maybe_node_id {
-                if let Ok(_) = this.0.delete_node(node_id) {
+                if this.0.delete_node(node_id).is_ok() {
                     return Ok(Some(node_id));
                 }
             }

@@ -45,7 +45,7 @@ impl FromStr for KeyCombination {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<String> = s
-            .split("+")
+            .split('+')
             .map(|x| x.trim().to_ascii_uppercase())
             .collect();
 
@@ -73,7 +73,11 @@ impl FromStr for KeyCombination {
                     modifiers,
                 }
             }
-            [] => return Err(format!("An empty string is not a valid key combination")),
+            [] => {
+                return Err(String::from(
+                    "An empty string is not a valid key combination",
+                ))
+            }
         })
     }
 }

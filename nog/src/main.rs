@@ -1,34 +1,21 @@
-use action::{Action, WindowAction, WorkspaceAction};
+use action::Action;
 use chrono::Duration;
 use event::Event;
-use graph::GraphNodeId;
 use keybinding_event_loop::KeybindingEventLoop;
 use log::{error, info};
-use lua::{graph_proxy::GraphProxy, LuaRuntime};
 use mlua::FromLua;
 use nog_protocol::{BarContent, BarItem, BarItemAlignment};
-use platform::{Monitor, Position, Size, Window, WindowId};
-use rgb::RGB;
+use rgb::Rgb;
 use server::Server;
 use std::{
-    collections::HashMap,
-    sync::{
-        mpsc::{channel, Sender},
-        Arc, RwLock,
-    },
+    sync::mpsc::{channel, Sender},
     thread,
 };
 use window_event_loop::WindowEventLoop;
-use window_manager::WindowManager;
-use workspace::Workspace;
 
 use crate::{
-    cleanup::{DisplayCleanup, WindowCleanup},
-    config::Config,
-    graph::{Graph, GraphNode, GraphNodeGroupKind},
-    platform::{Api, NativeApi, NativeMonitor, NativeWindow},
+    platform::{NativeMonitor, NativeWindow},
     state::State,
-    thread_safe::ThreadSafe,
     window_event_loop::WindowEventKind,
 };
 
@@ -65,17 +52,16 @@ mod server;
 mod session;
 mod state;
 mod thread_safe;
-mod types;
 mod window_event_loop;
 mod window_manager;
 mod workspace;
 
-fn lua_value_to_bar_item<'a>(
+fn lua_value_to_bar_item(
     lua: &mlua::Lua,
     align: BarItemAlignment,
-    value: mlua::Value<'a>,
-    default_fg: RGB,
-    default_bg: RGB,
+    value: mlua::Value<'_>,
+    default_fg: Rgb,
+    default_bg: Rgb,
 ) -> mlua::Result<BarItem> {
     Ok(match value {
         tbl @ mlua::Value::Table(..) => {
@@ -83,12 +69,12 @@ fn lua_value_to_bar_item<'a>(
             let text = String::from_lua(tbl.get(1).unwrap_or(mlua::Value::Nil), lua).unwrap();
             let fg = tbl
                 .get::<&str, i32>("fg")
-                .map(RGB::from_hex)
+                .map(Rgb::from_hex)
                 .unwrap_or(default_fg);
 
             let bg = tbl
                 .get::<&str, i32>("bg")
-                .map(RGB::from_hex)
+                .map(Rgb::from_hex)
                 .unwrap_or(default_bg);
 
             BarItem {
@@ -102,7 +88,7 @@ fn lua_value_to_bar_item<'a>(
             let text = lua
                 .coerce_string(value)?
                 .map(|s| s.to_str().unwrap().to_string())
-                .unwrap_or(String::from("nil"));
+                .unwrap_or_else(|| String::from("nil"));
 
             BarItem {
                 text,
@@ -116,9 +102,9 @@ fn lua_value_to_bar_item<'a>(
 
 #[derive(Debug)]
 enum Error {
-    CtrlcInitFailed(ctrlc::Error),
-    LuaInitFailed(mlua::Error),
-    ConfigInitFailed(mlua::Error),
+    Ctrlc(ctrlc::Error),
+    Lua(mlua::Error),
+    Config(mlua::Error),
 }
 
 fn main() -> Result<(), Error> {
@@ -146,18 +132,17 @@ fn main() -> Result<(), Error> {
     //         Display::new(true, Default::default()),
     //     )));
 
-    let rt = lua::init(state.clone()).map_err(Error::LuaInitFailed)?;
+    let rt = lua::init(state.clone()).map_err(Error::Lua)?;
 
     // Only really used in development to make sure everything is cleaned up
     {
         let tx = tx.clone();
-        ctrlc::set_handler(move || tx.send(Event::Exit).unwrap())
-            .map_err(Error::CtrlcInitFailed)?;
+        ctrlc::set_handler(move || tx.send(Event::Exit).unwrap()).map_err(Error::Ctrlc)?;
     }
 
     // Run the config
     rt.eval("dofile(nog.config_path .. '/lua/config.lua')")
-        .map_err(Error::ConfigInitFailed)?;
+        .map_err(Error::Config)?;
 
     if state.config.read().remove_task_bar {
         tx.send(Event::Action(Action::HideTaskbars)).unwrap();
@@ -167,16 +152,13 @@ fn main() -> Result<(), Error> {
         tx.send(Event::Action(Action::ShowBars)).unwrap();
     }
 
-    // lua::repl::spawn(tx.clone());
-    // info!("Repl started");
-
     Server::spawn(tx.clone(), state.bar_content.clone());
     info!("IPC Server started");
 
     WindowEventLoop::spawn(tx.clone());
     info!("Window event loop spawned");
 
-    KeybindingEventLoop::spawn(tx.clone());
+    KeybindingEventLoop::spawn(tx);
     info!("Keybinding event loop spawned");
 
     info!("Starting main event loop");
@@ -203,7 +185,7 @@ fn main() -> Result<(), Error> {
                         info!("'{}' created", win.get_title());
                         state.with_focused_dsp_mut(|d| {
                             let area = d.monitor.get_work_area();
-                            d.wm.manage(&rt, &state.config.read(), area, win);
+                            d.wm.manage(&rt, &state.config.read(), area, win).unwrap();
                         });
                     }
                 }
@@ -226,7 +208,8 @@ fn main() -> Result<(), Error> {
 
                     state.with_dsp_containing_win_mut(win_id, |d| {
                         let area = d.monitor.get_work_area();
-                        d.wm.unmanage(&rt, &state.config.read(), area, win_id);
+                        d.wm.unmanage(&rt, &state.config.read(), area, win_id)
+                            .unwrap();
                         info!("'{}' minimized", win_event.window.get_title());
                     });
                 }

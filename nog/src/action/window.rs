@@ -2,7 +2,7 @@ use log::info;
 
 use crate::{
     lua::LuaRuntime,
-    platform::{Api, NativeApi, NativeWindow, NativeMonitor, Window, WindowId},
+    platform::{Api, NativeApi, NativeMonitor, NativeWindow, Window, WindowId},
     state::State,
 };
 
@@ -28,8 +28,8 @@ impl WindowAction {
             }
             WindowAction::Manage(maybe_id) => {
                 let win = maybe_id
-                    .map(|id| Window::new(id))
-                    .unwrap_or_else(|| Api::get_foreground_window());
+                    .map(Window::new)
+                    .unwrap_or_else(Api::get_foreground_window);
 
                 state.with_focused_dsp_mut(|d| {
                     let workspace = d.wm.get_focused_workspace_mut();
@@ -38,7 +38,7 @@ impl WindowAction {
                     if win.exists() && !workspace.has_window(win.get_id()) {
                         info!("'{}' managed", win.get_title());
 
-                        d.wm.manage(&rt, &state.config.read(), area, win);
+                        d.wm.manage(rt, &state.config.read(), area, win).unwrap();
                     }
                 });
             }
@@ -46,13 +46,14 @@ impl WindowAction {
                 let workspace = d.wm.get_focused_workspace();
                 let area = d.monitor.get_work_area();
                 let win = maybe_id
-                    .map(|id| Window::new(id))
-                    .unwrap_or_else(|| Api::get_foreground_window());
+                    .map(Window::new)
+                    .unwrap_or_else(Api::get_foreground_window);
 
                 if workspace.has_window(win.get_id()) {
                     info!("'{}' unmanaged", win.get_title());
 
-                    d.wm.unmanage(&rt, &state.config.read(), area, win.get_id());
+                    d.wm.unmanage(rt, &state.config.read(), area, win.get_id())
+                        .unwrap();
                 }
             }),
         }

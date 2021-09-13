@@ -37,7 +37,7 @@ impl Message {
 
         let mut serialized = match self {
             ExecuteLua { code } => format!("ExecuteLua:{}", code),
-            GetBarContent => format!("GetBarContent:"),
+            GetBarContent => String::from("GetBarContent:"),
         }
         .as_bytes()
         .to_vec();

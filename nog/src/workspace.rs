@@ -2,17 +2,17 @@ use crate::config::Config;
 use crate::direction::Direction;
 use crate::event::Event;
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
-use crate::platform::{Area, NativeWindow, Position, Size, Window, WindowId};
+use crate::platform::{Area, NativeWindow, Window, WindowId};
 use std::sync::mpsc::Sender;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WorkspaceId(pub usize);
 
 pub struct Workspace {
+    tx: Sender<Event>,
     pub id: WorkspaceId,
     pub graph: Graph,
     pub focused_node_id: Option<GraphNodeId>,
-    tx: Sender<Event>,
 }
 
 pub enum WorkspaceError {
@@ -88,7 +88,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, config: &Config, mut area: Area) 
         GraphNode::Group(kind) => {
             let children = graph.get_children(id);
 
-            if children.len() == 0 {
+            if children.is_empty() {
                 return;
             }
 
@@ -99,12 +99,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, config: &Config, mut area: Area) 
                     for child_id in children {
                         area.pos.x = x;
                         area.size.width = col_width;
-                        render_node(
-                            child_id,
-                            graph,
-                            config,
-                            area
-                        );
+                        render_node(child_id, graph, config, area);
                         x += col_width as isize;
                     }
                 }
@@ -114,12 +109,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, config: &Config, mut area: Area) 
                     for child_id in children {
                         area.pos.y = y;
                         area.size.height = row_height;
-                        render_node(
-                            child_id,
-                            graph,
-                            config,
-                            area
-                        );
+                        render_node(child_id, graph, config, area);
                         y += row_height as isize;
                     }
                 }

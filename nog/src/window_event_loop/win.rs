@@ -19,7 +19,7 @@ use crate::{
     EventLoop,
 };
 use lazy_static::lazy_static;
-use log::{error, warn};
+use log::error;
 use std::{
     mem,
     sync::{
@@ -99,8 +99,8 @@ impl EventLoop for WindowEventLoop {
 
             while !STOP.load(atomic::Ordering::SeqCst) {
                 while PeekMessageW(&mut msg, HWND::NULL, 0, 0, PM_REMOVE).into() {
-                    TranslateMessage(&mut msg);
-                    DispatchMessageW(&mut msg);
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
                 }
             }
         });

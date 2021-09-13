@@ -1,7 +1,6 @@
 use std::{
     io,
     process::{Child, Command},
-    sync::Arc,
 };
 
 use crate::{paths::get_bin_path, platform::MonitorId};

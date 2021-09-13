@@ -1,14 +1,10 @@
 use crate::action::ExecuteLuaActionFn;
 use crate::{action::Action, event::Event, thread_safe::ThreadSafe};
-use log::error;
-use nog_protocol::{BarContent, BarItem, BarItemAlignment, Message};
+use nog_protocol::{BarContent, Message};
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    sync::{
-        mpsc::{sync_channel, Sender},
-        Arc, RwLock,
-    },
+    sync::mpsc::{sync_channel, Sender},
 };
 
 pub struct Server {
@@ -37,16 +33,14 @@ impl Server {
     pub fn start(&self) {
         let listener = TcpListener::bind(format!("{}:{}", self.host, self.port)).unwrap();
 
-        for stream in listener.incoming() {
-            if let Ok(stream) = stream {
-                let tx = self.tx.clone();
-                let bar_content = self.bar_content.clone();
-                std::thread::spawn(move || {
-                    if let Err(_e) = handle_client(stream, tx, bar_content) {
-                        // error!("{:?}", e);
-                    }
-                });
-            }
+        for stream in listener.incoming().flatten() {
+            let tx = self.tx.clone();
+            let bar_content = self.bar_content.clone();
+            std::thread::spawn(move || {
+                if let Err(_e) = handle_client(stream, tx, bar_content) {
+                    // error!("{:?}", e);
+                }
+            });
         }
     }
 }
@@ -109,7 +103,7 @@ fn handle_client(
             response.append(&mut response_header.to_vec());
             response.append(&mut response_body.to_vec());
 
-            stream.write(&response)?;
+            stream.write_all(&response)?;
         }
     }
 }

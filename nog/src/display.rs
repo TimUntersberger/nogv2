@@ -1,6 +1,6 @@
 use crate::bar::Bar;
-use crate::window_manager::WindowManager;
 use crate::platform::{Monitor, Window};
+use crate::window_manager::WindowManager;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct DisplayId(pub usize);
@@ -10,7 +10,7 @@ pub struct Display {
     pub taskbar_win: Window,
     pub bar: Option<Bar>,
     pub wm: WindowManager,
-    pub monitor: Monitor
+    pub monitor: Monitor,
 }
 
 impl Display {
