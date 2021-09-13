@@ -1,7 +1,13 @@
 use std::time::Duration;
 
+use instance::Instance;
+use iced_wgpu as renderer;
+use iced_run::run;
 use iced::{Application, Color, Command, Container, Row, Text};
 use nog_client::{BarItem, BarItemAlignment, Client};
+
+mod iced_run;
+mod instance;
 
 #[derive(Debug)]
 struct AppState {
@@ -33,11 +39,7 @@ impl Application for App {
         self.state.bg
     }
 
-    fn update(
-        &mut self,
-        _message: Self::Message,
-        _clipboard: &mut iced::Clipboard,
-    ) -> iced::Command<Self::Message> {
+    fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
         let bar_content = self.state.client.get_bar_content().unwrap();
         self.state.bg = bar_content.bg.into();
         self.state.items = bar_content.items;
@@ -90,6 +92,29 @@ impl Application for App {
             .padding(1)
             .into()
     }
+
+    fn run(settings: iced::Settings<Self::Flags>) -> iced::Result
+    where
+        Self: 'static,
+    {
+        let renderer_settings = renderer::Settings {
+            default_font: settings.default_font,
+            default_text_size: settings.default_text_size,
+            text_multithreading: settings.text_multithreading,
+            antialiasing: if settings.antialiasing {
+                Some(renderer::settings::Antialiasing::MSAAx4)
+            } else {
+                None
+            },
+            ..renderer::Settings::from_env()
+        };
+
+        Ok(run::<
+            Instance<Self>,
+            Self::Executor,
+            renderer::window::Compositor,
+        >(settings.into(), renderer_settings)?)
+    }
 }
 
 fn main() {
@@ -103,6 +128,7 @@ fn main() {
             size: (1920, 1),
             ..Default::default()
         },
+        id: None,
         flags: AppState {
             client,
             bg: bar_content.bg.into(),

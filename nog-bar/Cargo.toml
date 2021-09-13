@@ -6,5 +6,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+winapi = { path = "../winapi" }
 nog-client = { path = "../nog-client" }
-iced = { git = "https://github.com/hecrj/iced", rev = "45778ed598c0d202f8e86c47a444fd671fb3abce", features = ["tokio"] }
+raw-window-handle = "0.3.3"
+iced = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51", features = ["tokio"]}
+iced_winit = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_wgpu = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_graphics = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_futures = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_native = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
