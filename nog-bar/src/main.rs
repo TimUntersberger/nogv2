@@ -152,7 +152,7 @@ fn main() {
             items: bar_content.items,
         },
         default_font: None,
-        default_text_size: 20,
+        default_text_size: bar_content.font_size as u16,
         text_multithreading: false,
         antialiasing: true,
         exit_on_close_request: true,

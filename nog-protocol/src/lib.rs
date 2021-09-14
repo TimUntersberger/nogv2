@@ -18,6 +18,8 @@ pub struct BarItem {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct BarContent {
     pub height: usize,
+    pub font_name: String,
+    pub font_size: u32,
     pub bg: [f32; 3],
     pub items: Vec<BarItem>,
 }

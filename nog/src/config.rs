@@ -46,8 +46,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             color: Rgb::from_hex(0x3f3f3f),
-            bar_height: 20,
-            font_size: 20,
+            bar_height: 24,
+            font_size: 18,
             font_name: "Consolas".into(),
             use_border: false,
             enable_hot_reloading: true,

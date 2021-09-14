@@ -296,6 +296,8 @@ fn main() -> Result<(), Error> {
                 };
 
                 *state.bar_content.write() = BarContent {
+                    font_name: state.config.read().font_name.clone(),
+                    font_size: state.config.read().font_size,
                     height: state.config.read().bar_height as usize,
                     bg: state.config.read().color.0,
                     items,
