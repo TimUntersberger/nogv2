@@ -1,9 +1,11 @@
 use log::info;
 
 use crate::{
+    event::Event,
     lua::LuaRuntime,
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
+    window_event_loop::{WindowEvent, WindowEventKind},
 };
 
 #[derive(Debug, Clone)]
@@ -28,6 +30,14 @@ impl WindowAction {
                 info!("Closing '{}'", win.get_title());
 
                 win.close();
+
+                state
+                    .tx
+                    .send(Event::Window(WindowEvent {
+                        kind: WindowEventKind::Deleted,
+                        window: win,
+                    }))
+                    .unwrap();
             }
             WindowAction::Manage(maybe_id) => {
                 let win = maybe_id

@@ -127,7 +127,12 @@ fn main() -> Result<(), Error> {
 
     let state = State::new(tx.clone());
 
+    info!("Looking for displays to use");
     *state.displays.write() = Api::get_displays();
+
+    if state.displays.read().is_empty() {
+        panic!("Couldn't find any displays the fuck?");
+    }
 
     let rt = lua::init(state.clone()).map_err(Error::Lua)?;
 
