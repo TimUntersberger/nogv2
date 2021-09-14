@@ -1,12 +1,9 @@
-use std::{mem, ptr};
+use crate::platform::{Area, MonitorId, NativeMonitor, Position};
+use std::mem;
 use widestring::WideCString;
-use windows::Windows::Win32::Foundation::{HWND, PWSTR};
 use windows::Windows::Win32::Graphics::Gdi::{
     GetMonitorInfoW, HMONITOR, MONITORINFO, MONITORINFOEXW,
 };
-use windows::Windows::Win32::UI::WindowsAndMessaging::{FindWindowW, ShowWindow, SW_HIDE, SW_SHOW};
-
-use crate::platform::{Area, MonitorId, NativeMonitor, Position};
 
 #[derive(Debug)]
 pub struct Monitor {
@@ -49,6 +46,8 @@ impl NativeMonitor for Monitor {
         self.id
     }
 
+    /// The work area is the part of the screen that is not occupied by any system windows, like
+    /// for example a taskbar
     fn get_work_area(&self) -> Area {
         let hmonitor = HMONITOR(self.id.0);
         let mut monitor_info = MONITORINFO::default();

@@ -34,15 +34,12 @@
 //!
 //! TODO: support serializing/deserializing multiple displays
 
-use std::collections::HashMap;
-use std::fs;
-use std::sync::mpsc::Sender;
-
-use crate::event::Event;
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
 use crate::paths::get_config_path;
 use crate::platform::WindowId;
 use crate::workspace::{Workspace, WorkspaceId};
+use std::collections::HashMap;
+use std::fs;
 
 use itertools::Itertools;
 

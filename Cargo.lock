@@ -1568,7 +1568,6 @@ dependencies = [
  "log",
  "mlua",
  "nog-protocol",
- "rustyline",
  "serde",
  "serde_json",
  "timer",

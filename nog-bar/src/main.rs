@@ -39,7 +39,7 @@ impl Application for App {
     }
 
     fn title(&self) -> String {
-        String::from("Nog Bar")
+        String::from("nog_bar")
     }
 
     fn background_color(&self) -> iced::Color {
@@ -142,7 +142,7 @@ fn main() {
             always_on_top: true,
             decorations: false,
             position: iced::window::Position::Specific(0, 0),
-            size: (1920, 1),
+            size: (1920, bar_content.height as u32),
             ..Default::default()
         },
         id: None,

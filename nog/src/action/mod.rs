@@ -8,7 +8,7 @@ use crate::{
     keybinding::KeybindingMode,
     keybinding_event_loop::KeybindingEventLoop,
     lua::LuaRuntime,
-    platform::{NativeMonitor, NativeWindow, Window},
+    platform::{NativeWindow, Window},
     session,
     state::State,
 };
@@ -82,7 +82,7 @@ impl Action {
             }
             Action::LoadSession => state.with_focused_dsp_mut(|d| {
                 d.wm.workspaces = session::load_session().unwrap();
-                let area = d.monitor.get_work_area();
+                let area = d.get_render_area(&state.config.read());
                 info!("Loaded session!");
 
                 let mut windows = Vec::new();

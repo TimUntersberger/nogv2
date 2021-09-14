@@ -2,7 +2,7 @@ use log::info;
 
 use crate::{
     lua::LuaRuntime,
-    platform::{Api, NativeApi, NativeMonitor, NativeWindow, Window, WindowId},
+    platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
 };
 
@@ -35,8 +35,8 @@ impl WindowAction {
                     .unwrap_or_else(Api::get_foreground_window);
 
                 state.with_focused_dsp_mut(|d| {
+                    let area = d.get_render_area(&state.config.read());
                     let workspace = d.wm.get_focused_workspace_mut();
-                    let area = d.monitor.get_work_area();
 
                     if win.exists() && !workspace.has_window(win.get_id()) {
                         info!("'{}' managed", win.get_title());
@@ -47,7 +47,7 @@ impl WindowAction {
             }
             WindowAction::Unmanage(maybe_id) => state.with_focused_dsp_mut(|d| {
                 let workspace = d.wm.get_focused_workspace();
-                let area = d.monitor.get_work_area();
+                let area = d.get_render_area(&state.config.read());
                 let win = maybe_id
                     .map(Window::new)
                     .unwrap_or_else(Api::get_foreground_window);

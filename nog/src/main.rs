@@ -13,7 +13,11 @@ use std::{
 };
 use window_event_loop::WindowEventLoop;
 
-use crate::{platform::{Api, NativeApi, NativeMonitor, NativeWindow, Window}, state::State, window_event_loop::WindowEventKind};
+use crate::{
+    platform::{Api, NativeApi, NativeWindow},
+    state::State,
+    window_event_loop::WindowEventKind,
+};
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -172,12 +176,19 @@ fn main() -> Result<(), Error> {
                     let win = win_event.window;
                     let size = win.get_size();
 
+                    let is_nog_window = {
+                        let title = win.get_title();
+
+                        title == "nog_bar"
+                    };
+
                     if size.width >= state.config.read().min_width
                         && size.height >= state.config.read().min_height
+                        && !is_nog_window
                     {
                         info!("'{}' created", win.get_title());
                         state.with_focused_dsp_mut(|d| {
-                            let area = d.monitor.get_work_area();
+                            let area = d.get_render_area(&state.config.read());
                             d.wm.manage(&rt, &state.config.read(), area, win).unwrap();
                         });
                     }
@@ -185,7 +196,7 @@ fn main() -> Result<(), Error> {
                 WindowEventKind::Deleted => {
                     let win_id = win_event.window.get_id();
                     state.with_dsp_containing_win_mut(win_id, |d| {
-                        let area = d.monitor.get_work_area();
+                        let area = d.get_render_area(&state.config.read());
                         d.wm.organize(
                             &rt,
                             &state.config.read(),
@@ -201,7 +212,7 @@ fn main() -> Result<(), Error> {
 
                     state.with_dsp_containing_win_mut(win_id, |d| {
                         info!("Managed window {} got minimzed", win_id);
-                        let area = d.monitor.get_work_area();
+                        let area = d.get_render_area(&state.config.read());
                         d.wm.unmanage(&rt, &state.config.read(), area, win_id)
                             .unwrap();
                         info!("'{}' minimized", win_event.window.get_title());
@@ -280,6 +291,7 @@ fn main() -> Result<(), Error> {
                 };
 
                 *state.bar_content.write() = BarContent {
+                    height: state.config.read().bar_height as usize,
                     bg: state.config.read().color.0,
                     items,
                 };
@@ -305,7 +317,7 @@ fn main() -> Result<(), Error> {
             Event::Action(action) => action.handle(&state, &rt),
             Event::RenderGraph => {
                 for d in state.displays.read().iter() {
-                    let area = d.monitor.get_work_area();
+                    let area = d.get_render_area(&state.config.read());
                     d.wm.render(&state.config.read(), area);
                 }
             }

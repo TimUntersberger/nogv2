@@ -11,8 +11,8 @@ use windows::Windows::Win32::UI::WindowsAndMessaging::{
 use windows::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
-        GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindow, PostMessageW,
-        SetForegroundWindow, SetWindowPos, ShowWindow, SWP_NOMOVE, SWP_NOSIZE, WM_CLOSE,
+        GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindow, SetForegroundWindow,
+        SetWindowPos, ShowWindow, SWP_NOMOVE, SWP_NOSIZE,
     },
 };
 
