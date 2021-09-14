@@ -52,7 +52,7 @@ pub fn save_session(workspaces: &[Workspace]) {
                 .nodes
                 .iter()
                 .map(|(node_id, node)| match node {
-                    GraphNode::Group(kind) => format!(
+                    GraphNode::Group { kind, .. } => format!(
                         "{}:{}",
                         node_id,
                         match kind {
@@ -127,8 +127,22 @@ pub fn load_session() -> Option<Vec<Workspace>> {
                 let parts = line.split(':').collect::<Vec<&str>>();
 
                 let (id, node) = match parts.as_slice() {
-                    [node_id, "row"] => (node_id, GraphNode::Group(GraphNodeGroupKind::Row)),
-                    [node_id, "col"] => (node_id, GraphNode::Group(GraphNodeGroupKind::Col)),
+                    [node_id, "row"] => (
+                        node_id,
+                        GraphNode::Group {
+                            kind: GraphNodeGroupKind::Row,
+                            child_count: 0,
+                            focus: 0,
+                        },
+                    ),
+                    [node_id, "col"] => (
+                        node_id,
+                        GraphNode::Group {
+                            kind: GraphNodeGroupKind::Col,
+                            child_count: 0,
+                            focus: 0,
+                        },
+                    ),
                     [node_id, "win", win_id] => (
                         node_id,
                         GraphNode::Window(WindowId(win_id.parse::<usize>().unwrap())),
@@ -158,6 +172,8 @@ pub fn load_session() -> Option<Vec<Workspace>> {
 
                 i += 1;
             }
+
+            //TODO: Correctly set the `child_count` of group nodes
 
             let mut workspace = Workspace::new(id);
             workspace.graph = graph;

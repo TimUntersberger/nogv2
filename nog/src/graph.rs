@@ -14,7 +14,18 @@ pub enum GraphNodeGroupKind {
 
 #[derive(Debug, Clone)]
 pub enum GraphNode {
-    Group(GraphNodeGroupKind),
+    Group {
+        kind: GraphNodeGroupKind,
+        /// The index of the child which has focus
+        ///
+        /// NOTE: NOT the index for the nodes vec in the graph
+        ///
+        /// Example: If the focus is `2` it doesn't mean that the node with id `2` has focus, but
+        /// that the second child of this group has focus.
+        focus: usize,
+        /// How many nodes are connected as children to this group node
+        child_count: usize,
+    },
     Window(WindowNodeId),
 }
 
@@ -28,7 +39,7 @@ impl GraphNode {
 
     pub fn try_get_group_kind(&self) -> Option<GraphNodeGroupKind> {
         match self {
-            GraphNode::Group(kind) => Some(*kind),
+            GraphNode::Group { kind, .. } => Some(*kind),
             _ => None,
         }
     }
@@ -72,7 +83,16 @@ impl Default for Graph {
 impl Graph {
     pub fn new() -> Self {
         let mut nodes = HashMap::new();
-        nodes.insert(0, GraphNode::Group(GraphNodeGroupKind::Row));
+
+        nodes.insert(
+            0,
+            GraphNode::Group {
+                kind: GraphNodeGroupKind::Row,
+                focus: 0,
+                child_count: 0,
+            },
+        );
+
         Self {
             max_id: 0,
             dirty: false,
@@ -87,28 +107,51 @@ impl Graph {
         parent_id: GraphNodeId,
         child: GraphNode,
     ) -> GraphResult<GraphNodeId> {
-        if let Some(GraphNode::Group(_)) = self.nodes.get(&parent_id) {
+        if let Some(GraphNode::Group {
+            focus, child_count, ..
+        }) = self.nodes.get_mut(&parent_id)
+        {
+            *child_count += 1;
+            *focus = *child_count - 1;
+
             self.max_id += 1;
             self.nodes.insert(self.max_id, child);
             self.add_edge(parent_id, self.max_id);
+
             self.dirty = true;
+
             return Ok(self.max_id);
         }
 
         Err(GraphError::NotAGroupNode)
     }
 
+    /// WARNING: this function DOES NOT update the `child_count` and `focus` of the parent node.
     pub fn add_edge(&mut self, parent: GraphNodeId, child: GraphNodeId) {
         self.dirty = true;
         self.edges.push(GraphEdge { parent, child });
     }
 
     pub fn add_row(&mut self, parent_id: GraphNodeId) -> GraphResult<GraphNodeId> {
-        self.add_child_node(parent_id, GraphNode::Group(GraphNodeGroupKind::Row))
+        self.add_child_node(
+            parent_id,
+            GraphNode::Group {
+                kind: GraphNodeGroupKind::Row,
+                child_count: 0,
+                focus: 0,
+            },
+        )
     }
 
     pub fn add_col(&mut self, parent_id: GraphNodeId) -> GraphResult<GraphNodeId> {
-        self.add_child_node(parent_id, GraphNode::Group(GraphNodeGroupKind::Col))
+        self.add_child_node(
+            parent_id,
+            GraphNode::Group {
+                kind: GraphNodeGroupKind::Col,
+                child_count: 0,
+                focus: 0,
+            },
+        )
     }
 
     pub fn add_window(
@@ -131,7 +174,7 @@ impl Graph {
         self.nodes
             .iter()
             .find(|(_, node)| match node {
-                GraphNode::Group(_) => false,
+                GraphNode::Group { .. } => false,
                 GraphNode::Window(id) => *id == win_id,
             })
             .map(|(id, _)| *id)
@@ -160,14 +203,14 @@ impl Graph {
     /// |  Win(2)
     ///
     /// -> Win(1)
-    pub fn get_first_window_child(&self, id: GraphNodeId) -> Option<GraphNodeId> {
-        match self.get_node(id).and_then(|node| node.try_get_group_kind()) {
+    pub fn get_focused_window_child(&self, id: GraphNodeId) -> Option<GraphNodeId> {
+        match self.get_node(id) {
             // It doesn't matter whether it is a row or column
-            Some(_) => {
+            Some(GraphNode::Group { focus, .. }) => {
                 let children = self.get_children(id);
-                self.get_first_window_child(children[0])
+                self.get_focused_window_child(children[*focus])
             }
-            None => Some(id),
+            _ => Some(id),
         }
     }
 
@@ -199,8 +242,8 @@ impl Graph {
         // |  Col (parent)
         // |  |  Win (node)
         //
-        // We can assume that the container_parent is a row, because we
-        // can't have nested columns
+        // We can assume that the container_parent is the opposite group kind, because we
+        // can't have nested groups of the same kind.
         let (parent_id, child_id) = match parent_node_group_kind {
             k if k == target_group_kind => (parent_node_id, start),
             _ if parent_node_id != self.root_node_id => (
@@ -227,7 +270,7 @@ impl Graph {
         if target_idx < 0 || target_idx >= children.len() as isize {
             None
         } else {
-            self.get_first_window_child(children[target_idx as usize])
+            self.get_focused_window_child(children[target_idx as usize])
         }
     }
 
@@ -248,7 +291,8 @@ impl Graph {
             .map(|(idx, _)| idx)
     }
 
-    pub fn delete_node(&mut self, id: GraphNodeId) -> GraphResult {
+    /// If shallow is set to true, then this function won't delete the children of a group node.
+    pub fn delete_node(&mut self, id: GraphNodeId, shallow: bool) -> GraphResult {
         if self.nodes.remove(&id).is_some() {
             self.dirty = true;
 
@@ -256,11 +300,27 @@ impl Graph {
                 self.max_id -= 1;
             }
 
-            self.edges
-                .remove(self.get_parent_edge(id).ok_or(GraphError::NodeNotFound)?);
+            let parent_edge_idx = self.get_parent_edge(id).ok_or(GraphError::NodeNotFound)?;
+            let parent = self
+                .get_node_mut(self.edges[parent_edge_idx].parent)
+                .unwrap();
 
-            for c in self.get_children(id) {
-                self.delete_node(c)?;
+            match parent {
+                GraphNode::Group {
+                    focus, child_count, ..
+                } => {
+                    *focus = (*focus).max(1) - 1;
+                    *child_count -= 1;
+                }
+                _ => unreachable!(),
+            }
+
+            self.edges.remove(parent_edge_idx);
+
+            if !shallow {
+                for c in self.get_children(id) {
+                    self.delete_node(c, false)?;
+                }
             }
 
             Ok(())
@@ -269,49 +329,12 @@ impl Graph {
         }
     }
 
-    pub fn move_node(&mut self, new_parent: GraphNodeId, node: GraphNodeId, index: Option<usize>) {
-        let parent_edge_idx = self
-            .get_parent_edge(node)
-            .expect("You cannot move the root node");
+    pub fn move_node(&mut self, new_parent: GraphNodeId, node: GraphNodeId) {
 
-        self.edges.remove(parent_edge_idx);
+        let node_cpy = self.get_node(node).unwrap().clone();
 
-        if let Some(index) = index {
-            if index == 0 {
-                self.dirty = true;
-                self.edges.insert(
-                    0,
-                    GraphEdge {
-                        parent: new_parent,
-                        child: node,
-                    },
-                );
-            } else {
-                let mut count = 0;
-                let mut idx = 0;
-
-                for (edge_idx, edge) in self.edges.iter().enumerate() {
-                    if edge.parent == new_parent {
-                        count += 1;
-                        if count > index {
-                            idx = edge_idx;
-                            break;
-                        }
-                    }
-                }
-
-                self.dirty = true;
-                self.edges.insert(
-                    idx,
-                    GraphEdge {
-                        parent: new_parent,
-                        child: node,
-                    },
-                );
-            }
-        } else {
-            self.add_edge(new_parent, node);
-        }
+        self.delete_node(node, true).unwrap();
+        self.add_child_node(new_parent, node_cpy).unwrap();
     }
 
     pub fn swap_nodes(&mut self, x: GraphNodeId, y: GraphNodeId) {
@@ -335,7 +358,11 @@ fn node_to_string(depth: usize, id: GraphNodeId, graph: &Graph) -> Vec<String> {
     let indent = "|   ".repeat(depth);
 
     match node {
-        GraphNode::Group(kind) => {
+        GraphNode::Group {
+            kind,
+            focus,
+            child_count,
+        } => {
             let children = graph.get_children(id);
 
             let tag = match kind {
@@ -343,7 +370,10 @@ fn node_to_string(depth: usize, id: GraphNodeId, graph: &Graph) -> Vec<String> {
                 GraphNodeGroupKind::Col => "Col",
             };
 
-            let mut s = vec![format!("{}[{}]{}", indent, id, tag)];
+            let mut s = vec![format!(
+                "{}[{}]{} focus: {} child_count: {}",
+                indent, id, tag, focus, child_count
+            )];
 
             for child_id in children {
                 s.append(&mut node_to_string(depth + 1, child_id, graph));

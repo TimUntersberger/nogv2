@@ -36,7 +36,7 @@ impl Workspace {
     }
 
     pub fn get_focused_node(&self) -> Option<&GraphNode> {
-        dbg!(self.focused_node_id.and_then(|id| self.graph.get_node(id)))
+        self.focused_node_id.and_then(|id| self.graph.get_node(id))
     }
 
     pub fn has_window(&self, id: WindowId) -> bool {
@@ -53,13 +53,34 @@ impl Workspace {
         render_node(self.graph.root_node_id, &self.graph, config, area);
     }
 
+    fn focus_node(&mut self, id: GraphNodeId) {
+        let parent = self.graph.get_parent_node(id).unwrap();
+        let idx = self
+            .graph
+            .get_children(parent)
+            .iter()
+            .enumerate()
+            .find(|(_, c)| **c == id)
+            .map(|(idx, _)| idx)
+            .unwrap();
+
+        match self.graph.get_node_mut(parent).unwrap() {
+            GraphNode::Group { focus, .. } => {
+                *focus = idx;
+            }
+            _ => unreachable!(),
+        };
+
+        self.focused_node_id = Some(id);
+    }
+
     pub fn focus_window(&mut self, id: WindowId) -> WorkspaceResult {
         let node_id = self
             .graph
             .get_window_node(id)
             .ok_or(WorkspaceError::WindowNodeNotFound)?;
 
-        self.focused_node_id = Some(node_id);
+        self.focus_node(node_id);
 
         Ok(())
     }
@@ -68,7 +89,7 @@ impl Workspace {
         self.focused_node_id
             .and_then(|id| self.graph.get_window_node_in_direction(id, dir))
             .map(|node_id| {
-                self.focused_node_id = Some(node_id);
+                self.focus_node(node_id);
                 node_id
             })
     }
@@ -77,7 +98,7 @@ impl Workspace {
         self.focused_node_id
             .and_then(|id| self.graph.get_window_node_in_direction(id, dir))
             .map(|node_id| {
-                self.focused_node_id = Some(node_id);
+                self.focus_node(node_id);
                 node_id
             })
     }
@@ -89,7 +110,7 @@ fn render_node(id: GraphNodeId, graph: &Graph, config: &Config, mut area: Area) 
         .expect("Cannot render a node that doesn't exist");
 
     match node {
-        GraphNode::Group(kind) => {
+        GraphNode::Group { kind, .. } => {
             let children = graph.get_children(id);
 
             if children.is_empty() {

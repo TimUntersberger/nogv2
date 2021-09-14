@@ -36,7 +36,7 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
         );
 
         methods.add_method_mut("del_node", |_lua, this, node: GraphNodeId| {
-            this.0.delete_node(node).ok();
+            this.0.delete_node(node, false).ok();
             Ok(())
         });
 
@@ -50,9 +50,9 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
 
         methods.add_method_mut(
             "move_node",
-            |_lua, this, (parent_id, node_id, index): (Option<GraphNodeId>, GraphNodeId, Option<usize>)| {
+            |_lua, this, (parent_id, node_id): (Option<GraphNodeId>, GraphNodeId)| {
                 let parent_id = parent_id.unwrap_or(this.0.root_node_id);
-                this.0.move_node(parent_id, node_id, index);
+                this.0.move_node(parent_id, node_id);
                 Ok(())
             },
         );
@@ -68,7 +68,7 @@ impl<'a> mlua::UserData for GraphProxy<'a> {
             let maybe_node_id = this.0.get_window_node(win_id);
 
             if let Some(node_id) = maybe_node_id {
-                if this.0.delete_node(node_id).is_ok() {
+                if this.0.delete_node(node_id, false).is_ok() {
                     return Ok(Some(node_id));
                 }
             }

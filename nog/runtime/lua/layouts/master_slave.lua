@@ -36,7 +36,7 @@ local function layout(graph, event, win_id, extra)
     if state.master == deleted_id then
       state.master = state.slaves[1]
       if state.master then
-        graph:move_node(nil, state.master, 0)
+        graph:move_node(nil, state.master)
         state:remove_slave(state.master)
       end
     else

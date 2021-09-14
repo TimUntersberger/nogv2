@@ -30,18 +30,26 @@ impl WindowManager {
     pub fn new() -> Self {
         Self {
             workspaces: vec![Workspace::new(WorkspaceId(1))],
-            focused_workspace_id: WorkspaceId(0),
+            focused_workspace_id: WorkspaceId(1),
             window_cleanup: HashMap::new(),
             workspace_cleanup: HashMap::new(),
         }
     }
 
     pub fn get_focused_workspace_mut(&mut self) -> &mut Workspace {
-        &mut self.workspaces[self.focused_workspace_id.0]
+        let id = self.focused_workspace_id;
+        self.workspaces
+            .iter_mut()
+            .find(|ws| ws.id == id)
+            .unwrap()
     }
 
     pub fn get_focused_workspace(&self) -> &Workspace {
-        &self.workspaces[self.focused_workspace_id.0]
+        let id = self.focused_workspace_id;
+        self.workspaces
+            .iter()
+            .find(|ws| ws.id == id)
+            .unwrap()
     }
 
     pub fn get_ws_by_id(&self, id: WorkspaceId) -> Option<&Workspace> {
