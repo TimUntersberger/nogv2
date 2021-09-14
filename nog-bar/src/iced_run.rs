@@ -21,6 +21,9 @@ use iced_winit::{
     Application, Debug, Error, Executor, Proxy, Runtime, Settings,
 };
 use winapi::Windows::Win32::Foundation::HWND;
+use winapi::Windows::Win32::UI::KeyboardAndMouseInput::keybd_event;
+use winapi::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use winapi::Windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 use winapi::Windows::Win32::UI::WindowsAndMessaging::{
     SetWindowLongW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
 };
@@ -66,6 +69,9 @@ where
 
     let subscription = application.subscription();
 
+    //TODO: platform specific
+    let prev_hwnd = unsafe { GetForegroundWindow() };
+
     let window = settings
         .window
         .into_builder(
@@ -82,6 +88,8 @@ where
         RawWindowHandle::Windows(win_hndl) => unsafe {
             let hwnd = HWND(win_hndl.hwnd as isize);
             SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE.0 as i32);
+            keybd_event(0, 0, Default::default(), 0);
+            SetForegroundWindow(prev_hwnd);
         },
         handle => todo!("not supported yet: {:?}", handle),
     }

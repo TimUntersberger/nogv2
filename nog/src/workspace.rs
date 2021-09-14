@@ -1,15 +1,13 @@
 use crate::config::Config;
 use crate::direction::Direction;
-use crate::event::Event;
 use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
 use crate::platform::{Area, NativeWindow, Window, WindowId};
-use std::sync::mpsc::Sender;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WorkspaceId(pub usize);
 
+#[derive(Debug)]
 pub struct Workspace {
-    tx: Sender<Event>,
     pub id: WorkspaceId,
     pub graph: Graph,
     pub focused_node_id: Option<GraphNodeId>,
@@ -22,12 +20,11 @@ pub enum WorkspaceError {
 pub type WorkspaceResult<T = ()> = Result<T, WorkspaceError>;
 
 impl Workspace {
-    pub fn new(id: WorkspaceId, tx: Sender<Event>) -> Self {
+    pub fn new(id: WorkspaceId) -> Self {
         Self {
             id,
             graph: Graph::new(),
             focused_node_id: None,
-            tx,
         }
     }
 

@@ -57,14 +57,23 @@ impl<'lua> FromLua<'lua> for WindowId {
 }
 
 impl<'lua> ToLua<'lua> for DisplayId {
-    fn to_lua(self, _lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
-        Ok(mlua::Value::Number(self.0 as f64))
+    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        let s = lua.create_string(&self.0)?;
+
+        s.to_lua(lua)
     }
 }
 
 impl<'lua> FromLua<'lua> for DisplayId {
     fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
-        Ok(DisplayId(usize::from_lua(lua_value, lua)?))
+        match String::from_lua(lua_value.clone(), lua) {
+            Ok(string) => Ok(DisplayId(string)),
+            Err(_) => Err(LuaError::FromLuaConversionError {
+                from: lua_value.type_name(),
+                to: "DisplayId",
+                message: Some("Expected a type that can be coerced into a string".into()),
+            }),
+        }
     }
 }
 

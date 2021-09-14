@@ -95,7 +95,7 @@ pub fn save_session(workspaces: &[Workspace]) {
     fs::write(path, session).unwrap();
 }
 
-pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
+pub fn load_session() -> Option<Vec<Workspace>> {
     let mut path = get_config_path();
     path.push("sessions");
     path.push("default");
@@ -162,7 +162,7 @@ pub fn load_session(tx: Sender<Event>) -> Option<Vec<Workspace>> {
                 i += 1;
             }
 
-            let mut workspace = Workspace::new(id, tx.clone());
+            let mut workspace = Workspace::new(id);
             workspace.graph = graph;
             workspaces.push(workspace);
         }

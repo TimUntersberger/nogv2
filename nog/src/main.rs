@@ -13,11 +13,7 @@ use std::{
 };
 use window_event_loop::WindowEventLoop;
 
-use crate::{
-    platform::{NativeMonitor, NativeWindow},
-    state::State,
-    window_event_loop::WindowEventKind,
-};
+use crate::{platform::{Api, NativeApi, NativeMonitor, NativeWindow}, state::State, window_event_loop::WindowEventKind};
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -127,10 +123,11 @@ fn main() -> Result<(), Error> {
 
     let state = State::new(tx.clone());
 
-    //     state.displays.wms.write().push(ThreadSafe::new(WindowManager::new(
-    //         tx.clone(),
-    //         Display::new(true, Default::default()),
-    //     )));
+    *state.displays.write() = Api::get_displays();
+
+    for d in state.displays.read().iter() {
+        dbg!(d.monitor.get_work_area());
+    }
 
     let rt = lua::init(state.clone()).map_err(Error::Lua)?;
 

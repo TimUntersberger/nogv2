@@ -1,10 +1,11 @@
 use crate::bar::Bar;
-use crate::platform::{Monitor, Window};
+use crate::platform::{Monitor, Window, NativeWindow};
 use crate::window_manager::WindowManager;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct DisplayId(pub usize);
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisplayId(pub String);
 
+#[derive(Debug)]
 pub struct Display {
     pub id: DisplayId,
     pub taskbar_win: Window,
@@ -15,10 +16,10 @@ pub struct Display {
 
 impl Display {
     pub fn show_taskbar(&self) {
-        todo!()
+        self.taskbar_win.show();
     }
 
     pub fn hide_taskbar(&self) {
-        todo!()
+        self.taskbar_win.hide();
     }
 }

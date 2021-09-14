@@ -49,6 +49,10 @@ impl State {
         f(&mut self.displays.write()[0])
     }
 
+    pub fn get_focused_dsp_id(&self) -> DisplayId {
+        self.displays.read()[0].id.clone()
+    }
+
     /// Doesn't call the function if no wm exists on the display
     pub fn with_dsp<T>(&self, id: DisplayId, f: impl Fn(&Display) -> T) -> Option<T> {
         self.displays.read().iter().find(|d| d.id == id).map(f)

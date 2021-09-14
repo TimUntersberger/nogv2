@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    bar::Bar,
     config::Config,
     graph::GraphNode,
     key_combination::KeyCombination,
@@ -79,7 +80,7 @@ impl Action {
                 info!("Saved session!");
             }
             Action::LoadSession => state.with_focused_dsp_mut(|d| {
-                d.wm.workspaces = session::load_session(state.tx.clone()).unwrap();
+                d.wm.workspaces = session::load_session().unwrap();
                 let area = d.monitor.get_work_area();
                 info!("Loaded session!");
 
@@ -177,16 +178,11 @@ impl Action {
                 info!("Removed keybinding: {}", key);
             }
             Action::ShowBars => {
-                // let mut bars = state.bars.write();
-                // for maybe_bar in state
-                //     .wms
-                //     .read()
-                //     .iter()
-                //     .map(|wm| Bar::new(wm.read().display.get_id()))
-                //     .collect::<Vec<_>>()
-                // {
-                //     bars.push(maybe_bar.unwrap());
-                // }
+                for d in state.displays.write().iter_mut() {
+                    if d.bar.is_none() {
+                        d.bar = Some(Bar::new().unwrap());
+                    }
+                }
             }
             Action::HideBars => todo!(),
         }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem, sync::mpsc::Sender};
+use std::{collections::HashMap, mem};
 
 use log::info;
 use mlua::FromLua;
@@ -7,7 +7,6 @@ use crate::{
     cleanup::{WindowCleanup, WorkspaceCleanup},
     config::Config,
     direction::Direction,
-    event::Event,
     lua::{graph_proxy::GraphProxy, LuaRuntime},
     platform::{Area, NativeWindow, Window, WindowId},
     workspace::{Workspace, WorkspaceId},
@@ -19,6 +18,7 @@ pub enum WindowManagerError {
 }
 pub type WindowManagerResult<T = ()> = Result<T, WindowManagerError>;
 
+#[derive(Debug)]
 pub struct WindowManager {
     pub workspaces: Vec<Workspace>,
     pub focused_workspace_id: WorkspaceId,
@@ -27,9 +27,9 @@ pub struct WindowManager {
 }
 
 impl WindowManager {
-    pub fn new(tx: Sender<Event>) -> Self {
+    pub fn new() -> Self {
         Self {
-            workspaces: vec![Workspace::new(WorkspaceId(1), tx)],
+            workspaces: vec![Workspace::new(WorkspaceId(1))],
             focused_workspace_id: WorkspaceId(0),
             window_cleanup: HashMap::new(),
             workspace_cleanup: HashMap::new(),

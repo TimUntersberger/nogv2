@@ -3,6 +3,8 @@ use std::ops;
 
 pub use win::*;
 
+use crate::display::Display;
+
 pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn new(id: WindowId) -> Self;
     fn reposition(&self, pos: Position);
@@ -10,6 +12,8 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn focus(&self);
     fn exists(&self) -> bool;
     fn close(&self);
+    fn show(&self);
+    fn hide(&self);
     fn remove_decorations(&self) -> Box<dyn Fn() + 'static>;
     fn get_id(&self) -> WindowId;
     fn get_title(&self) -> String;
@@ -20,8 +24,6 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
 pub trait NativeMonitor {
     fn get_id(&self) -> MonitorId;
     fn get_work_area(&self) -> Area;
-    fn hide_taskbar(&self);
-    fn show_taskbar(&self);
     // fn get_name() -> String;
 }
 
@@ -30,7 +32,7 @@ pub trait NativeApi {
     type Monitor: NativeMonitor;
 
     fn get_foreground_window() -> Self::Window;
-    fn get_displays() -> Vec<Self::Monitor>;
+    fn get_displays() -> Vec<Display>;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

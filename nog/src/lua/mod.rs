@@ -232,7 +232,7 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
         fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {
             inject state;
 
-            let dsp_id = dsp_id.unwrap_or(DisplayId(0));
+            let dsp_id = dsp_id.unwrap_or_else(|| state.get_focused_dsp_id());
 
             Ok(state.with_dsp(dsp_id, |d| {
                 d.wm.workspaces.iter().any(|ws| ws.id == ws_id)
