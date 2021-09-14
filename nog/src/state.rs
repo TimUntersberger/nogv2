@@ -8,6 +8,7 @@ use crate::{
     event::Event,
     platform::WindowId,
     thread_safe::ThreadSafe,
+    workspace::{Workspace, WorkspaceId},
 };
 
 #[derive(Clone)]
@@ -53,8 +54,19 @@ impl State {
         self.displays.read()[0].id.clone()
     }
 
-    /// Doesn't call the function if no wm exists on the display
+    /// Doesn't call the function if display doesn't exist
     pub fn with_dsp<T>(&self, id: DisplayId, f: impl Fn(&Display) -> T) -> Option<T> {
         self.displays.read().iter().find(|d| d.id == id).map(f)
+    }
+
+    /// Doesn't call the function if the workspace doesn't exist
+    pub fn with_ws<T>(&self, id: WorkspaceId, f: impl Fn(&Workspace) -> T) -> Option<T> {
+        self.displays
+            .read()
+            .iter()
+            .map(|d| d.wm.get_ws_by_id(id))
+            .flatten()
+            .next()
+            .map(f)
     }
 }

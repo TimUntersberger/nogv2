@@ -13,7 +13,7 @@ use std::{
 };
 use window_event_loop::WindowEventLoop;
 
-use crate::{platform::{Api, NativeApi, NativeMonitor, NativeWindow}, state::State, window_event_loop::WindowEventKind};
+use crate::{platform::{Api, NativeApi, NativeMonitor, NativeWindow, Window}, state::State, window_event_loop::WindowEventKind};
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
@@ -125,10 +125,6 @@ fn main() -> Result<(), Error> {
 
     *state.displays.write() = Api::get_displays();
 
-    for d in state.displays.read().iter() {
-        dbg!(d.monitor.get_work_area());
-    }
-
     let rt = lua::init(state.clone()).map_err(Error::Lua)?;
 
     // Only really used in development to make sure everything is cleaned up
@@ -204,6 +200,7 @@ fn main() -> Result<(), Error> {
                     let win_id = win_event.window.get_id();
 
                     state.with_dsp_containing_win_mut(win_id, |d| {
+                        info!("Managed window {} got minimzed", win_id);
                         let area = d.monitor.get_work_area();
                         d.wm.unmanage(&rt, &state.config.read(), area, win_id)
                             .unwrap();
@@ -226,10 +223,20 @@ fn main() -> Result<(), Error> {
                                     .named_registry_value::<str, mlua::Table>($s)
                                     .expect(&format!("Registry value of {} bar layout section missing", $s))
                                     .sequence_values()
-                                    .map(|v| mlua::Function::from_lua(v.unwrap(), &rt.lua)
+                                    .enumerate()
+                                    .map(|(i, v)| mlua::Function::from_lua(v.unwrap(), &rt.lua)
                                             .expect("Has to be a function")
                                             .call::<(), mlua::Value>(())
-                                            .expect("Cannot error")
+                                            .unwrap_or_else(|e| {
+                                                use mlua::ToLua;
+
+                                                error!("Bar component {} in the {} section errored.\n\terror: {}", i, $s, match e {
+                                                    mlua::Error::CallbackError { cause, .. } => cause.to_string(),
+                                                    e => e.to_string(),
+                                                });
+
+                                                rt.lua.create_string("").unwrap().to_lua(rt.lua).unwrap()
+                                            })
 
                                     ) {
                                         match value {

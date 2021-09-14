@@ -6,7 +6,7 @@ version = "0.1.0"
 [dependencies]
 timer = "0.2.0"
 widestring = "0.4.3"
-winapi = { path = "../winapi" }
+windows = { path = "../windows" }
 log = "0.4.0"
 fern = "0.6.0"
 chrono = "0.4.19"

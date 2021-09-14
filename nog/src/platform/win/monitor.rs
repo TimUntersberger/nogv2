@@ -1,10 +1,10 @@
 use std::{mem, ptr};
 use widestring::WideCString;
-use winapi::Windows::Win32::Foundation::{HWND, PWSTR};
-use winapi::Windows::Win32::Graphics::Gdi::{
+use windows::Windows::Win32::Foundation::{HWND, PWSTR};
+use windows::Windows::Win32::Graphics::Gdi::{
     GetMonitorInfoW, HMONITOR, MONITORINFO, MONITORINFOEXW,
 };
-use winapi::Windows::Win32::UI::WindowsAndMessaging::{FindWindowW, ShowWindow, SW_HIDE, SW_SHOW};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{FindWindowW, ShowWindow, SW_HIDE, SW_SHOW};
 
 use crate::platform::{Area, MonitorId, NativeMonitor, Position};
 
@@ -13,7 +13,7 @@ pub struct Monitor {
     /// HMONITOR
     pub id: MonitorId,
     pub device_name: String,
-    pub primary: bool
+    pub primary: bool,
 }
 
 impl Monitor {

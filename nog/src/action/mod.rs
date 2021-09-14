@@ -56,6 +56,7 @@ pub enum Action {
         key: String,
         update_fn: UpdateConfigActionFn,
     },
+    /// When this event is received the new callback is already in the named registry of lua
     CreateKeybinding {
         mode: KeybindingMode,
         key_combination: KeyCombination,

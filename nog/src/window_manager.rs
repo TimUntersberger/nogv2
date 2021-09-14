@@ -44,6 +44,10 @@ impl WindowManager {
         &self.workspaces[self.focused_workspace_id.0]
     }
 
+    pub fn get_ws_by_id(&self, id: WorkspaceId) -> Option<&Workspace> {
+        self.workspaces.iter().find(|ws| ws.id == id)
+    }
+
     pub fn has_window(&self, id: WindowId) -> bool {
         self.workspaces
             .iter()
@@ -145,6 +149,7 @@ impl WindowManager {
         win_id: WindowId,
     ) -> WindowManagerResult {
         if let Some(cleanup) = self.window_cleanup.get(&win_id) {
+            info!("Doing cleanup for {}", win_id);
             if let Some(f) = cleanup.add_decorations.as_ref() {
                 f();
             }

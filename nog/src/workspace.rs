@@ -28,8 +28,15 @@ impl Workspace {
         }
     }
 
+    pub fn get_focused_win(&self) -> Option<Window> {
+        self.focused_node_id
+            .and_then(|id| self.graph.get_node(id))
+            .and_then(|n| n.try_get_window_id())
+            .map(Window::new)
+    }
+
     pub fn get_focused_node(&self) -> Option<&GraphNode> {
-        self.focused_node_id.and_then(|id| self.graph.get_node(id))
+        dbg!(self.focused_node_id.and_then(|id| self.graph.get_node(id)))
     }
 
     pub fn has_window(&self, id: WindowId) -> bool {

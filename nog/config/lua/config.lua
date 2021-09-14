@@ -4,6 +4,11 @@ nog.nbind("alt+ctrl+f", function()
   else
     nog.win_manage(nil)
   end
+
+end)
+
+nog.nbind("alt+ctrl+r", function()
+  dofile(nog.config_path .. "\\lua\\config.lua")
 end)
 
 nog.nbind("alt+F1", function()
@@ -68,6 +73,19 @@ end)
 
 nog.bar_set_layout {
   left = {
-    nog.components.workspaces()
+    nog.components.workspaces(),
+  },
+  center = {
+    function()
+      local dsp = nog.dsp_get_focused()
+      local ws = nog.dsp_get_focused_ws(dsp)
+      local win = nog.ws_get_focused_win(ws)
+
+      if win then
+        return nog.win_get_title(win)
+      end
+
+      return ""
+    end
   }
 }

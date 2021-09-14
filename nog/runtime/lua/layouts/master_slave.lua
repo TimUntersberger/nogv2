@@ -54,8 +54,6 @@ local function layout(graph, event, win_id, extra)
       graph:swap_nodes(win_id, target)
     end
   end
-
-  -- print(nog.inspect(state))
 end
 
 return layout

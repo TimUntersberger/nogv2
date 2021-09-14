@@ -1,4 +1,4 @@
-use winapi::Windows::Win32::{
+use windows::Windows::Win32::{
     Foundation::{HINSTANCE, HWND},
     UI::WindowsAndMessaging::{
         DispatchMessageW, GetWindowLongA, TranslateMessage, EVENT_MAX, EVENT_MIN,

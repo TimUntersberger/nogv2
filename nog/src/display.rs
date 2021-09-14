@@ -1,5 +1,5 @@
 use crate::bar::Bar;
-use crate::platform::{Monitor, Window, NativeWindow};
+use crate::platform::{Monitor, NativeWindow, Window};
 use crate::window_manager::WindowManager;
 
 #[derive(Debug, Clone, PartialEq)]

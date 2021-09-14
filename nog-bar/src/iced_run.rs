@@ -20,11 +20,11 @@ use iced_winit::{
     application::{build_user_interface, requests_exit, run_command, update},
     Application, Debug, Error, Executor, Proxy, Runtime, Settings,
 };
-use winapi::Windows::Win32::Foundation::HWND;
-use winapi::Windows::Win32::UI::KeyboardAndMouseInput::keybd_event;
-use winapi::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
-use winapi::Windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
-use winapi::Windows::Win32::UI::WindowsAndMessaging::{
+use windows::Windows::Win32::Foundation::HWND;
+use windows::Windows::Win32::UI::KeyboardAndMouseInput::keybd_event;
+use windows::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use windows::Windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
+use windows::Windows::Win32::UI::WindowsAndMessaging::{
     SetWindowLongW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
 };
 

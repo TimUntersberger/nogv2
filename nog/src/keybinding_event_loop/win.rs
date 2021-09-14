@@ -1,5 +1,5 @@
-use winapi::Windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
-use winapi::Windows::Win32::UI::WindowsAndMessaging::{
+use windows::Windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, PeekMessageW, SetWindowsHookExA, TranslateMessage,
     UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, PM_REMOVE, WH_KEYBOARD_LL, WM_KEYDOWN,
     WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
@@ -37,8 +37,11 @@ lazy_static! {
 
 impl KeybindingEventLoop {
     pub fn add_keybinding(id: usize) {
-        //TODO: only add id if it isn't already in the array
-        KEYBINDING_IDS.write().unwrap().push(id);
+        let mut kbs = KEYBINDING_IDS.write().unwrap();
+
+        if !kbs.iter().any(|kb| *kb == id) {
+            kbs.push(id);
+        }
     }
 }
 

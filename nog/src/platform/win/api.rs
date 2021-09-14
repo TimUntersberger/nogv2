@@ -1,7 +1,7 @@
 use std::{mem, ptr};
 
 use widestring::WideCString;
-use winapi::Windows::Win32::{
+use windows::Windows::Win32::{
     Foundation::{BOOL, HWND, LPARAM, PWSTR},
     Graphics::Gdi::{
         EnumDisplayDevicesW, MonitorFromWindow, DISPLAY_DEVICEW,

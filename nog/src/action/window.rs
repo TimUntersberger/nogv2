@@ -23,8 +23,11 @@ impl WindowAction {
             }
             WindowAction::Close(maybe_win_id) => {
                 let win_id = maybe_win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
+                let win = Window::new(win_id);
 
-                Window::new(win_id).close();
+                info!("Closing '{}'", win.get_title());
+
+                win.close();
             }
             WindowAction::Manage(maybe_id) => {
                 let win = maybe_id

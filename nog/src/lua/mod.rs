@@ -18,7 +18,7 @@ use crate::{
     keybinding::KeybindingMode,
     lua::config_proxy::ConfigProxy,
     paths::{get_config_path, get_runtime_path},
-    platform::{Api, NativeApi, NativeWindow, WindowId},
+    platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
     workspace::WorkspaceId,
 };
@@ -145,6 +145,12 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
+        fn ws_get_focused_win(ws_id: WorkspaceId) {
+            inject state;
+
+            Ok(state.with_ws(ws_id, |ws| ws.get_focused_win().map(|w| w.get_id())).flatten())
+        }
+
         fn ws_get_all() {
             inject state;
 
@@ -209,6 +215,12 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(state.win_is_managed(id))
         }
 
+        fn win_get_title(win_id: WindowId) {
+            inject state;
+
+            Ok(Window::new(win_id).get_title())
+        }
+
         fn win_manage(win_id: Option<WindowId>) {
             inject state;
 
@@ -227,6 +239,18 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             .unwrap();
 
             Ok(())
+        }
+
+        fn dsp_get_focused() {
+            inject state;
+
+            Ok(state.get_focused_dsp_id())
+        }
+
+        fn dsp_get_focused_ws(dsp_id: DisplayId) {
+            inject state;
+
+            Ok(state.with_dsp(dsp_id, |dsp| dsp.wm.focused_workspace_id).unwrap())
         }
 
         fn dsp_contains_ws(dsp_id: Option<DisplayId>, ws_id: WorkspaceId) {

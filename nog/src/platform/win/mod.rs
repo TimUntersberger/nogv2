@@ -1,4 +1,4 @@
-use winapi::Windows::Win32::Foundation::RECT;
+use windows::Windows::Win32::Foundation::RECT;
 
 use crate::platform::{Area, Position, Rect, Size};
 

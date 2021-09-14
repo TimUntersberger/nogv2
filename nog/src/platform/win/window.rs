@@ -1,10 +1,14 @@
 use std::ffi::c_void;
 use std::mem;
 
-use winapi::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
-use winapi::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use winapi::Windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetWindowLongW, SW_HIDE, SW_SHOW, SetWindowLongW, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
-use winapi::Windows::Win32::UI::{
+use windows::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
+use windows::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{
+    GetClassNameW, GetWindowLongW, SendNotifyMessageW, SetWindowLongW, GWL_EXSTYLE, GWL_STYLE,
+    SC_CLOSE, SW_HIDE, SW_SHOW, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME,
+    WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
+};
+use windows::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
         GetWindowRect, GetWindowTextLengthW, GetWindowTextW, IsWindow, PostMessageW,
@@ -63,36 +67,37 @@ impl Window {
         }
     }
 
-    pub fn get_extended_window_frame(&self) -> Rect {
+    pub fn get_extended_window_frame(&self) -> windows::Result<Rect> {
         unsafe {
             let mut full_rect = RECT::default();
             GetWindowRect(self.0, &mut full_rect);
 
             let mut win_rect = RECT::default();
+
             DwmGetWindowAttribute(
                 self.0,
                 DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
                 &mut win_rect as *mut RECT as *mut c_void,
                 mem::size_of::<RECT>() as u32,
-            )
-            .unwrap();
+            )?;
 
-            Rect::from(full_rect) - Rect::from(win_rect)
+            Ok(Rect::from(full_rect) - Rect::from(win_rect))
         }
     }
 
     /// This function returns the size of the window EXCLUDING the extend window frame
-    pub fn get_window_size(&self) -> Size {
+    pub fn get_window_size(&self) -> windows::Result<Size> {
         unsafe {
             let mut rect = RECT::default();
+
             DwmGetWindowAttribute(
                 self.0,
                 DWMWA_EXTENDED_FRAME_BOUNDS.0 as u32,
                 &mut rect as *mut RECT as *mut c_void,
                 mem::size_of::<RECT>() as u32,
-            )
-            .unwrap();
-            Size::from(rect)
+            )?;
+
+            Ok(Size::from(rect))
         }
     }
 }
@@ -103,37 +108,39 @@ impl NativeWindow for Window {
     }
 
     fn reposition(&self, mut pos: Position) {
-        let frame_rect = self.get_extended_window_frame();
-        pos.x += frame_rect.left;
-        pos.y += frame_rect.top;
-        unsafe {
-            SetWindowPos(
-                self.0,
-                HWND(HWND_NOTOPMOST),
-                pos.x as i32,
-                pos.y as i32,
-                0,
-                0,
-                SWP_NOSIZE,
-            );
+        if let Ok(frame_rect) = self.get_extended_window_frame() {
+            pos.x += frame_rect.left;
+            pos.y += frame_rect.top;
+            unsafe {
+                SetWindowPos(
+                    self.0,
+                    HWND(HWND_NOTOPMOST),
+                    pos.x as i32,
+                    pos.y as i32,
+                    0,
+                    0,
+                    SWP_NOSIZE,
+                );
+            }
         }
     }
 
     fn resize(&self, mut size: Size) {
-        let frame_rect = self.get_extended_window_frame();
-        size.width = (size.width as isize + frame_rect.right - frame_rect.left) as usize;
-        size.height = (size.height as isize + frame_rect.bottom - frame_rect.top) as usize;
+        if let Ok(frame_rect) = self.get_extended_window_frame() {
+            size.width = (size.width as isize + frame_rect.right - frame_rect.left) as usize;
+            size.height = (size.height as isize + frame_rect.bottom - frame_rect.top) as usize;
 
-        unsafe {
-            SetWindowPos(
-                self.0,
-                HWND(HWND_NOTOPMOST),
-                0,
-                0,
-                size.width as i32,
-                size.height as i32,
-                SWP_NOMOVE,
-            );
+            unsafe {
+                SetWindowPos(
+                    self.0,
+                    HWND(HWND_NOTOPMOST),
+                    0,
+                    0,
+                    size.width as i32,
+                    size.height as i32,
+                    SWP_NOMOVE,
+                );
+            }
         }
     }
 
@@ -150,7 +157,7 @@ impl NativeWindow for Window {
 
     fn close(&self) {
         unsafe {
-            PostMessageW(self.0, WM_CLOSE, WPARAM(0), LPARAM(0));
+            SendNotifyMessageW(self.0, WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), LPARAM(0));
         }
     }
 
@@ -195,7 +202,7 @@ impl NativeWindow for Window {
     }
 
     fn get_size(&self) -> Size {
-        self.get_window_size()
+        self.get_window_size().unwrap()
     }
 
     fn get_position(&self) -> Position {
