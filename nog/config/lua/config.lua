@@ -15,6 +15,11 @@ nog.nbind("alt+F1", function()
   nog.update_window_layout()
 end)
 
+nog.nbind_tbl("alt", nog.change_ws, nog.range(9))
+nog.nbind("alt+0", function()
+  nog.change_ws(10)
+end)
+
 nog.nbind("alt+x", function()
   nog.exit()
 end)
@@ -77,9 +82,6 @@ nog.config.bar_height = 20
 
 nog.bar_set_layout {
   left = {
-    function()
-      return "Hello World"
-    end,
     nog.components.workspaces(),
   },
   center = {
