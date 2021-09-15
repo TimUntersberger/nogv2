@@ -45,3 +45,11 @@ function nog.split(s, sep)
   end
   return t
 end
+
+function nog.range(count)
+  local res = {}
+  for i=1,count do
+    table.insert(res, i)
+  end
+  return res
+end
