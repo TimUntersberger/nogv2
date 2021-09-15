@@ -134,6 +134,16 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
+        fn change_ws(ws_id: WorkspaceId) {
+            inject state;
+
+            state.tx.send(Event::Action(Action::Workspace(WorkspaceAction::Change(ws_id
+            ))))
+            .unwrap();
+
+            Ok(())
+        }
+
         fn ws_focus(ws_id: Option<WorkspaceId>, direction: Direction) {
             inject state;
 

@@ -170,8 +170,7 @@ fn main() -> Result<(), Error> {
                 WindowEventKind::FocusChanged => {
                     let win_id = win_event.window.get_id();
                     state.with_dsp_containing_win_mut(win_id, |d| {
-                        let workspace = d.wm.get_focused_workspace_mut();
-                        if workspace.focus_window(win_id).is_ok() {
+                        if d.wm.focus_window(win_id) {
                             info!("Focused window with id {}", win_event.window.get_id());
                             win_event.window.focus();
                         }

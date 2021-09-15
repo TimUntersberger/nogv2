@@ -35,6 +35,11 @@ impl Workspace {
             .map(Window::new)
     }
 
+    pub fn is_empty(&self) -> bool {
+        // If the graph doesn't have any edges then only the root node can exist.
+        self.graph.edges.is_empty()
+    }
+
     pub fn get_focused_node(&self) -> Option<&GraphNode> {
         self.focused_node_id.and_then(|id| self.graph.get_node(id))
     }

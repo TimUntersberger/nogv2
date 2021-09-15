@@ -38,18 +38,44 @@ impl WindowManager {
 
     pub fn get_focused_workspace_mut(&mut self) -> &mut Workspace {
         let id = self.focused_workspace_id;
-        self.workspaces
-            .iter_mut()
-            .find(|ws| ws.id == id)
-            .unwrap()
+        self.workspaces.iter_mut().find(|ws| ws.id == id).unwrap()
+    }
+
+    fn remove_empty_workspaces(&mut self) {
+        for (idx, ws) in self.workspaces.iter().enumerate() {
+            if ws.is_empty() {
+                self.workspaces.remove(idx);
+                break;
+            }
+        }
+    }
+
+    pub fn change_workspace(&mut self, id: WorkspaceId) {
+        if self.focused_workspace_id == id {
+            return;
+        }
+
+        self.remove_empty_workspaces();
+
+        self.workspaces.push(Workspace::new(id));
+        self.focused_workspace_id = id;
+    }
+
+    pub fn focus_window(&mut self, id: WindowId) -> bool {
+        for ws in self.workspaces.iter_mut() {
+            if ws.focus_window(id).is_ok() {
+                self.focused_workspace_id = ws.id;
+                self.remove_empty_workspaces();
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn get_focused_workspace(&self) -> &Workspace {
         let id = self.focused_workspace_id;
-        self.workspaces
-            .iter()
-            .find(|ws| ws.id == id)
-            .unwrap()
+        self.workspaces.iter().find(|ws| ws.id == id).unwrap()
     }
 
     pub fn get_ws_by_id(&self, id: WorkspaceId) -> Option<&Workspace> {

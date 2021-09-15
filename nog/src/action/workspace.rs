@@ -1,11 +1,17 @@
 use crate::{
-    direction::Direction, event::Event, lua::LuaRuntime, state::State, workspace::WorkspaceId,
+    direction::Direction,
+    event::Event,
+    lua::LuaRuntime,
+    platform::NativeWindow,
+    state::State,
+    workspace::{Workspace, WorkspaceId},
 };
 
 use super::{Action, WindowAction};
 
 #[derive(Debug, Clone)]
 pub enum WorkspaceAction {
+    Change(WorkspaceId),
     Focus(Option<WorkspaceId>, Direction),
     Swap(Option<WorkspaceId>, Direction),
 }
@@ -34,6 +40,25 @@ impl WorkspaceAction {
                 d.wm.swap_in_direction(rt, &state.config.read(), area, None, dir)
                     .unwrap();
             }),
+            WorkspaceAction::Change(id) => {
+                // There are two cases to consider:
+                //  * The new workspace doesn't exist yet
+                //  * The new workspace already exists
+                let ws_not_found = state
+                    .with_ws(id, |ws| {
+                        if let Some(win) = ws.get_focused_win() {
+                            // Here we don't need to handle any special cases since the Focus event
+                            // will be handle later on, which already is required to handle any
+                            // edge cases that might occur here.
+                            win.focus();
+                        }
+                    })
+                    .is_none();
+
+                if ws_not_found {
+                    state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id));
+                }
+            }
         }
     }
 }
