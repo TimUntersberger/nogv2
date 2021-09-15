@@ -1579,6 +1579,7 @@ dependencies = [
 name = "nog-bar"
 version = "0.1.0"
 dependencies = [
+ "font-kit",
  "iced",
  "iced_futures",
  "iced_graphics",

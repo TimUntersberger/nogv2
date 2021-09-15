@@ -71,8 +71,15 @@ nog.nbind("alt+q", function()
   nog.win_close(nil)
 end)
 
+nog.config.font_name = "CaskaydiaCove NF"
+nog.config.font_size = 18
+nog.config.bar_height = 20
+
 nog.bar_set_layout {
   left = {
+    function()
+      return "Hello World"
+    end,
     nog.components.workspaces(),
   },
   center = {

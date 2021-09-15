@@ -1,5 +1,6 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
+use font_kit::{family_name::FamilyName, properties::Properties, source::SystemSource};
 use iced::{Application, Color, Command, Container, Row, Text};
 use iced_run::run;
 use iced_wgpu as renderer;
@@ -134,9 +135,25 @@ impl Application for App {
     }
 }
 
+fn load_font(name: String) -> Option<Arc<Vec<u8>>> {
+    let handle = SystemSource::new()
+        .select_best_match(&[FamilyName::Title(name)], &Properties::default())
+        .ok()?;
+    
+    let font = handle.load().ok()?;
+
+    font.copy_font_data()
+}
+
 fn main() {
     let mut client = Client::connect("localhost:8080".into()).unwrap();
     let bar_content = client.get_bar_content().unwrap();
+    let font: &'static [u8] = Box::leak(Box::new(
+        (*load_font(bar_content.font_name)
+            .or_else(|| load_font(String::from("Consolas")))
+            .expect("The fallback font also failed? What?"))
+        .clone(),
+    ));
     let settings = iced::Settings {
         window: iced::window::Settings {
             always_on_top: true,
@@ -151,7 +168,7 @@ fn main() {
             bg: bar_content.bg.into(),
             items: bar_content.items,
         },
-        default_font: None,
+        default_font: Some(&font),
         default_text_size: bar_content.font_size as u16,
         text_multithreading: false,
         antialiasing: true,
