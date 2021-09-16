@@ -18,17 +18,12 @@ local function layout(graph, event, win_id, extra)
     local slave_count = #state.slaves
     if state.master == nil then
       state.master = graph:add_window_node(nil, win_id)
-    elseif slave_count == 0 then
-      state.slave_group = graph:add_column_node(nil)
-      table.insert(
-        state.slaves, 
-        graph:add_window_node(state.slave_group, win_id)
-      )
     else
-      table.insert(
-        state.slaves, 
-        graph:add_window_node(state.slave_group, win_id)
-      )
+      if slave_count == 0 then
+        state.slave_group = graph:add_column_node(nil)
+      end
+      local id = graph:add_window_node(state.slave_group, win_id)
+      table.insert(state.slaves, id)
     end
   elseif event == "deleted" or event == "minimized" or event == "unmanaged" then
     local deleted_id = graph:del_window_node(win_id)

@@ -10,7 +10,6 @@ pub struct WorkspaceId(pub usize);
 pub struct Workspace {
     pub id: WorkspaceId,
     pub graph: Graph,
-    pub focused_node_id: Option<GraphNodeId>,
 }
 
 pub enum WorkspaceError {
@@ -24,12 +23,12 @@ impl Workspace {
         Self {
             id,
             graph: Graph::new(),
-            focused_node_id: None,
         }
     }
 
     pub fn get_focused_win(&self) -> Option<Window> {
-        self.focused_node_id
+        self.graph
+            .get_focused_window_child(0)
             .and_then(|id| self.graph.get_node(id))
             .and_then(|n| n.try_get_window_id())
             .map(Window::new)
@@ -40,8 +39,42 @@ impl Workspace {
         self.graph.edges.is_empty()
     }
 
+    pub fn windows(&self) -> impl Iterator<Item = WindowId> + '_ {
+        self.graph
+            .nodes
+            .values()
+            .map(|n| n.try_get_window_id())
+            .flatten()
+    }
+
+    pub fn hide(&self) {
+        for win in self.windows() {
+            Window::new(win).hide();
+        }
+    }
+
+    pub fn minimize(&self) {
+        for win in self.windows() {
+            Window::new(win).minimize();
+        }
+    }
+
+    pub fn unminimize(&self) {
+        for win in self.windows() {
+            Window::new(win).unminimize();
+        }
+    }
+
+    pub fn show(&self) {
+        for win in self.windows() {
+            Window::new(win).show();
+        }
+    }
+
     pub fn get_focused_node(&self) -> Option<&GraphNode> {
-        self.focused_node_id.and_then(|id| self.graph.get_node(id))
+        self.graph
+            .get_focused_window_child(0)
+            .and_then(|id| self.graph.get_node(id))
     }
 
     pub fn has_window(&self, id: WindowId) -> bool {
@@ -75,8 +108,6 @@ impl Workspace {
             }
             _ => unreachable!(),
         };
-
-        self.focused_node_id = Some(id);
     }
 
     pub fn focus_window(&mut self, id: WindowId) -> WorkspaceResult {
@@ -91,7 +122,8 @@ impl Workspace {
     }
 
     pub fn focus_in_direction(&mut self, dir: Direction) -> Option<GraphNodeId> {
-        self.focused_node_id
+        self.graph
+            .get_focused_window_child(0)
             .and_then(|id| self.graph.get_window_node_in_direction(id, dir))
             .map(|node_id| {
                 self.focus_node(node_id);
@@ -100,7 +132,8 @@ impl Workspace {
     }
 
     pub fn swap_in_direction(&mut self, dir: Direction) -> Option<GraphNodeId> {
-        self.focused_node_id
+        self.graph
+            .get_focused_window_child(0)
             .and_then(|id| self.graph.get_window_node_in_direction(id, dir))
             .map(|node_id| {
                 self.focus_node(node_id);

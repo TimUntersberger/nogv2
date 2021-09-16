@@ -44,20 +44,26 @@ impl WorkspaceAction {
                 // There are two cases to consider:
                 //  * The new workspace doesn't exist yet
                 //  * The new workspace already exists
-                let ws_not_found = state
-                    .with_ws(id, |ws| {
-                        if let Some(win) = ws.get_focused_win() {
-                            // Here we don't need to handle any special cases since the Focus event
-                            // will be handle later on, which already is required to handle any
-                            // edge cases that might occur here.
-                            win.focus();
-                        }
-                    })
-                    .is_none();
 
-                if ws_not_found {
-                    state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id));
-                }
+                // `res` is an Option<Option<Window>>
+                //
+                // The first option represents whether the workspace already exists
+                // and the second option whether the workspace has a focused window
+                let res = state.with_ws(id, |ws| ws.get_focused_win());
+
+                match res {
+                    Some(maybe_focused_win) => match maybe_focused_win {
+                        Some(win) => {
+                            state.with_dsp_containing_ws_mut(id, |dsp| {
+                                if dsp.wm.focus_window(win.get_id()) {
+                                    win.focus();
+                                }
+                            });
+                        }
+                        None => {}
+                    },
+                    None => { state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id)); }
+                };
             }
         }
     }

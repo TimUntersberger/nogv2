@@ -33,7 +33,7 @@ impl State {
         self.displays.read().iter().any(|d| d.wm.has_window(win_id))
     }
 
-    /// Doesn't call the function if no wm has the window
+    /// Doesn't call the function if none was found
     pub fn with_dsp_containing_win_mut<T>(
         &self,
         win_id: WindowId,
@@ -43,6 +43,19 @@ impl State {
             .write()
             .iter_mut()
             .find(|d| d.wm.has_window(win_id))
+            .map(f)
+    }
+
+    /// Doesn't call the function if none was found
+    pub fn with_dsp_containing_ws_mut<T>(
+        &self,
+        ws_id: WorkspaceId,
+        f: impl Fn(&mut Display) -> T,
+    ) -> Option<T> {
+        self.displays
+            .write()
+            .iter_mut()
+            .find(|d| d.wm.get_ws_by_id(ws_id).is_some())
             .map(f)
     }
 

@@ -22,9 +22,9 @@ impl Rgb {
     pub fn scaled(&self, factor: f32) -> Self {
         let [mut red, mut green, mut blue] = self.0;
 
-        red = (red * factor).round();
-        green = (green * factor).round();
-        blue = (blue * factor).round();
+        red *= factor;
+        green *= factor;
+        blue *= factor;
 
         Self([red, green, blue])
     }

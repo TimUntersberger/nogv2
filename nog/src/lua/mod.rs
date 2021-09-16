@@ -9,19 +9,7 @@ pub use runtime::LuaRuntime;
 
 use mlua::prelude::*;
 
-use crate::{
-    action::{Action, WindowAction, WorkspaceAction},
-    direction::Direction,
-    display::DisplayId,
-    event::Event,
-    key_combination::KeyCombination,
-    keybinding::KeybindingMode,
-    lua::config_proxy::ConfigProxy,
-    paths::{get_config_path, get_runtime_path},
-    platform::{Api, NativeApi, NativeWindow, Window, WindowId},
-    state::State,
-    workspace::WorkspaceId,
-};
+use crate::{action::{Action, WindowAction, WorkspaceAction}, direction::Direction, display::DisplayId, event::Event, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, paths::{get_config_path, get_runtime_path}, platform::{Api, NativeApi, NativeWindow, Window, WindowId}, rgb::Rgb, state::State, workspace::WorkspaceId};
 
 struct BarLayout<'a> {
     left: mlua::Table<'a>,
@@ -86,6 +74,12 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
         const config_path = get_config_path().to_str().unwrap();
         const version = option_env!("NOG_VERSION").unwrap_or("DEV");
         const config = ConfigProxy::new(state.tx.clone(), state.config);
+
+        fn scale_color(hex: i32, factor: f32) {
+            inject state;
+
+            Ok(Rgb::from_hex(hex).scaled(factor))
+        }
 
         fn bind(mode: KeybindingMode, key_combination: KeyCombination, cb: mlua::Function) {
             inject lua, state;

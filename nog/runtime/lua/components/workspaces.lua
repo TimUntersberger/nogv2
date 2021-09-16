@@ -1,5 +1,7 @@
 return function()
   return function ()
+    local dsp = nog.dsp_get_focused()
+
     return nog.tbl_map(
       nog.tbl_filter(
         nog.ws_get_all(), 
@@ -8,7 +10,17 @@ return function()
         end
       ), 
       function(ws_id)
-        return string.format(" %d ", ws_id)
+        -- TODO: support light theme
+        local bg = nog.scale_color(nog.config.color, 1.5)
+
+        if nog.dsp_get_focused_ws(dsp) == ws_id then
+          bg = nog.scale_color(nog.config.color, 2.0)
+        end
+
+        return {
+          string.format(" %d ", ws_id),
+          bg = bg
+        }
       end
     )
   end

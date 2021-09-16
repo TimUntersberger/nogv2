@@ -208,7 +208,7 @@ impl Graph {
             // It doesn't matter whether it is a row or column
             Some(GraphNode::Group { focus, .. }) => {
                 let children = self.get_children(id);
-                self.get_focused_window_child(children[*focus])
+                children.get(*focus).and_then(|x| self.get_focused_window_child(*x))
             }
             _ => Some(id),
         }
@@ -330,7 +330,6 @@ impl Graph {
     }
 
     pub fn move_node(&mut self, new_parent: GraphNodeId, node: GraphNodeId) {
-
         let node_cpy = self.get_node(node).unwrap().clone();
 
         self.delete_node(node, true).unwrap();

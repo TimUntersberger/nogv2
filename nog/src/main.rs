@@ -212,15 +212,19 @@ fn main() -> Result<(), Error> {
                     });
                 }
                 WindowEventKind::Minimized => {
-                    let win_id = win_event.window.get_id();
+                    //TODO: Changing workspaces minimizes the windows of the previous workspace.
+                    //This then causes this event for each window, resulting in unmanaging each
+                    //window. Somehow ignore this event when changing workspaces.
+                    //
+                    // let win_id = win_event.window.get_id();
 
-                    state.with_dsp_containing_win_mut(win_id, |d| {
-                        info!("Managed window {} got minimzed", win_id);
-                        let area = d.get_render_area(&state.config.read());
-                        d.wm.unmanage(&rt, &state.config.read(), area, win_id)
-                            .unwrap();
-                        info!("'{}' minimized", win_event.window.get_title());
-                    });
+                    // state.with_dsp_containing_win_mut(win_id, |d| {
+                    //     info!("Managed window {} got minimzed", win_id);
+                    //     let area = d.get_render_area(&state.config.read());
+                    //     d.wm.unmanage(&rt, &state.config.read(), area, win_id)
+                    //         .unwrap();
+                    //     info!("'{}' minimized", win_event.window.get_title());
+                    // });
                 }
             },
             Event::RenderBarLayout => {

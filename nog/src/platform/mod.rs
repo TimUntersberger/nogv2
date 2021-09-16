@@ -12,6 +12,8 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn focus(&self);
     fn exists(&self) -> bool;
     fn close(&self);
+    fn minimize(&self);
+    fn unminimize(&self);
     fn show(&self);
     fn hide(&self);
     fn remove_decorations(&self) -> Box<dyn Fn() + 'static>;

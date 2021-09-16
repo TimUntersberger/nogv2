@@ -42,7 +42,7 @@ pub enum WinApiWindowEventKind {
     Minimize,
     Unminimize,
     Show,
-    FocusChange,
+    FocusChange
 }
 
 impl WinApiWindowEventKind {

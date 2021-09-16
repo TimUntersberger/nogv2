@@ -41,9 +41,9 @@ impl WindowManager {
         self.workspaces.iter_mut().find(|ws| ws.id == id).unwrap()
     }
 
-    fn remove_empty_workspaces(&mut self) {
+    fn remove_workspace(&mut self, id: WorkspaceId) {
         for (idx, ws) in self.workspaces.iter().enumerate() {
-            if ws.is_empty() {
+            if ws.id == id {
                 self.workspaces.remove(idx);
                 break;
             }
@@ -55,17 +55,27 @@ impl WindowManager {
             return;
         }
 
-        self.remove_empty_workspaces();
+        match self.get_ws_by_id(id) {
+            Some(ws) => ws.unminimize(),
+            None => self.workspaces.push(Workspace::new(id))
+        };
 
-        self.workspaces.push(Workspace::new(id));
-        self.focused_workspace_id = id;
+        let old_ws_id = mem::replace(&mut self.focused_workspace_id, id);
+        let old_ws = self.get_ws_by_id(old_ws_id).unwrap();
+
+        if old_ws.is_empty() {
+            self.remove_workspace(old_ws_id);
+        } else {
+            let ws = self.get_ws_by_id(old_ws_id).unwrap();
+            ws.minimize();
+        }
     }
 
     pub fn focus_window(&mut self, id: WindowId) -> bool {
         for ws in self.workspaces.iter_mut() {
             if ws.focus_window(id).is_ok() {
-                self.focused_workspace_id = ws.id;
-                self.remove_empty_workspaces();
+                let id = ws.id;
+                self.change_workspace(id);
                 return true;
             }
         }

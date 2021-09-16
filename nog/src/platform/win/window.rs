@@ -3,11 +3,7 @@ use std::mem;
 
 use windows::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use windows::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use windows::Windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetWindowLongW, SendNotifyMessageW, SetWindowLongW, GWL_EXSTYLE, GWL_STYLE,
-    SC_CLOSE, SW_HIDE, SW_SHOW, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME,
-    WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
-};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetWindowLongW, SC_CLOSE, SW_HIDE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SendNotifyMessageW, SetWindowLongW, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
 use windows::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
@@ -223,6 +219,18 @@ impl NativeWindow for Window {
     fn hide(&self) {
         unsafe {
             ShowWindow(self.0, SW_HIDE);
+        }
+    }
+
+    fn minimize(&self) {
+        unsafe {
+            ShowWindow(self.0, SW_MINIMIZE);
+        }
+    }
+
+    fn unminimize(&self) {
+        unsafe {
+            ShowWindow(self.0, SW_RESTORE);
         }
     }
 }
