@@ -5,14 +5,16 @@ function nog.execute_runtime_file(path)
   return dofile(nog.runtime_path .. "/lua/" .. path)
 end
 
-nog.execute_runtime_file("util.lua")
+nog.execute_runtime_file "util.lua"
 
 nog.uv = require 'luv'
-nog.components = nog.execute_runtime_file("components/init.lua")
-nog.inspect = nog.execute_runtime_file("inspect.lua")
-nog.layout = nog.execute_runtime_file("layouts/master_slave.lua")
+nog.components = nog.execute_runtime_file "components/init.lua"
+nog.inspect = nog.execute_runtime_file "inspect.lua"
+nog.layout = nog.execute_runtime_file "layouts/master_slave.lua"
 
-nog.execute_runtime_file("keybindings.lua")
+nog.execute_runtime_file "keybindings.lua"
+nog.execute_runtime_file "require.lua"
+
 -- local modes = {}
 -- local previous_kbs = nil
 -- local current_mode = nil
