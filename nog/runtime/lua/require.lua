@@ -31,3 +31,9 @@ end)
 function nog.plugin_register(name)
   table.insert(plugins, name)
 end
+
+function nog.plugin_unregister(name)
+  plugins = nog.tbl_filter(plugins, function(p)
+    return p ~= name
+  end)
+end
