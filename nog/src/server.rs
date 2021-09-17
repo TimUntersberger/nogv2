@@ -38,7 +38,7 @@ impl Server {
             let bar_content = self.bar_content.clone();
             std::thread::spawn(move || {
                 if let Err(_e) = handle_client(stream, tx, bar_content) {
-                    // error!("{:?}", e);
+                     log::error!("{:?}", _e);
                 }
             });
         }
@@ -65,17 +65,19 @@ fn handle_client(
             let response = match msg {
                 Message::GetBarContent => serde_json::to_string(&*bar_content.read())
                     .expect("Serde failed to serialize the bar content"),
-                Message::ExecuteLua { code } => {
+                Message::ExecuteLua { code, print_type } => {
                     let (result_tx, result_rx) = sync_channel(1);
 
                     tx.send(Event::Action(Action::ExecuteLua {
                         code,
+                        print_type,
                         capture_stdout: true,
                         cb: ExecuteLuaActionFn::new(move |res| {
                             result_tx.send(res).unwrap();
                         }),
                     }))
                     .unwrap();
+
 
                     let res = result_rx.recv();
 

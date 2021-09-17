@@ -146,13 +146,7 @@ fn main() -> Result<(), Error> {
     rt.eval("dofile(nog.config_path .. '/lua/config.lua')")
         .map_err(Error::Config)?;
 
-    if state.config.read().remove_task_bar {
-        tx.send(Event::Action(Action::HideTaskbars)).unwrap();
-    }
-
-    if state.config.read().display_app_bar {
-        tx.send(Event::Action(Action::ShowBars)).unwrap();
-    }
+    tx.send(Event::ConfigFinished).unwrap();
 
     Server::spawn(tx.clone(), state.bar_content.clone());
     info!("IPC Server started");
@@ -160,7 +154,7 @@ fn main() -> Result<(), Error> {
     WindowEventLoop::spawn(tx.clone());
     info!("Window event loop spawned");
 
-    KeybindingEventLoop::spawn(tx);
+    KeybindingEventLoop::spawn(tx.clone());
     info!("Keybinding event loop spawned");
 
     info!("Starting main event loop");
@@ -341,6 +335,15 @@ fn main() -> Result<(), Error> {
                 KeybindingEventLoop::stop();
 
                 break;
+            }
+            Event::ConfigFinished => {
+                if state.config.read().remove_task_bar {
+                    tx.send(Event::Action(Action::HideTaskbars)).unwrap();
+                }
+
+                if state.config.read().display_app_bar {
+                    tx.send(Event::Action(Action::ShowBars)).unwrap();
+                }
             }
         }
     }

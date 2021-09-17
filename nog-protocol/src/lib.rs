@@ -26,10 +26,11 @@ pub struct BarContent {
 
 #[derive(Debug)]
 pub enum Message {
-    ExecuteLua { code: String },
+    ExecuteLua { code: String, print_type: bool },
     GetBarContent,
 }
 
+#[derive(Debug)]
 pub enum DeserializeError {
     InvalidFormat,
 }
@@ -39,7 +40,7 @@ impl Message {
         use Message::*;
 
         let mut serialized = match self {
-            ExecuteLua { code } => format!("ExecuteLua:{}", code),
+            ExecuteLua { code, print_type } => format!("ExecuteLua:{}:{}", print_type, code),
             GetBarContent => String::from("GetBarContent:"),
         }
         .as_bytes()
@@ -57,9 +58,15 @@ impl Message {
     /// expects to receive the msg without the header
     pub fn deserialize(s: &str) -> Result<Self, DeserializeError> {
         match s.split_once(":").ok_or(DeserializeError::InvalidFormat)? {
-            ("ExecuteLua", code) => Ok(Message::ExecuteLua {
-                code: code.to_string(),
-            }),
+            ("ExecuteLua", rest) => match rest.splitn(2, ':').collect::<Vec<&str>>().as_slice() {
+                &[print_type, code] => Ok(Message::ExecuteLua {
+                    print_type: print_type
+                        .parse::<bool>()
+                        .map_err(|_| DeserializeError::InvalidFormat)?,
+                    code: code.to_string(),
+                }),
+                _ => Err(DeserializeError::InvalidFormat),
+            },
             ("GetBarContent", _) => Ok(Message::GetBarContent),
             _ => Err(DeserializeError::InvalidFormat),
         }

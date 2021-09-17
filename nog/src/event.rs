@@ -7,6 +7,7 @@ use crate::window_event_loop::WindowEvent;
 pub enum Event {
     RenderGraph,
     Exit,
+    ConfigFinished,
     RenderBarLayout,
     Window(WindowEvent<Window>),
     Keybinding(Keybinding),

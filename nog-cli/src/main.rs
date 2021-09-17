@@ -1,51 +1,52 @@
+use std::io;
+
+use clap::clap_app;
+use crossterm::terminal::enable_raw_mode;
 use nog_client::{Client, ClientError};
-use rustyline::Editor;
-
-fn repl(client: &mut Client) {
-    let mut editor = Editor::<()>::new();
-
-    loop {
-        let prompt = "> ";
-        let mut line = String::new();
-
-        match editor.readline(prompt) {
-            Ok(input) => line.push_str(&input),
-            Err(_) => return,
-        }
-
-        if line == "\\reconnect" {
-            if let Err(e) = client.reconnect() {
-                eprintln!("error: {}", e);
-                break;
-            }
-
-            println!("Reconnected to the server!");
-
-            break;
-        }
-
-        match client.execute_lua(line.clone()) {
-            Ok(output) => {
-                editor.add_history_entry(line);
-                println!("{}", output);
-            }
-            Err(e) => {
-                editor.add_history_entry(line);
-                match e {
-                    ClientError::IoError(e) => eprintln!("network error: {}", e),
-                    ClientError::LuaExecutionFailed(msg) => eprintln!("lua error: {}", msg),
-                    ClientError::InvalidResponse(res) => {
-                        eprintln!("response has invalid format: '{}'", res)
-                    }
-                }
-                break;
-            }
-        };
-    }
-}
+use tui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    widgets::{Block, Borders},
+    Terminal,
+};
 
 fn main() {
-    let addr = String::from("localhost:8080");
+    let matches = clap_app! (nog_cli =>
+        (@setting SubcommandRequiredElseHelp)
+        (version: "1.0")
+        (author: "Tim Untersberger <timuntersberger2@gmail.com")
+        (about: "Communicate with nog via the command line")
+        (@arg HOSTNAME: -h --hostname +takes_value "The hostname of the nog server. (Default: locahost)")
+        (@arg PORT: -p --port +takes_value "The port of the nog server. (Default: 8080)")
+        (@subcommand execute =>
+            (about: "Execute an arbitrary lua string in the context of the lua runtime")
+            (version: "1.0")
+            (author: "Tim Untersberger <timuntersberger2@gmail.com")
+            (@arg code: +required "The lua code string to be executed")
+        )
+        (@subcommand render =>
+            (about: "Tries to render the currently managed windows in the terminal")
+            (version: "1.0")
+            (author: "Tim Untersberger <timuntersberger2@gmail.com")
+        )
+        (@subcommand bar =>
+            (about: "Prints the current state of the nog-bar")
+            (version: "1.0")
+            (author: "Tim Untersberger <timuntersberger2@gmail.com")
+        )
+        (@subcommand render_bar =>
+            (about: "Tires to render the current state of the nog-bar")
+            (version: "1.0")
+            (author: "Tim Untersberger <timuntersberger2@gmail.com")
+        )
+    )
+    .get_matches();
+
+    let hostname = matches.value_of("HOSTNAME").unwrap_or("localhost");
+    let port = matches.value_of("PORT").unwrap_or("8080");
+
+    let addr = String::from(format!("{}:{}", hostname, port));
+
     let mut client = match Client::connect(addr) {
         Ok(x) => x,
         Err(e) => {
@@ -54,6 +55,49 @@ fn main() {
         }
     };
 
-    println!("Connected to the server!");
-    repl(&mut client);
+    // println!("Connected to the server!");
+
+    match matches
+        .subcommand()
+    {
+        ("execute", Some(m)) => {
+            let code = m.value_of("code").unwrap_or_default();
+            match client.execute_lua(code.to_string(), false) {
+                Ok(output) => println!("{}", output),
+                Err(e) => eprintln!("error: {:?}", e)
+            };
+        },
+        ("bar", Some(m)) => todo!(),
+        ("render", Some(m)) => tui(),
+        ("render_bar", Some(m)) => todo!(),
+        _ => unreachable!("It shouldn't be possible to provide an invalid subcommand name"),
+    }
+}
+
+fn tui() {
+    enable_raw_mode().unwrap();
+    let stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.clear().unwrap();
+    terminal
+        .draw(|f| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints(
+                    [
+                        Constraint::Percentage(10),
+                        Constraint::Percentage(80),
+                        Constraint::Percentage(10),
+                    ]
+                    .as_ref(),
+                )
+                .split(f.size());
+            let block = Block::default().title("Block").borders(Borders::ALL);
+            f.render_widget(block, chunks[0]);
+            let block = Block::default().title("Block 2").borders(Borders::ALL);
+            f.render_widget(block, chunks[1]);
+        })
+        .unwrap();
 }

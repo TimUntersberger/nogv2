@@ -66,6 +66,7 @@ pub enum Action {
     },
     ExecuteLua {
         code: String,
+        print_type: bool,
         capture_stdout: bool,
         cb: ExecuteLuaActionFn,
     },
@@ -119,6 +120,7 @@ impl Action {
             }
             Action::ExecuteLua {
                 code,
+                print_type,
                 capture_stdout,
                 cb,
             } => {
@@ -149,9 +151,21 @@ impl Action {
 
                     cb.0(code_res.map(move |x| {
                         if stdout_buf.is_empty() {
-                            format!("{:?}", x)
+                            if print_type {
+                                format!("{:?}", x)
+                            } else {
+                                String::from("")
+                            }
                         } else {
-                            format!("{}\n{:?}", stdout_buf, x)
+                            format!(
+                                "{}{}",
+                                stdout_buf,
+                                if print_type {
+                                    format!("{:?}\n", x)
+                                } else {
+                                    String::from("")
+                                }
+                            )
                         }
                     }));
 

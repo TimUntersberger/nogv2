@@ -51,9 +51,10 @@ impl Client {
         Ok(String::from_utf8(response_body).unwrap())
     }
 
-    pub fn execute_lua(&mut self, code: String) -> ClientResult<String> {
+    /// if `print_type` is set to `false` nog won't return the type of the statemnt
+    pub fn execute_lua(&mut self, code: String, print_type: bool) -> ClientResult<String> {
         let response = self
-            .send_message(&Message::ExecuteLua { code })
+            .send_message(&Message::ExecuteLua { code, print_type })
             .map_err(ClientError::IoError)?;
 
         match response

@@ -98,3 +98,4 @@ nog.bar_set_layout {
     end
   }
 }
+nog.config.display_app_bar = false
