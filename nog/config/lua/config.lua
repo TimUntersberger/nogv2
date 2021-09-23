@@ -4,7 +4,14 @@ nog.nbind("alt+ctrl+f", function()
   else
     nog.win_manage(nil)
   end
+end)
 
+nog.gbind("alt+escape", function()
+  if nog.is_awake() then
+    nog.hibernate()
+  else
+    nog.awake()
+  end
 end)
 
 nog.nbind("alt+ctrl+r", function()
@@ -83,18 +90,17 @@ nog.config.bar_height = 20
 nog.bar_set_layout {
   left = {
     nog.components.workspaces(),
+    nog.components.padding(1),
+    nog.components.current_window()
   },
   center = {
     function()
-      local dsp = nog.dsp_get_focused()
-      local ws = nog.dsp_get_focused_ws(dsp)
-      local win = nog.ws_get_focused_win(ws)
-
-      if win then
-        return nog.win_get_title(win)
-      end
-
-      return ""
+      return os.date "%H:%M:%S"
+    end
+  },
+  right = {
+    function()
+      return os.date "%d.%m.%Y"
     end
   }
 }
