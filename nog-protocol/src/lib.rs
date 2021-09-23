@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+pub use serde_json as json;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BarItemAlignment {
@@ -24,10 +25,37 @@ pub struct BarContent {
     pub items: Vec<BarItem>,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct Window {
+    pub id: usize
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct Workspace {
+    pub id: usize,
+    pub focused_window_id: Option<usize>,
+    pub windows: Vec<Window>
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct Display {
+    pub id: String,
+    pub monitor_id: usize,
+    pub focused_workspace_id: usize,
+    pub workspaces: Vec<Workspace>
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct State {
+    pub focused_display_id: String,
+    pub displays: Vec<Display>
+}
+
 #[derive(Debug)]
 pub enum Message {
     ExecuteLua { code: String, print_type: bool },
     GetBarContent,
+    GetState
 }
 
 #[derive(Debug)]
@@ -42,6 +70,7 @@ impl Message {
         let mut serialized = match self {
             ExecuteLua { code, print_type } => format!("ExecuteLua:{}:{}", print_type, code),
             GetBarContent => String::from("GetBarContent:"),
+            GetState => String::from("GetState:"),
         }
         .as_bytes()
         .to_vec();
@@ -68,6 +97,7 @@ impl Message {
                 _ => Err(DeserializeError::InvalidFormat),
             },
             ("GetBarContent", _) => Ok(Message::GetBarContent),
+            ("GetState", _) => Ok(Message::GetState),
             _ => Err(DeserializeError::InvalidFormat),
         }
     }

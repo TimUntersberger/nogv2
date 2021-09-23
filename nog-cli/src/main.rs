@@ -2,7 +2,7 @@ use std::io;
 
 use clap::clap_app;
 use crossterm::terminal::enable_raw_mode;
-use nog_client::{Client, ClientError};
+use nog_client::{Client, ClientError, json};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -23,6 +23,11 @@ fn main() {
             (version: "1.0")
             (author: "Tim Untersberger <timuntersberger2@gmail.com")
             (@arg code: +required "The lua code string to be executed")
+        )
+        (@subcommand state =>
+            (about: "Prints the current state of nog")
+            (version: "1.0")
+            (author: "Tim Untersberger <timuntersberger2@gmail.com")
         )
         (@subcommand render =>
             (about: "Tries to render the currently managed windows in the terminal")
@@ -57,16 +62,17 @@ fn main() {
 
     // println!("Connected to the server!");
 
-    match matches
-        .subcommand()
-    {
+    match matches.subcommand() {
         ("execute", Some(m)) => {
             let code = m.value_of("code").unwrap_or_default();
             match client.execute_lua(code.to_string(), false) {
                 Ok(output) => println!("{}", output),
-                Err(e) => eprintln!("error: {:?}", e)
+                Err(e) => eprintln!("error: {:?}", e),
             };
-        },
+        }
+        ("state", Some(m)) => {
+            println!("{}", json::to_string_pretty(&client.get_state().unwrap()).unwrap());
+        }
         ("bar", Some(m)) => todo!(),
         ("render", Some(m)) => tui(),
         ("render_bar", Some(m)) => todo!(),

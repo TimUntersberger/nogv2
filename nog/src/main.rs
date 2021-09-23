@@ -148,7 +148,7 @@ fn main() -> Result<(), Error> {
 
     tx.send(Event::ConfigFinished).unwrap();
 
-    Server::spawn(tx.clone(), state.bar_content.clone());
+    Server::spawn(tx.clone(), state.clone());
     info!("IPC Server started");
 
     WindowEventLoop::spawn(tx.clone());

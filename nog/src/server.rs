@@ -1,4 +1,7 @@
 use crate::action::ExecuteLuaActionFn;
+use crate::display::Display;
+use crate::platform::NativeWindow;
+use crate::state::State;
 use crate::{action::Action, event::Event, thread_safe::ThreadSafe};
 use nog_protocol::{BarContent, Message};
 use std::{
@@ -9,23 +12,23 @@ use std::{
 
 pub struct Server {
     tx: Sender<Event>,
-    bar_content: ThreadSafe<BarContent>,
+    state: State,
     host: String,
     port: u32,
 }
 
 impl Server {
-    pub fn new(tx: Sender<Event>, bar_content: ThreadSafe<BarContent>) -> Self {
+    pub fn new(tx: Sender<Event>, state: State) -> Self {
         Self {
             tx,
-            bar_content,
+            state,
             host: "localhost".into(),
             port: 8080,
         }
     }
-    pub fn spawn(tx: Sender<Event>, bar_content: ThreadSafe<BarContent>) {
+    pub fn spawn(tx: Sender<Event>, state: State) {
         std::thread::spawn(move || {
-            let server = Server::new(tx, bar_content);
+            let server = Server::new(tx, state);
             server.start();
         });
     }
@@ -35,21 +38,17 @@ impl Server {
 
         for stream in listener.incoming().flatten() {
             let tx = self.tx.clone();
-            let bar_content = self.bar_content.clone();
+            let state = self.state.clone();
             std::thread::spawn(move || {
-                if let Err(_e) = handle_client(stream, tx, bar_content) {
-                     log::error!("{:?}", _e);
+                if let Err(_e) = handle_client(stream, tx, state) {
+                    log::error!("{:?}", _e);
                 }
             });
         }
     }
 }
 
-fn handle_client(
-    mut stream: TcpStream,
-    tx: Sender<Event>,
-    bar_content: ThreadSafe<BarContent>,
-) -> std::io::Result<()> {
+fn handle_client(mut stream: TcpStream, tx: Sender<Event>, state: State) -> std::io::Result<()> {
     loop {
         let mut header_buffer = [0u8; 2];
         stream.read_exact(&mut header_buffer)?;
@@ -63,8 +62,38 @@ fn handle_client(
 
         if let Ok(msg) = Message::deserialize(&msg) {
             let response = match msg {
-                Message::GetBarContent => serde_json::to_string(&*bar_content.read())
+                Message::GetBarContent => serde_json::to_string(&*state.bar_content.read())
                     .expect("Serde failed to serialize the bar content"),
+                Message::GetState => {
+                    let mut pstate = nog_protocol::State::default();
+                    pstate.focused_display_id = state.get_focused_dsp_id().0.clone();
+                    pstate.displays = state
+                        .displays
+                        .read()
+                        .iter()
+                        .map(|d| nog_protocol::Display {
+                            id: d.id.0.clone(),
+                            monitor_id: d.monitor.id.0 as usize,
+                            focused_workspace_id: d.wm.focused_workspace_id.0,
+                            workspaces: d
+                                .wm
+                                .workspaces
+                                .iter()
+                                .map(|ws| nog_protocol::Workspace {
+                                    id: ws.id.0,
+                                    focused_window_id: ws
+                                        .get_focused_win()
+                                        .map(|win| win.get_id().0),
+                                    windows: ws
+                                        .windows()
+                                        .map(|id| nog_protocol::Window { id: id.0 })
+                                        .collect(),
+                                })
+                                .collect(),
+                        })
+                        .collect();
+                    serde_json::to_string(&pstate).expect("Serde failed to serialize the state")
+                }
                 Message::ExecuteLua { code, print_type } => {
                     let (result_tx, result_rx) = sync_channel(1);
 
@@ -77,7 +106,6 @@ fn handle_client(
                         }),
                     }))
                     .unwrap();
-
 
                     let res = result_rx.recv();
 

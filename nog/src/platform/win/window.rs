@@ -157,7 +157,7 @@ impl NativeWindow for Window {
         }
     }
 
-    fn remove_decorations(&self) -> Box<dyn Fn() + 'static> {
+    fn remove_decorations(&self) -> Box<dyn Fn() + 'static + Send + Sync> {
         unsafe {
             let style = GetWindowLongW(self.0, GWL_STYLE) as u32;
             let new_style = style

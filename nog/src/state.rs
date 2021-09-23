@@ -12,6 +12,7 @@ use crate::{
 };
 
 #[derive(Clone)]
+/// You can clone the state without any worries.
 pub struct State {
     pub tx: Sender<Event>,
     pub displays: ThreadSafe<Vec<Display>>,

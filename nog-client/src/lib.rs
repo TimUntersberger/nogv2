@@ -1,4 +1,4 @@
-pub use nog_protocol::{BarContent, BarItem, BarItemAlignment, Message};
+pub use nog_protocol::{json, BarContent, BarItem, BarItemAlignment, Message, State};
 use std::{
     io::{self, Read, Write},
     net::TcpStream,
@@ -72,6 +72,14 @@ impl Client {
             .send_message(&Message::GetBarContent)
             .map_err(ClientError::IoError)?;
 
-        serde_json::from_str(&response).map_err(|_| ClientError::InvalidResponse(response))
+        json::from_str(&response).map_err(|_| ClientError::InvalidResponse(response))
+    }
+
+    pub fn get_state(&mut self) -> ClientResult<State> {
+        let response = self
+            .send_message(&Message::GetState)
+            .map_err(ClientError::IoError)?;
+
+        json::from_str(&response).map_err(|_| ClientError::InvalidResponse(response))
     }
 }

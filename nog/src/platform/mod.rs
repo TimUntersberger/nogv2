@@ -16,7 +16,7 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn unminimize(&self);
     fn show(&self);
     fn hide(&self);
-    fn remove_decorations(&self) -> Box<dyn Fn() + 'static>;
+    fn remove_decorations(&self) -> Box<dyn Fn() + 'static + Send + Sync>;
     fn get_id(&self) -> WindowId;
     fn get_title(&self) -> String;
     fn get_size(&self) -> Size;

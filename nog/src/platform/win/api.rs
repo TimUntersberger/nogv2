@@ -103,7 +103,10 @@ impl NativeApi for Api {
 
     fn get_displays() -> Vec<Display> {
         let devices = Self::get_display_devices();
+        assert!(!devices.is_empty(), "Somehow not a single display device was found");
+
         let taskbars = Self::get_taskbar_windows();
+        assert!(!devices.is_empty(), "Somehow not a taskbar was found");
 
         taskbars
             .into_iter()
