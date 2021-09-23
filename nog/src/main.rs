@@ -162,48 +162,54 @@ fn main() -> Result<(), Error> {
         match event {
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
-                    let win_id = win_event.window.get_id();
-                    state.with_dsp_containing_win_mut(win_id, |d| {
-                        if d.wm.focus_window(win_id) {
-                            info!("Focused window with id {}", win_event.window.get_id());
-                            win_event.window.focus();
-                        }
-                    });
-                }
-                WindowEventKind::Created => {
-                    let win = win_event.window;
-                    let size = win.get_size();
-
-                    let is_nog_window = {
-                        let title = win.get_title();
-
-                        title == "nog_bar"
-                    };
-
-                    if size.width >= state.config.read().min_width
-                        && size.height >= state.config.read().min_height
-                        && !is_nog_window
-                    {
-                        info!("'{}' created", win.get_title());
-                        state.with_focused_dsp_mut(|d| {
-                            let area = d.get_render_area(&state.config.read());
-                            d.wm.manage(&rt, &state.config.read(), area, win).unwrap();
+                    if state.is_awake() {
+                        let win_id = win_event.window.get_id();
+                        state.with_dsp_containing_win_mut(win_id, |d| {
+                            if d.wm.focus_window(win_id) {
+                                info!("Focused window with id {}", win_event.window.get_id());
+                                win_event.window.focus();
+                            }
                         });
                     }
                 }
+                WindowEventKind::Created => {
+                    if state.is_awake() {
+                        let win = win_event.window;
+                        let size = win.get_size();
+
+                        let is_nog_window = {
+                            let title = win.get_title();
+
+                            title == "nog_bar"
+                        };
+
+                        if size.width >= state.config.read().min_width
+                            && size.height >= state.config.read().min_height
+                            && !is_nog_window
+                        {
+                            info!("'{}' created", win.get_title());
+                            state.with_focused_dsp_mut(|d| {
+                                let area = d.get_render_area(&state.config.read());
+                                d.wm.manage(&rt, &state.config.read(), area, win).unwrap();
+                            });
+                        }
+                    }
+                }
                 WindowEventKind::Deleted => {
-                    let win_id = win_event.window.get_id();
-                    state.with_dsp_containing_win_mut(win_id, |d| {
-                        let area = d.get_render_area(&state.config.read());
-                        d.wm.organize(
-                            &rt,
-                            &state.config.read(),
-                            None,
-                            area,
-                            String::from("deleted"),
-                            win_id,
-                        )
-                    });
+                    if state.is_awake() {
+                        let win_id = win_event.window.get_id();
+                        state.with_dsp_containing_win_mut(win_id, |d| {
+                            let area = d.get_render_area(&state.config.read());
+                            d.wm.organize(
+                                &rt,
+                                &state.config.read(),
+                                None,
+                                area,
+                                String::from("deleted"),
+                                win_id,
+                            )
+                        });
+                    }
                 }
                 WindowEventKind::Minimized => {
                     //TODO: Changing workspaces minimizes the windows of the previous workspace.

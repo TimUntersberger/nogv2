@@ -9,7 +9,20 @@ pub use runtime::LuaRuntime;
 
 use mlua::prelude::*;
 
-use crate::{action::{Action, WindowAction, WorkspaceAction}, direction::Direction, display::DisplayId, event::Event, key_combination::KeyCombination, keybinding::KeybindingMode, lua::config_proxy::ConfigProxy, paths::{get_config_path, get_runtime_path}, platform::{Api, NativeApi, NativeWindow, Window, WindowId}, rgb::Rgb, state::State, workspace::WorkspaceId};
+use crate::{
+    action::{Action, WindowAction, WorkspaceAction},
+    direction::Direction,
+    display::DisplayId,
+    event::Event,
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    lua::config_proxy::ConfigProxy,
+    paths::{get_config_path, get_runtime_path},
+    platform::{Api, NativeApi, NativeWindow, Window, WindowId},
+    rgb::Rgb,
+    state::State,
+    workspace::WorkspaceId,
+};
 
 struct BarLayout<'a> {
     left: mlua::Table<'a>,
@@ -90,6 +103,28 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
                 key_combination,
             }))
             .unwrap();
+            Ok(())
+        }
+
+        fn is_awake() {
+            inject state;
+
+            Ok(state.is_awake())
+        }
+
+        fn awake() {
+            inject state;
+
+            state.tx.send(Event::Action(Action::Awake)).unwrap();
+
+            Ok(())
+        }
+
+        fn hibernate() {
+            inject state;
+
+            state.tx.send(Event::Action(Action::Hibernate)).unwrap();
+
             Ok(())
         }
 

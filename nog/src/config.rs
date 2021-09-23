@@ -11,8 +11,6 @@ pub struct Config {
     pub min_width: usize,
     /// Any window with a smaller height than this won't get managed automatically
     pub min_height: usize,
-    /// Whether to startin work mode
-    pub work_mode: bool,
     /// This only changes the way the different colors get derived from the color provied by the
     /// user and whether to use a black or white text color.
     pub light_theme: bool,
@@ -53,7 +51,6 @@ impl Default for Config {
             enable_hot_reloading: true,
             min_width: 200,
             min_height: 200,
-            work_mode: true,
             light_theme: false,
             multi_monitor: false,
             launch_on_startup: true,

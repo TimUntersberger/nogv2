@@ -23,4 +23,8 @@ impl Bar {
             process: create_command().spawn()?,
         })
     }
+
+    pub fn close(&mut self) {
+        self.process.kill();
+    }
 }

@@ -1,17 +1,6 @@
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 
-use crate::{
-    bar::Bar,
-    config::Config,
-    graph::GraphNode,
-    key_combination::KeyCombination,
-    keybinding::KeybindingMode,
-    keybinding_event_loop::KeybindingEventLoop,
-    lua::LuaRuntime,
-    platform::{NativeWindow, Window},
-    session,
-    state::State,
-};
+use crate::{bar::Bar, config::Config, event::Event, graph::GraphNode, key_combination::KeyCombination, keybinding::KeybindingMode, keybinding_event_loop::KeybindingEventLoop, lua::LuaRuntime, platform::{NativeWindow, Window}, session, state::State};
 use log::info;
 use mlua::FromLua;
 pub use window::WindowAction;
@@ -50,6 +39,8 @@ pub enum Action {
     HideTaskbars,
     ShowBars,
     HideBars,
+    Awake,
+    Hibernate,
     Window(WindowAction),
     Workspace(WorkspaceAction),
     UpdateConfig {
@@ -75,6 +66,25 @@ pub enum Action {
 impl Action {
     pub fn handle(self, state: &State, rt: &LuaRuntime) {
         match self {
+            Action::Awake => {
+                info!("Awoke!");
+                if state.config.read().display_app_bar {
+                    state.tx.send(Event::Action(Action::ShowBars)).unwrap();
+                }
+                if state.config.read().remove_task_bar {
+                    state.tx.send(Event::Action(Action::HideTaskbars)).unwrap();
+                }
+                state.awake();
+            },
+            Action::Hibernate => {
+                info!("Hibernating...");
+                state.tx.send(Event::Action(Action::HideBars)).unwrap();
+                state.tx.send(Event::Action(Action::ShowTaskbars)).unwrap();
+                for d in state.displays.write().iter_mut() {
+                    d.wm.cleanup();
+                }
+                state.hibernate();
+            }
             Action::Window(action) => action.handle(state, rt),
             Action::Workspace(action) => action.handle(state, rt),
             Action::SaveSession => {
@@ -199,7 +209,13 @@ impl Action {
                     }
                 }
             }
-            Action::HideBars => todo!(),
+            Action::HideBars => {
+                for d in state.displays.write().iter_mut() {
+                    if let Some(mut bar) = mem::take(&mut d.bar) {
+                        bar.close();
+                    }
+                }
+            },
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc};
 
 use nog_protocol::BarContent;
 
@@ -14,6 +14,7 @@ use crate::{
 #[derive(Clone)]
 /// You can clone the state without any worries.
 pub struct State {
+    pub awake: Arc<AtomicBool>,
     pub tx: Sender<Event>,
     pub displays: ThreadSafe<Vec<Display>>,
     pub bar_content: ThreadSafe<BarContent>,
@@ -23,11 +24,24 @@ pub struct State {
 impl State {
     pub fn new(tx: Sender<Event>) -> Self {
         Self {
+            awake: Arc::new(AtomicBool::new(true)),
             tx,
             displays: Default::default(),
             bar_content: Default::default(),
             config: Default::default(),
         }
+    }
+
+    pub fn awake(&self) {
+        self.awake.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn hibernate(&self) {
+        self.awake.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn is_awake(&self) -> bool {
+        self.awake.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub fn win_is_managed(&self, win_id: WindowId) -> bool {
