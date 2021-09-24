@@ -83,6 +83,7 @@ nog.nbind("alt+q", function()
   nog.win_close(nil)
 end)
 
+nog.config.color = 0x2e3440
 nog.config.font_name = "CaskaydiaCove NF"
 nog.config.font_size = 18
 nog.config.bar_height = 20
@@ -94,13 +95,10 @@ nog.bar_set_layout {
     nog.components.current_window()
   },
   center = {
-    function()
-      return os.date "%H:%M:%S"
-    end
+    nog.components.datetime("%H:%M:%S")
   },
   right = {
-    function()
-      return os.date "%d.%m.%Y"
-    end
+    nog.components.datetime("%d.%m.%Y"),
+    nog.components.padding(1),
   }
 }

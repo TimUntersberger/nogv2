@@ -115,13 +115,11 @@ impl Action {
             Action::ShowTaskbars => {
                 for d in state.displays.write().iter_mut() {
                     d.show_taskbar();
-                    d.wm.cleanup();
                 }
             }
             Action::HideTaskbars => {
                 for d in state.displays.write().iter_mut() {
                     d.hide_taskbar();
-                    d.wm.cleanup();
                 }
             }
             Action::UpdateConfig { key, update_fn } => {

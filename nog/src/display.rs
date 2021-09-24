@@ -33,6 +33,13 @@ impl Display {
             area.size.height -= config.bar_height as usize;
         }
 
+        if config.remove_task_bar {
+            // TODO: revisit this.
+            //
+            // This is only temporary, we should fetch the taskbar size instead of hardcoding it.
+            area.size.height += 40;
+        }
+
         area
     }
 }

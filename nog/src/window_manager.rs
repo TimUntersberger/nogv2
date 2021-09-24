@@ -219,5 +219,8 @@ impl WindowManager {
                 f();
             }
         }
+
+        self.focused_workspace_id = WorkspaceId(1);
+        self.workspaces = vec![Workspace::new(WorkspaceId(1))];
     }
 }

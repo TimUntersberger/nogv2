@@ -16,6 +16,12 @@ impl<T> ThreadSafe<T> {
     }
 }
 
+impl<T> std::fmt::Debug for ThreadSafe<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ThreadSafe(...)")
+    }
+}
+
 impl<T> Clone for ThreadSafe<T> {
     fn clone(&self) -> Self {
         ThreadSafe(self.0.clone())

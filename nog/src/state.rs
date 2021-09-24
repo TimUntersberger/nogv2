@@ -11,7 +11,7 @@ use crate::{
     workspace::{Workspace, WorkspaceId},
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 /// You can clone the state without any worries.
 pub struct State {
     pub awake: Arc<AtomicBool>,
