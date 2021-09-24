@@ -106,6 +106,17 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
+        fn simulate_key_press(kc: KeyCombination) {
+            inject state;
+
+            state.tx.send(Event::Action(Action::SimulateKeyPress {
+                key: kc.key,
+                modifiers: kc.modifiers
+            })).unwrap();
+
+            Ok(state.is_awake())
+        }
+
         fn is_awake() {
             inject state;
 

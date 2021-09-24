@@ -3,7 +3,7 @@ use std::ops;
 
 pub use win::*;
 
-use crate::display::Display;
+use crate::{display::Display, key::Key, modifiers::Modifiers};
 
 pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn new(id: WindowId) -> Self;
@@ -33,6 +33,8 @@ pub trait NativeApi {
     type Window: NativeWindow;
     type Monitor: NativeMonitor;
 
+    /// This function simulates keys presses
+    fn simulate_key_press(key: Key, modifiers: Modifiers);
     fn get_foreground_window() -> Self::Window;
     fn get_displays() -> Vec<Display>;
 }

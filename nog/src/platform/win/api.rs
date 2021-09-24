@@ -1,17 +1,18 @@
 use std::{mem, ptr};
 
 use widestring::WideCString;
-use windows::Windows::Win32::{
-    Foundation::{BOOL, HWND, LPARAM, PWSTR},
-    Graphics::Gdi::{
+use windows::Windows::Win32::{Foundation::{BOOL, HWND, LPARAM, PWSTR}, Graphics::Gdi::{
         EnumDisplayDevicesW, MonitorFromWindow, DISPLAY_DEVICEW,
         DISPLAY_DEVICE_ATTACHED_TO_DESKTOP, MONITOR_DEFAULTTONEAREST,
-    },
-    UI::WindowsAndMessaging::{EnumWindows, GetForegroundWindow},
-};
+    }, UI::{KeyboardAndMouseInput::{KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MapVirtualKeyA, MapVirtualKeyW, SendInput, keybd_event}, WindowsAndMessaging::{
+            EnumWindows, GetForegroundWindow, MAPVK_VK_TO_VSC, VK_CONTROL, VK_LWIN, VK_MENU,
+            VK_SHIFT,
+        }}};
 
 use crate::{
     display::{Display, DisplayId},
+    key::Key,
+    modifiers::Modifiers,
     platform::{Monitor, NativeApi, Window},
     window_manager::WindowManager,
 };
@@ -91,11 +92,59 @@ impl Api {
 
         taskbars.into_iter().map(Window::from_hwnd).collect()
     }
+
+    unsafe fn send_key(virtual_key: u8, release: bool) {
+        let scan_code = MapVirtualKeyW(virtual_key as u32, MAPVK_VK_TO_VSC) as u8;
+
+        keybd_event(
+            virtual_key,
+            scan_code,
+            if release {
+                KEYEVENTF_KEYUP
+            } else {
+                KEYBD_EVENT_FLAGS(0)
+            },
+            0,
+        );
+    }
 }
 
 impl NativeApi for Api {
     type Window = Window;
     type Monitor = Monitor;
+
+    fn simulate_key_press(key: Key, m: Modifiers) {
+        unsafe {
+            if m.lalt || m.ralt {
+                Self::send_key(0x12 as u8, false);
+            }
+            if m.ctrl {
+                Self::send_key(VK_CONTROL as u8, false);
+            }
+            if m.shift {
+                Self::send_key(VK_SHIFT as u8, false);
+            }
+            if m.win {
+                Self::send_key(VK_LWIN as u8, false);
+            }
+
+            Self::send_key(key.to_usize() as u8, false);
+            Self::send_key(key.to_usize() as u8, true);
+
+            if m.lalt || m.ralt {
+                Self::send_key(VK_MENU as u8, true);
+            }
+            if m.ctrl {
+                Self::send_key(VK_CONTROL as u8, true);
+            }
+            if m.shift {
+                Self::send_key(VK_SHIFT as u8, true);
+            }
+            if m.win {
+                Self::send_key(VK_LWIN as u8, true);
+            }
+        }
+    }
 
     fn get_foreground_window() -> Self::Window {
         unsafe { Window::from_hwnd(GetForegroundWindow()) }
@@ -103,7 +152,10 @@ impl NativeApi for Api {
 
     fn get_displays() -> Vec<Display> {
         let devices = Self::get_display_devices();
-        assert!(!devices.is_empty(), "Somehow not a single display device was found");
+        assert!(
+            !devices.is_empty(),
+            "Somehow not a single display device was found"
+        );
 
         let taskbars = Self::get_taskbar_windows();
         assert!(!devices.is_empty(), "Somehow not a taskbar was found");

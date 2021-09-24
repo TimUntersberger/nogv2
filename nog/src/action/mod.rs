@@ -1,6 +1,6 @@
 use std::{mem, sync::Arc};
 
-use crate::{bar::Bar, config::Config, event::Event, graph::GraphNode, key_combination::KeyCombination, keybinding::KeybindingMode, keybinding_event_loop::KeybindingEventLoop, lua::LuaRuntime, platform::{NativeWindow, Window}, session, state::State};
+use crate::{bar::Bar, config::Config, event::Event, graph::GraphNode, key::Key, key_combination::KeyCombination, keybinding::KeybindingMode, keybinding_event_loop::KeybindingEventLoop, lua::LuaRuntime, modifiers::Modifiers, platform::{Api, NativeApi, NativeWindow, Window}, session, state::State};
 use log::info;
 use mlua::FromLua;
 pub use window::WindowAction;
@@ -41,6 +41,10 @@ pub enum Action {
     HideBars,
     Awake,
     Hibernate,
+    SimulateKeyPress {
+        key: Key,
+        modifiers: Modifiers
+    },
     Window(WindowAction),
     Workspace(WorkspaceAction),
     UpdateConfig {
@@ -76,6 +80,9 @@ impl Action {
                 }
                 state.awake();
             },
+            Action::SimulateKeyPress { key, modifiers } => {
+                Api::simulate_key_press(key, modifiers);
+            }
             Action::Hibernate => {
                 info!("Hibernating...");
                 state.tx.send(Event::Action(Action::HideBars)).unwrap();
