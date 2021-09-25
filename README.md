@@ -1,4 +1,5 @@
 # nogv2
+
 Complete rewrite of nog
 
 | project | description |
@@ -9,3 +10,31 @@ Complete rewrite of nog
 | nog-bar | Hosts the code for the appbar |
 | nog-menu | Hosts the code for the menu |
 | nog | The tilingin window manager |
+
+## Tools
+
+The tools can be found in `./tools/*`.
+
+| file | description |
+|-|-|
+| rcedit.exe | Utility tool for adding an icon to executables |
+| make_release.ps1 <version> | Creates a NogRelease.zip file |
+| install_release.ps1 <zip_file> | Moves the zip content into the install path and adds the install path to the path, if not already done. |
+| register_startup_task | Adds a scheduled task which runs at startup and starts nog |
+
+## Starting
+
+The `tools/install_release.ps1` script will add nog to the path. Afterwards you can start nog either
+in the current shell
+
+```powershell
+nog
+```
+
+or inside a new hidden window
+
+```powershell
+start-process -windowstyle hidden nog
+```
+
+You can also use the `tools/register_startup_task.ps1` script to add nog to startup.
