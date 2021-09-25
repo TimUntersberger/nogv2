@@ -18,9 +18,11 @@ The tools can be found in `./tools/*`.
 | file | description |
 |-|-|
 | rcedit.exe | Utility tool for adding an icon to executables |
+| sudo.ps1 | Runs a script in an elevated powershell prompt |
 | make_release.ps1 <version> | Creates a NogRelease.zip file |
 | install_release.ps1 <zip_file> | Moves the zip content into the install path and adds the install path to the path, if not already done. |
-| register_startup_task | Adds a scheduled task which runs at startup and starts nog |
+| register_startup_task.ps1 | Adds a scheduled task which runs at startup and starts nog (requires admin privileges) |
+| unregister_startup_task.ps1 | Removes the scheduled task (requires admin privileges) |
 
 ## Starting
 
