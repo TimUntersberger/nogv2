@@ -1,5 +1,7 @@
-$trigger= New-ScheduledTaskTrigger -AtStartup
-$user= "NT AUTHORITY\SYSTEM"
-$action= New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "start-process -windowstyle hidden nog"
-
-Register-ScheduledTask -TaskName "MonitorGroupMembership" -Trigger $trigger -User $user -Action $action -RunLevel Highest –Force
+Register-ScheduledTask `
+  -TaskName "StartNog" `
+  -Trigger (New-ScheduledTaskTrigger -AtStartup) `
+  -User $env:username `
+  -Action (New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "start-process -windowstyle hidden nog") `
+  -RunLevel Highest `
+  -Force
