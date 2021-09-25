@@ -143,7 +143,7 @@ fn main() -> Result<(), Error> {
     }
 
     // Run the config
-    rt.eval("dofile(nog.config_path .. '/lua/config.lua')")
+    rt.eval("dofile(nog.config_path .. '/config/init.lua')")
         .map_err(Error::Config)?;
 
     tx.send(Event::ConfigFinished).unwrap();
