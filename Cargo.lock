@@ -1620,14 +1620,8 @@ dependencies = [
 name = "nog-bar"
 version = "0.1.0"
 dependencies = [
- "font-kit",
- "iced",
- "iced_futures",
- "iced_graphics",
- "iced_native",
- "iced_wgpu",
- "iced_winit",
  "nog-client",
+ "nog-iced",
  "raw-window-handle",
  "windows 0.1.0",
 ]
@@ -1651,8 +1645,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nog-iced"
+version = "0.1.0"
+dependencies = [
+ "font-kit",
+ "iced",
+ "iced_futures",
+ "iced_graphics",
+ "iced_native",
+ "iced_wgpu",
+ "iced_winit",
+]
+
+[[package]]
 name = "nog-menu"
 version = "0.1.0"
+dependencies = [
+ "nog-iced",
+ "raw-window-handle",
+]
 
 [[package]]
 name = "nog-protocol"

@@ -10,8 +10,6 @@ mod state;
 
 pub use state::State;
 
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-
 use iced_winit::clipboard::Clipboard;
 use iced_winit::conversion;
 use iced_winit::mouse;
@@ -20,14 +18,6 @@ use iced_winit::{
     application::{build_user_interface, requests_exit, run_command, update},
     Application, Debug, Error, Executor, Proxy, Runtime, Settings,
 };
-use windows::Windows::Win32::Foundation::HWND;
-use windows::Windows::Win32::UI::KeyboardAndMouseInput::keybd_event;
-use windows::Windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
-use windows::Windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
-use windows::Windows::Win32::UI::WindowsAndMessaging::{
-    SetWindowLongW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
-};
-
 use iced_futures::futures;
 use iced_futures::futures::channel::mpsc;
 use iced_graphics::window;
@@ -35,9 +25,10 @@ use iced_native::Cache;
 
 use std::mem::ManuallyDrop;
 
-pub fn run<A, E, C>(
+pub fn run<A, E, C, F: Fn(&winit::window::Window) + ?Sized>(
     settings: Settings<A::Flags>,
     compositor_settings: C::Settings,
+    after_window_created: Option<Box<F>>,
 ) -> Result<(), Error>
 where
     A: Application + 'static,
@@ -69,9 +60,6 @@ where
 
     let subscription = application.subscription();
 
-    //TODO: platform specific
-    let prev_hwnd = unsafe { GetForegroundWindow() };
-
     let window = settings
         .window
         .into_builder(
@@ -83,14 +71,8 @@ where
         .build(&event_loop)
         .map_err(Error::WindowCreationFailed)?;
 
-    match &window.raw_window_handle() {
-        RawWindowHandle::Windows(win_hndl) => unsafe {
-            let hwnd = HWND(win_hndl.hwnd as isize);
-            SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE.0 as i32);
-            keybd_event(0, 0, Default::default(), 0);
-            SetForegroundWindow(prev_hwnd);
-        },
-        handle => todo!("not supported yet: {:?}", handle),
+    if let Some(f) = after_window_created {
+        f(&window);
     }
 
     let mut clipboard = Clipboard::connect(&window);
