@@ -7,4 +7,6 @@ edition = "2018"
 
 [dependencies]
 nog-iced = { path = "../nog-iced" }
+windows = { path = "../windows" }
 raw-window-handle = "0.3.3"
+fuzzy-matcher = "0.3.7"
