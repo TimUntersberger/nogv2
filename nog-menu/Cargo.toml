@@ -8,6 +8,8 @@ edition = "2018"
 [dependencies]
 dyn-clone = "1.0.4"
 nog-iced = { path = "../nog-iced" }
+ico = "0.1.0"
+pelite = "0.9.0"
 windows = { path = "../windows" }
 raw-window-handle = "0.3.3"
 fuzzy-matcher = "0.3.7"

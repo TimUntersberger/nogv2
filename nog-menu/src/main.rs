@@ -1,5 +1,7 @@
 #![feature(windows_process_extensions_raw_arg)]
 
+use std::path::PathBuf;
+
 use dyn_clone::{clone_trait_object, DynClone};
 use nog_iced::iced::{
     window::{self, Position},
@@ -40,6 +42,16 @@ impl InteractableItem for ResultItem {
 }
 
 fn main() {
+    let map = pelite::FileMap::open(r#"C:\Users\Tim\Desktop\neovide.exe"#).unwrap();
+    let file = pelite::PeFile::from_bytes(&map).unwrap();
+	let resources = file.resources().expect("Error binary does not have resources");
+	for (_, group) in resources.icons().filter_map(Result::ok) {
+		let mut ico_bytes = Vec::new();
+		group.write(&mut ico_bytes).unwrap();
+	}
+}
+
+fn main2() {
     let items = Api::get_files()
         .drain(..)
         .map(Box::new)
