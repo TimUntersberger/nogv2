@@ -12,6 +12,12 @@ use nog_iced::{
 };
 
 #[derive(Debug, Clone)]
+pub enum MenuMode {
+    Files,
+    ExecuteLua
+}
+
+#[derive(Debug, Clone)]
 pub enum Message {
     FilterChanged(String),
     KeyPressed(KeyCode, Modifiers),
@@ -31,6 +37,7 @@ pub struct State {
 
 pub struct App {
     state: State,
+    mode: MenuMode,
     exit: bool,
     filter_input_state: text_input::State,
     scrollable_state: scrollable::State,
@@ -57,6 +64,7 @@ impl Application for App {
         (
             Self {
                 state: flags,
+                mode: MenuMode::Files,
                 exit: false,
                 filter_input_state: Default::default(),
                 scrollable_state: Default::default(),
