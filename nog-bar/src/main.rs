@@ -1,14 +1,13 @@
-use std::{sync::Arc, time::Duration};
-
-use font_kit::{family_name::FamilyName, properties::Properties, source::SystemSource};
 use iced::{Application, Color, Command, Container, Row, Text};
-use iced_run::run;
-use iced_wgpu as renderer;
-use instance::Instance;
 use nog_client::{BarItem, BarItemAlignment, Client};
-
-mod iced_run;
-mod instance;
+use nog_iced::{iced, load_font};
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use std::time::Duration;
+use windows::Windows::Win32::Foundation::HWND;
+use windows::Windows::Win32::UI::KeyboardAndMouseInput::keybd_event;
+use windows::Windows::Win32::UI::WindowsAndMessaging::{
+    GetForegroundWindow, SetForegroundWindow, SetWindowLongW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+};
 
 #[derive(Debug)]
 struct AppState {
@@ -115,34 +114,22 @@ impl Application for App {
     where
         Self: 'static,
     {
-        let renderer_settings = renderer::Settings {
-            default_font: settings.default_font,
-            default_text_size: settings.default_text_size,
-            text_multithreading: settings.text_multithreading,
-            antialiasing: if settings.antialiasing {
-                Some(renderer::settings::Antialiasing::MSAAx4)
-            } else {
-                None
-            },
-            ..renderer::Settings::from_env()
-        };
+        //TODO: platform specific
+        let prev_hwnd = unsafe { GetForegroundWindow() };
 
-        Ok(run::<
-            Instance<Self>,
-            Self::Executor,
-            renderer::window::Compositor,
-        >(settings.into(), renderer_settings)?)
+        nog_iced::run::<Self>(
+            settings,
+            Some(Box::new(move |w| match &w.raw_window_handle() {
+                RawWindowHandle::Windows(win_hndl) => unsafe {
+                    let hwnd = HWND(win_hndl.hwnd as isize);
+                    SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE.0 as i32);
+                    keybd_event(0, 0, Default::default(), 0);
+                    SetForegroundWindow(prev_hwnd);
+                },
+                handle => todo!("not supported yet: {:?}", handle),
+            })),
+        )
     }
-}
-
-fn load_font(name: String) -> Option<Arc<Vec<u8>>> {
-    let handle = SystemSource::new()
-        .select_best_match(&[FamilyName::Title(name)], &Properties::default())
-        .ok()?;
-    
-    let font = handle.load().ok()?;
-
-    font.copy_font_data()
 }
 
 fn main() {

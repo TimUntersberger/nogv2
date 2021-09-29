@@ -4,6 +4,7 @@ members = [
   "nog", 
   "nog-cli", 
   "nog-client", 
+  "nog-iced", 
   "nog-bar", 
   "nog-menu",
   "nog-protocol"

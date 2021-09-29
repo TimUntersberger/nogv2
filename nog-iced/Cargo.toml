@@ -1,0 +1,15 @@
+[package]
+name = "nog-iced"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+font-kit = "0.10.1"
+iced = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51", features = ["tokio"]}
+iced_winit = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_wgpu = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51", features = ["image_rs"] }
+iced_graphics = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_futures = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }
+iced_native = { git = "https://github.com/hecrj/iced", rev = "7cb6e7438f7fb5d0d8be4528a31b888e2b12cd51" }

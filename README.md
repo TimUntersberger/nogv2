@@ -7,6 +7,7 @@ Complete rewrite of nog
 | nog-cli | Cli client for nog |
 | nog-client | Client library for nog |
 | nog-protocol | Defines a custom protocol for the cli client and nog to communicate with |
+| nog-iced | A wrapper for iced winit which adds support for handling/modifying the created winit window |
 | nog-bar | Hosts the code for the appbar |
 | nog-menu | Hosts the code for the menu |
 | nog | The tilingin window manager |
