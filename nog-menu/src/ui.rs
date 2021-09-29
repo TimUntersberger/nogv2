@@ -1,5 +1,10 @@
+use std::io;
+use std::mem;
+use std::time::Duration;
+
 use crate::{InteractableItem, ResultItem};
 use fuzzy_matcher::{skim::SkimMatcherV2 as Matcher, FuzzyMatcher};
+use nog_client::{Client, ClientError};
 use nog_iced::iced_native::subscription;
 use nog_iced::{
     iced::{
@@ -14,7 +19,7 @@ use nog_iced::{
 #[derive(Debug, Clone)]
 pub enum MenuMode {
     Files,
-    ExecuteLua
+    ExecuteLua,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +42,8 @@ pub struct State {
 
 pub struct App {
     state: State,
+    client: Option<Client>,
+    execute_output: String,
     mode: MenuMode,
     exit: bool,
     filter_input_state: text_input::State,
@@ -64,6 +71,8 @@ impl Application for App {
         (
             Self {
                 state: flags,
+                client: try_connect().ok(),
+                execute_output: String::new(),
                 mode: MenuMode::Files,
                 exit: false,
                 filter_input_state: Default::default(),
@@ -87,35 +96,88 @@ impl Application for App {
             Message::FilterChanged(new_value) => {
                 self.state.filter = new_value;
                 self.state.selected_idx = 0;
-                // A vec of the items that matched the filter and sorted based on their score.
-                let mut fuzzied_items = self
-                    .state
-                    .items
-                    .iter()
-                    .map(|i| (i, self.matcher.fuzzy_match(&i.get_text(), &self.state.filter)))
-                    .filter(|(_, score)| score.is_some())
-                    .map(|(i, score)| ((i.clone(), score.unwrap())))
-                    .collect::<Vec<(Box<dyn InteractableItem>, i64)>>();
 
-                fuzzied_items.sort_by_key(|(_, score)| *score);
+                if self.state.filter.starts_with("$") {
+                    self.mode = MenuMode::ExecuteLua;
+                    let maybe_client = match mem::take(&mut self.client) {
+                        Some(client) => Ok(client),
+                        None => try_connect(),
+                    };
 
-                self.state.filtered_items = fuzzied_items.into_iter().map(|(x, _)| x).collect();
+                    self.execute_output = maybe_client
+                        .ok()
+                        .and_then(|mut client| {
+                            let code = &self.state.filter[1..];
+                            let res = match client.execute_lua(code.to_string(), false) {
+                                Ok(res) => res,
+                                Err(ClientError::LuaExecutionFailed(msg)) => msg,
+                                Err(ClientError::InvalidResponse(res)) => {
+                                    format!("Invalid Response: {}", res)
+                                }
+                                Err(ClientError::IoError(_)) => return None,
+                            };
+                            self.client = Some(client);
+                            Some(res)
+                        })
+                        .unwrap_or_else(|| {
+                            String::from("network error: Failed to connect to the nog server")
+                        });
 
-                return Command::single(nog_iced::iced_native::command::Action::Window(
-                    nog_iced::iced_native::window::Action::Resize {
-                        width: 700,
-                        // input height + vertical gap + result list height
-                        height: 50
-                            + 5
-                            + self.state.item_height as u32
-                                * self
-                                    .state
-                                    .filtered_items
-                                    .len()
-                                    .min(self.state.max_visible_items)
-                                    as u32,
-                    },
-                ));
+                    let mut height = 50;
+
+                    if !self.execute_output.is_empty() {
+                        height += 5 + self
+                            .execute_output
+                            .split('\n')
+                            .count()
+                            .min(self.state.max_visible_items)
+                            * self.state.item_height;
+                    }
+
+                    return Command::single(nog_iced::iced_native::command::Action::Window(
+                        nog_iced::iced_native::window::Action::Resize {
+                            width: 700,
+                            // input height + vertical gap + result list height
+                            height: height as u32,
+                        },
+                    ));
+                } else {
+                    self.mode = MenuMode::Files;
+                    // A vec of the items that matched the filter and sorted based on their score.
+                    let mut fuzzied_items = self
+                        .state
+                        .items
+                        .iter()
+                        .map(|i| {
+                            (
+                                i,
+                                self.matcher.fuzzy_match(&i.get_text(), &self.state.filter),
+                            )
+                        })
+                        .filter(|(_, score)| score.is_some())
+                        .map(|(i, score)| ((i.clone(), score.unwrap())))
+                        .collect::<Vec<(Box<dyn InteractableItem>, i64)>>();
+
+                    fuzzied_items.sort_by_key(|(_, score)| *score);
+
+                    self.state.filtered_items = fuzzied_items.into_iter().map(|(x, _)| x).collect();
+
+                    return Command::single(nog_iced::iced_native::command::Action::Window(
+                        nog_iced::iced_native::window::Action::Resize {
+                            width: 700,
+                            // input height + vertical gap + result list height
+                            height: 50
+                                + 5
+                                + self.state.item_height as u32
+                                    * self
+                                        .state
+                                        .filtered_items
+                                        .len()
+                                        .min(self.state.max_visible_items)
+                                        as u32,
+                        },
+                    ));
+                }
             }
             Message::Exit => self.exit = true,
             Message::KeyPressed(key, mods) => match (key, mods) {
@@ -166,6 +228,7 @@ impl Application for App {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
+        dbg!(&self.execute_output);
         self.filter_input_state.focus();
 
         let selected_idx = self.state.selected_idx;
@@ -173,30 +236,33 @@ impl Application for App {
 
         let result_list = Scrollable::new(&mut self.scrollable_state)
             .scrollbar_width(10)
-            .push(Column::with_children(
-                self.state
-                    .filtered_items
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| {
-                        let text = Text::new(item.get_text());
+            .push(match self.mode {
+                MenuMode::Files => Column::with_children(
+                    self.state
+                        .filtered_items
+                        .iter()
+                        .enumerate()
+                        .map(|(i, item)| {
+                            let text = Text::new(item.get_text());
 
-                        let content = Row::new()
-                            .align_items(Align::Center)
-                            .push(Space::with_width(Length::Units(3)))
-                            .push(text);
+                            let content = Row::new()
+                                .align_items(Align::Center)
+                                .push(Space::with_width(Length::Units(3)))
+                                .push(text);
 
-                        Container::new(content)
-                            .style(MenuItemStyle {
-                                is_selected: i == selected_idx,
-                            })
-                            .align_y(Align::Center)
-                            .height(Length::Units(item_height))
-                            .width(Length::Fill)
-                            .into()
-                    })
-                    .collect(),
-            ));
+                            Container::new(content)
+                                .style(MenuItemStyle {
+                                    is_selected: i == selected_idx,
+                                })
+                                .align_y(Align::Center)
+                                .height(Length::Units(item_height))
+                                .width(Length::Fill)
+                                .into()
+                        })
+                        .collect(),
+                ),
+                MenuMode::ExecuteLua => Column::new().padding(5).push(Text::new(&self.execute_output)),
+            });
 
         let filter_input = TextInput::new(
             &mut self.filter_input_state,
@@ -226,6 +292,13 @@ impl Application for App {
             })),
         )
     }
+}
+
+fn try_connect() -> io::Result<Client> {
+    Client::connect(
+        String::from("localhost:8080"),
+        Some(Duration::from_millis(1)),
+    )
 }
 
 struct MenuItemStyle {

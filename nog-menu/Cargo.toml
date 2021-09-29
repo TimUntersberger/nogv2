@@ -8,6 +8,7 @@ edition = "2018"
 [dependencies]
 dyn-clone = "1.0.4"
 nog-iced = { path = "../nog-iced" }
+nog-client = { path = "../nog-client" }
 windows = { path = "../windows" }
 raw-window-handle = "0.3.3"
 fuzzy-matcher = "0.3.7"

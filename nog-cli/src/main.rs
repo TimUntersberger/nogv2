@@ -52,7 +52,7 @@ fn main() {
 
     let addr = String::from(format!("{}:{}", hostname, port));
 
-    let mut client = match Client::connect(addr) {
+    let mut client = match Client::connect(addr, None) {
         Ok(x) => x,
         Err(e) => {
             eprintln!("error: {}", e);
