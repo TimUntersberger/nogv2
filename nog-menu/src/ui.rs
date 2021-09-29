@@ -228,7 +228,6 @@ impl Application for App {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        dbg!(&self.execute_output);
         self.filter_input_state.focus();
 
         let selected_idx = self.state.selected_idx;
@@ -261,7 +260,9 @@ impl Application for App {
                         })
                         .collect(),
                 ),
-                MenuMode::ExecuteLua => Column::new().padding(5).push(Text::new(&self.execute_output)),
+                MenuMode::ExecuteLua => Column::new()
+                    .padding(5)
+                    .push(Text::new(&self.execute_output)),
             });
 
         let filter_input = TextInput::new(
