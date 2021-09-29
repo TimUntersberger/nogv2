@@ -133,7 +133,7 @@ impl Application for App {
 }
 
 fn main() {
-    let mut client = Client::connect("localhost:8080".into()).unwrap();
+    let mut client = Client::connect("localhost:8080".into(), None).unwrap();
     let bar_content = client.get_bar_content().unwrap();
     let font: &'static [u8] = Box::leak(Box::new(
         (*load_font(bar_content.font_name)

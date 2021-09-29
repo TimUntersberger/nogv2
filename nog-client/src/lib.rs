@@ -1,4 +1,5 @@
 pub use nog_protocol::{json, BarContent, BarItem, BarItemAlignment, Message, State};
+pub use std::net::ToSocketAddrs;
 use std::{
     io::{self, Read, Write},
     net::TcpStream,
@@ -21,10 +22,15 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn connect(addr: String) -> io::Result<Self> {
-        let stream = TcpStream::connect(addr.clone())?;
-        stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-        stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+    pub fn connect(addr: String, timeout: Option<Duration>) -> io::Result<Self> {
+        let stream = match timeout {
+            Some(timeout) => {
+                TcpStream::connect_timeout(&addr.to_socket_addrs()?.next().unwrap(), timeout)?
+            }
+            None => TcpStream::connect(addr.clone())?,
+        };
+        stream.set_read_timeout(Some(Duration::from_secs(1)))?;
+        stream.set_write_timeout(Some(Duration::from_secs(1)))?;
 
         Ok(Self { stream, addr })
     }

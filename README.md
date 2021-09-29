@@ -25,7 +25,7 @@ The tools can be found in `./tools/*`.
 | register_startup_task.ps1 | Adds a scheduled task which runs at startup and starts nog (requires admin privileges) |
 | unregister_startup_task.ps1 | Removes the scheduled task (requires admin privileges) |
 
-## Starting
+## Usage
 
 The `tools/install_release.ps1` script will add nog to the path. Afterwards you can start nog either
 in the current shell
@@ -41,3 +41,9 @@ start-process -windowstyle hidden nog
 ```
 
 You can also use the `tools/register_startup_task.ps1` script to add nog to startup.
+
+## Nightly
+
+Nog requires nightly rust to build, because of the following reasons:
+
+* We need the `raw_arg` method of `Command` so rust doesn't auto-escape our arguments. (https://github.com/rust-lang/rust/issues/29494)
