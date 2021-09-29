@@ -1691,6 +1691,7 @@ dependencies = [
 name = "nog-menu"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "dyn-clone",
  "fuzzy-matcher",
  "nog-client",

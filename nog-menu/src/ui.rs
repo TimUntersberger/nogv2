@@ -1,3 +1,4 @@
+use crate::rgb::Rgb;
 use std::io;
 use std::mem;
 use std::time::Duration;
@@ -33,6 +34,10 @@ pub enum Message {
 pub struct State {
     pub items: Vec<Box<dyn InteractableItem>>,
     pub item_height: usize,
+    pub hostname: String,
+    pub port: String,
+    pub color: Rgb,
+    pub text_color: Rgb,
     pub max_visible_items: usize,
     /// Always contains the items fuzzy matched by the filter and sorted based on their score.
     pub filtered_items: Vec<Box<dyn InteractableItem>>,
@@ -70,8 +75,8 @@ impl Application for App {
     fn new(flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         (
             Self {
+                client: try_connect(&flags.hostname, &flags.port).ok(),
                 state: flags,
-                client: try_connect().ok(),
                 execute_output: String::new(),
                 mode: MenuMode::Files,
                 exit: false,
@@ -81,6 +86,10 @@ impl Application for App {
             },
             Command::none(),
         )
+    }
+
+    fn background_color(&self) -> Color {
+        self.state.color.0.into()
     }
 
     fn title(&self) -> String {
@@ -101,7 +110,7 @@ impl Application for App {
                     self.mode = MenuMode::ExecuteLua;
                     let maybe_client = match mem::take(&mut self.client) {
                         Some(client) => Ok(client),
-                        None => try_connect(),
+                        None => try_connect(&self.state.hostname, &self.state.port),
                     };
 
                     self.execute_output = maybe_client
@@ -232,6 +241,8 @@ impl Application for App {
 
         let selected_idx = self.state.selected_idx;
         let item_height = self.state.item_height as u16;
+        let bg = self.state.color;
+        let fg = self.state.text_color;
 
         let result_list = Scrollable::new(&mut self.scrollable_state)
             .scrollbar_width(10)
@@ -252,6 +263,8 @@ impl Application for App {
                             Container::new(content)
                                 .style(MenuItemStyle {
                                     is_selected: i == selected_idx,
+                                    bg,
+                                    fg,
                                 })
                                 .align_y(Align::Center)
                                 .height(Length::Units(item_height))
@@ -262,7 +275,7 @@ impl Application for App {
                 ),
                 MenuMode::ExecuteLua => Column::new()
                     .padding(5)
-                    .push(Text::new(&self.execute_output)),
+                    .push(Text::new(&self.execute_output).color(fg.0)),
             });
 
         let filter_input = TextInput::new(
@@ -271,7 +284,7 @@ impl Application for App {
             &self.state.filter,
             Message::FilterChanged,
         )
-        .style(FilterInputStyle)
+        .style(FilterInputStyle { bg, fg })
         .size(30)
         .padding(10);
 
@@ -288,43 +301,47 @@ impl Application for App {
     {
         nog_iced::run::<Self>(
             settings,
-            Some(Box::new(|w| {
-                dbg!(w);
-            })),
+            None,
         )
     }
 }
 
-fn try_connect() -> io::Result<Client> {
+fn try_connect(hostname: &str, port: &str) -> io::Result<Client> {
     Client::connect(
-        String::from("localhost:8080"),
+        String::from(&format!("{}:{}", hostname, port)),
         Some(Duration::from_millis(1)),
     )
 }
 
 struct MenuItemStyle {
     pub is_selected: bool,
+    pub bg: Rgb,
+    pub fg: Rgb,
 }
 
 impl container::StyleSheet for MenuItemStyle {
     fn style(&self) -> container::Style {
         container::Style {
             background: Some(Background::Color(if self.is_selected {
-                Color::new(0.8, 0.8, 0.8, 1.0)
+                self.bg.scaled(1.3).0.into()
             } else {
-                Color::WHITE
+                self.bg.0.into()
             })),
+            text_color: Some(self.fg.0.into()),
             ..Default::default()
         }
     }
 }
 
-struct FilterInputStyle;
+struct FilterInputStyle {
+    pub bg: Rgb,
+    pub fg: Rgb,
+}
 
 impl text_input::StyleSheet for FilterInputStyle {
     fn active(&self) -> text_input::Style {
         text_input::Style {
-            background: Background::Color(Color::WHITE),
+            background: Background::Color(self.bg.0.into()),
             border_radius: 0.0,
             border_width: 0.0,
             border_color: Color::from_rgb(0.7, 0.7, 0.7),
@@ -343,7 +360,7 @@ impl text_input::StyleSheet for FilterInputStyle {
     }
 
     fn value_color(&self) -> Color {
-        Color::from_rgb(0.3, 0.3, 0.3)
+        self.fg.0.into()
     }
 
     fn selection_color(&self) -> Color {

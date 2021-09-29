@@ -16,7 +16,7 @@ fn main() {
         (version: "1.0")
         (author: "Tim Untersberger <timuntersberger2@gmail.com")
         (about: "Communicate with nog via the command line")
-        (@arg HOSTNAME: -h --hostname +takes_value "The hostname of the nog server. (Default: locahost)")
+        (@arg HOSTNAME: -h --hostname +takes_value "The hostname of the nog server. (Default: localhost)")
         (@arg PORT: -p --port +takes_value "The port of the nog server. (Default: 8080)")
         (@subcommand execute =>
             (about: "Execute an arbitrary lua string in the context of the lua runtime")
