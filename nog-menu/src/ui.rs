@@ -206,11 +206,12 @@ impl Application for App {
                 }
                 (KeyCode::W, mods) if mods == Modifiers::CTRL => {
                     let tokens = self.state.filter.split(' ').collect::<Vec<_>>();
-                    if let [res @ .., _] = tokens.as_slice() {
-                        self.state.filter = res.join(" ");
+                    let new_filter = if let [res @ .., _] = tokens.as_slice() {
+                        res.join(" ")
                     } else {
-                        self.state.filter = String::from("");
-                    }
+                        String::from("")
+                    };
+                    return Command::perform((|| async { new_filter })(), Message::FilterChanged);
                 }
                 _ => {}
             },
@@ -299,10 +300,7 @@ impl Application for App {
     where
         Self: 'static,
     {
-        nog_iced::run::<Self>(
-            settings,
-            None,
-        )
+        nog_iced::run::<Self>(settings, None)
     }
 }
 
