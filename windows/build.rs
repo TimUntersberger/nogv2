@@ -14,6 +14,7 @@ fn main() {
         Windows::Win32::System::SystemServices::*,
         Windows::Win32::System::Memory::*,
         Windows::Win32::System::Com::*,
-        Windows::Win32::System::Threading::CreateProcessA
+        Windows::Win32::System::Threading::CreateProcessA,
+        Windows::Win32::System::WindowsProgramming::GetUserNameW
     );
 }

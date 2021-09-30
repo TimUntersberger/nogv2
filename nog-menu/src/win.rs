@@ -1,9 +1,17 @@
 use crate::{Native, ResultItem};
-use std::{
-    os::windows::process::CommandExt,
-    process::Command,
-    sync::mpsc::{sync_channel, SyncSender},
-};
+use std::{os::windows::process::CommandExt, process::Command, ptr, sync::mpsc::{sync_channel, SyncSender}};
+use windows::Windows::Win32::System::WindowsProgramming::GetUserNameW;
+use windows::Windows::Win32::Foundation::{PWSTR};
+
+fn get_user_name() -> String {
+    unsafe {
+        let mut len = 0;
+        GetUserNameW(PWSTR(ptr::null_mut()), &mut len);
+        let mut buf = vec![0; (len - 1) as usize];
+        GetUserNameW(PWSTR(buf.as_mut_ptr()), &mut len);
+        String::from_utf16_lossy(&buf)
+    }
+}
 
 fn fetch_start_menu_programs(tx: SyncSender<Option<ResultItem>>, dir: Option<String>) {
     let start_menu_path = String::from(r#"C:\ProgramData\Microsoft\Windows\Start Menu\Programs"#);
@@ -28,7 +36,7 @@ fn fetch_start_menu_programs(tx: SyncSender<Option<ResultItem>>, dir: Option<Str
 }
 
 fn fetch_desktop_programs(tx: SyncSender<Option<ResultItem>>) {
-    let path = String::from(format!(r#"C:\Users\{}\Desktop"#, "timun"));
+    let path = String::from(format!(r#"C:\Users\{}\Desktop"#, dbg!(get_user_name())));
     let dir_items = std::fs::read_dir(path.clone()).unwrap();
 
     for dir_item in dir_items {
