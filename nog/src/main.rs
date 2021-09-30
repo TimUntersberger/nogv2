@@ -49,7 +49,6 @@ mod lua;
 mod modifiers;
 mod paths;
 mod platform;
-mod rgb;
 mod server;
 mod session;
 mod state;

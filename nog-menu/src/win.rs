@@ -2,10 +2,8 @@ use crate::{Native, ResultItem};
 use std::{
     os::windows::process::CommandExt,
     process::Command,
-    ptr,
     sync::mpsc::{sync_channel, SyncSender},
 };
-use windows::Windows::Win32::{Foundation::PSTR, System::Threading::CreateProcessA};
 
 fn fetch_start_menu_programs(tx: SyncSender<Option<ResultItem>>, dir: Option<String>) {
     let start_menu_path = String::from(r#"C:\ProgramData\Microsoft\Windows\Start Menu\Programs"#);

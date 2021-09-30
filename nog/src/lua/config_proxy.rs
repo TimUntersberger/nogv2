@@ -4,9 +4,9 @@ use crate::{
     action::{Action, UpdateConfigActionFn},
     config::Config,
     event::Event,
-    rgb::Rgb,
     thread_safe::ThreadSafe,
 };
+use rgb::Rgb;
 use mlua::prelude::*;
 
 pub struct ConfigProxy {

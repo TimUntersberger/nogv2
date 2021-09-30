@@ -1,4 +1,4 @@
-use crate::rgb::Rgb;
+use rgb::Rgb;
 
 pub struct Config {
     pub color: Rgb,

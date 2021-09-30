@@ -19,10 +19,10 @@ use crate::{
     lua::config_proxy::ConfigProxy,
     paths::{get_config_path, get_runtime_path},
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
-    rgb::Rgb,
     state::State,
     workspace::WorkspaceId,
 };
+use rgb::Rgb;
 
 struct BarLayout<'a> {
     left: mlua::Table<'a>,

@@ -12,7 +12,6 @@ use rgb::Rgb;
 
 mod ui;
 mod win;
-mod rgb;
 
 pub trait Native {
     fn get_files() -> Vec<ResultItem>;

@@ -1,9 +1,9 @@
-use crate::rgb::Rgb;
+use rgb::Rgb;
 use std::io;
 use std::mem;
 use std::time::Duration;
 
-use crate::{InteractableItem, ResultItem};
+use crate::InteractableItem;
 use fuzzy_matcher::{skim::SkimMatcherV2 as Matcher, FuzzyMatcher};
 use nog_client::{Client, ClientError};
 use nog_iced::iced_native::subscription;
