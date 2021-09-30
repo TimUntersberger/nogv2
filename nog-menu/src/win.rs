@@ -30,7 +30,7 @@ fn fetch_start_menu_programs(tx: SyncSender<Option<ResultItem>>, dir: Option<Str
 }
 
 fn fetch_desktop_programs(tx: SyncSender<Option<ResultItem>>) {
-    let path = String::from(format!(r#"C:\Users\{}\Desktop"#, "Tim"));
+    let path = String::from(format!(r#"C:\Users\{}\Desktop"#, "timun"));
     let dir_items = std::fs::read_dir(path.clone()).unwrap();
 
     for dir_item in dir_items {

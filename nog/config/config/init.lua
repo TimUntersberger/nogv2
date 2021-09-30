@@ -18,6 +18,10 @@ nog.nbind("alt+ctrl+r", function()
   dofile(nog.config_path .. "\\lua\\config.lua")
 end)
 
+nog.nbind("alt+space", function()
+  nog.open_menu()
+end)
+
 nog.nbind("alt+F1", function()
   nog.update_window_layout()
 end)

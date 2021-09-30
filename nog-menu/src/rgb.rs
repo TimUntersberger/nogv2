@@ -26,6 +26,6 @@ impl Rgb {
         green *= factor;
         blue *= factor;
 
-        Self([red, green, blue])
+        Self([red.min(1.0), green.min(1.0), blue.min(1.0)])
     }
 }

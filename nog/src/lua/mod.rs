@@ -166,6 +166,14 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
+        fn open_menu() {
+            inject state;
+
+            state.tx.send(Event::ShowMenu).unwrap();
+
+            Ok(())
+        }
+
         fn exit() {
             inject state;
 

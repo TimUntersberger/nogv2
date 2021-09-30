@@ -6,6 +6,7 @@ use crate::window_event_loop::WindowEvent;
 #[derive(Debug, Clone)]
 pub enum Event {
     RenderGraph,
+    ShowMenu,
     Exit,
     ConfigFinished,
     RenderBarLayout,

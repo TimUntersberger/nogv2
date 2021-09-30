@@ -8,12 +8,14 @@ use nog_protocol::{BarContent, BarItem, BarItemAlignment};
 use rgb::Rgb;
 use server::Server;
 use std::{
+    process::Command,
     sync::mpsc::{channel, Sender},
     thread,
 };
 use window_event_loop::WindowEventLoop;
 
 use crate::{
+    paths::get_bin_path,
     platform::{Api, NativeApi, NativeWindow},
     state::State,
     window_event_loop::WindowEventKind,
@@ -175,17 +177,21 @@ fn main() -> Result<(), Error> {
                 WindowEventKind::Created => {
                     if state.is_awake() {
                         let win = win_event.window;
+                        let title = win.get_title();
+
+                        if title == "nog_bar" {
+                            continue;
+                        }
+
+                        if title == "nog_menu" {
+                            win.focus();
+                            continue;
+                        }
+
                         let size = win.get_size();
-
-                        let is_nog_window = {
-                            let title = win.get_title();
-
-                            title == "nog_bar"
-                        };
 
                         if size.width >= state.config.read().min_width
                             && size.height >= state.config.read().min_height
-                            && !is_nog_window
                         {
                             info!("'{}' created", win.get_title());
                             state.with_focused_dsp_mut(|d| {
@@ -350,6 +356,23 @@ fn main() -> Result<(), Error> {
                 if state.config.read().display_app_bar {
                     tx.send(Event::Action(Action::ShowBars)).unwrap();
                 }
+            }
+            Event::ShowMenu => {
+                let mut path = get_bin_path();
+                path.push("nog-menu.exe");
+
+                Command::new(path)
+                    .args(["-b", &format!("0x{:x}", state.config.read().color.to_hex())])
+                    .args([
+                        "-t",
+                        if state.config.read().light_theme {
+                            "0x000000"
+                        } else {
+                            "0xFFFFFF"
+                        },
+                    ])
+                    .spawn()
+                    .unwrap();
             }
         }
     }

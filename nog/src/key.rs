@@ -60,10 +60,10 @@ pub enum Key {
 impl Key {
     pub fn from_usize(code: usize) -> Option<Self> {
         Some(match code {
-            8 => Key::Backspace,
-            9 => Key::Tab,
-            13 => Key::Enter,
-            20 => Key::Space,
+            0x8 => Key::Backspace,
+            0x9 => Key::Tab,
+            0x13 => Key::Enter,
+            0x20 => Key::Space,
             27 => Key::Escape,
             48 => Key::Zero,
             49 => Key::One,
