@@ -1,13 +1,23 @@
-use std::{mem, ptr};
+use std::{mem, os::windows::process::CommandExt, process::Command, ptr};
 
 use widestring::WideCString;
-use windows::Windows::Win32::{Foundation::{BOOL, HWND, LPARAM, PWSTR}, Graphics::Gdi::{
+use windows::Windows::Win32::{
+    Foundation::{BOOL, HWND, LPARAM, PWSTR},
+    Graphics::Gdi::{
         EnumDisplayDevicesW, MonitorFromWindow, DISPLAY_DEVICEW,
         DISPLAY_DEVICE_ATTACHED_TO_DESKTOP, MONITOR_DEFAULTTONEAREST,
-    }, UI::{KeyboardAndMouseInput::{KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, MapVirtualKeyA, MapVirtualKeyW, SendInput, keybd_event}, WindowsAndMessaging::{
+    },
+    UI::{
+        KeyboardAndMouseInput::{
+            keybd_event, MapVirtualKeyA, MapVirtualKeyW, SendInput, KEYBD_EVENT_FLAGS,
+            KEYEVENTF_KEYUP,
+        },
+        WindowsAndMessaging::{
             EnumWindows, GetForegroundWindow, MAPVK_VK_TO_VSC, VK_CONTROL, VK_LWIN, VK_MENU,
             VK_SHIFT,
-        }}};
+        },
+    },
+};
 
 use crate::{
     display::{Display, DisplayId},
@@ -113,6 +123,13 @@ impl NativeApi for Api {
     type Window = Window;
     type Monitor = Monitor;
 
+    fn launch(path: String) {
+        Command::new("cmd")
+            .arg("/C")
+            .raw_arg(&format!(r#"start "" "{}""#, path))
+            .spawn()
+            .unwrap();
+    }
     fn simulate_key_press(key: Key, m: Modifiers) {
         unsafe {
             if m.lalt || m.ralt {

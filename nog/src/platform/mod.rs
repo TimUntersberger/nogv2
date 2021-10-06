@@ -35,6 +35,7 @@ pub trait NativeApi {
 
     /// This function simulates keys presses
     fn simulate_key_press(key: Key, modifiers: Modifiers);
+    fn launch(path: String);
     fn get_foreground_window() -> Self::Window;
     fn get_displays() -> Vec<Display>;
 }

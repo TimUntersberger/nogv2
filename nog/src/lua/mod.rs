@@ -4,6 +4,8 @@ pub mod graph_proxy;
 pub mod namespace;
 pub mod runtime;
 
+use std::{os::windows::process::CommandExt, process::Command};
+
 pub use namespace::LuaNamespace;
 pub use runtime::LuaRuntime;
 
@@ -277,6 +279,14 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             inject state;
 
             Ok(Window::new(win_id).get_title())
+        }
+
+        fn launch(path: String) {
+            inject state;
+
+            Api::launch(path);
+
+            Ok(())
         }
 
         fn win_manage(win_id: Option<WindowId>) {
