@@ -4,11 +4,18 @@ use crate::graph::{Graph, GraphNode, GraphNodeGroupKind, GraphNodeId};
 use crate::platform::{Area, NativeWindow, Window, WindowId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WorkspaceState {
+    Fullscreen,
+    Normal
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WorkspaceId(pub usize);
 
 #[derive(Debug)]
 pub struct Workspace {
     pub id: WorkspaceId,
+    pub state: WorkspaceState,
     pub graph: Graph,
 }
 
@@ -22,8 +29,13 @@ impl Workspace {
     pub fn new(id: WorkspaceId) -> Self {
         Self {
             id,
+            state: WorkspaceState::Normal,
             graph: Graph::new(),
         }
+    }
+
+    pub fn is_fullscreen(&self) -> bool {
+        self.state == WorkspaceState::Fullscreen
     }
 
     pub fn get_focused_win(&self) -> Option<Window> {
@@ -88,7 +100,17 @@ impl Workspace {
         area.size.width -= config.outer_gap as usize * 2;
         area.size.height -= config.outer_gap as usize * 2;
 
-        render_node(self.graph.root_node_id, &self.graph, config, area);
+        match &self.state {
+            WorkspaceState::Fullscreen => {
+                if let Some(win_node_id) = self.graph.get_focused_window_child(0) {
+                    render_node(win_node_id, &self.graph, config, area);
+                }
+            },
+            WorkspaceState::Normal => {
+                render_node(self.graph.root_node_id, &self.graph, config, area);
+            },
+        }
+
     }
 
     fn focus_node(&mut self, id: GraphNodeId) {

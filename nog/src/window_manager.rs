@@ -92,6 +92,10 @@ impl WindowManager {
         self.workspaces.iter().find(|ws| ws.id == id)
     }
 
+    pub fn get_ws_by_id_mut(&mut self, id: WorkspaceId) -> Option<&mut Workspace> {
+        self.workspaces.iter_mut().find(|ws| ws.id == id)
+    }
+
     pub fn has_window(&self, id: WindowId) -> bool {
         self.workspaces
             .iter()

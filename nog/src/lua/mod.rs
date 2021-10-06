@@ -22,7 +22,7 @@ use crate::{
     paths::{get_config_path, get_runtime_path},
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
-    workspace::WorkspaceId,
+    workspace::{WorkspaceId, WorkspaceState},
 };
 use rgb::Rgb;
 
@@ -209,6 +209,20 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             inject state;
 
             Ok(state.with_ws(ws_id, |ws| ws.get_focused_win().map(|w| w.get_id())).flatten())
+        }
+
+        fn ws_is_fullscreen(ws_id: WorkspaceId) {
+            inject state;
+
+            Ok(state.with_ws(ws_id, |ws| ws.is_fullscreen()))
+        }
+
+        fn ws_set_fullscreen(ws_id: Option<WorkspaceId>, value: bool) {
+            inject state;
+
+            state.tx.send(Event::Action(Action::Workspace(WorkspaceAction::SetFullscreen(ws_id, value)))).unwrap();
+
+            Ok(())
         }
 
         fn ws_get_all() {

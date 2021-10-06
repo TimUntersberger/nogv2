@@ -6,6 +6,10 @@ nog.nbind("alt+ctrl+f", function()
   end
 end)
 
+nog.nbind("alt+f", function()
+  nog.ws_set_fullscreen(1, not nog.ws_is_fullscreen(1))
+end)
+
 nog.gbind("alt+escape", function()
   if nog.is_awake() then
     nog.hibernate()

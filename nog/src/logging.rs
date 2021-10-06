@@ -19,7 +19,7 @@ pub fn init() -> Result<(), log::SetLoggerError> {
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
+        .level(log::LevelFilter::Trace)
         .chain(tx)
         .apply()?;
     Ok(())

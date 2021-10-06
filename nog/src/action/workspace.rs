@@ -1,10 +1,12 @@
+use std::fmt::Display;
+
 use crate::{
     direction::Direction,
     event::Event,
     lua::LuaRuntime,
     platform::NativeWindow,
     state::State,
-    workspace::{Workspace, WorkspaceId},
+    workspace::{Workspace, WorkspaceId, WorkspaceState},
 };
 
 use super::{Action, WindowAction};
@@ -12,13 +14,42 @@ use super::{Action, WindowAction};
 #[derive(Debug, Clone)]
 pub enum WorkspaceAction {
     Change(WorkspaceId),
+    SetFullscreen(Option<WorkspaceId>, bool),
     Focus(Option<WorkspaceId>, Direction),
     Swap(Option<WorkspaceId>, Direction),
 }
 
+impl Display for WorkspaceAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                WorkspaceAction::Change(id) => format!("WorkspaceAction::Change({})", id.0),
+                WorkspaceAction::SetFullscreen(id, value) =>
+                    format!("WorkspaceAction::SetFullscreen({:?}, {})", id, value),
+                WorkspaceAction::Focus(id, direction) =>
+                    format!("WorkspaceAction::Focus({:?}, {})", id, direction),
+                WorkspaceAction::Swap(id, direction) =>
+                    format!("WorkspaceAction::Swap({:?}, {})", id, direction),
+            }
+        )
+    }
+}
+
 impl WorkspaceAction {
     pub fn handle(self, state: &State, rt: &LuaRuntime) {
+        log::trace!("{}", &self);
         match self {
+            WorkspaceAction::SetFullscreen(maybe_id, value) => {
+                state.with_ws_mut(WorkspaceId(1), |ws| {
+                    ws.state = if value {
+                        WorkspaceState::Fullscreen
+                    } else {
+                        WorkspaceState::Normal
+                    }
+                });
+            }
             WorkspaceAction::Focus(maybe_id, dir) => state.with_focused_dsp_mut(|d| {
                 let workspace = d.wm.get_focused_workspace_mut();
                 if let Some(id) = workspace.focus_in_direction(dir) {
@@ -62,7 +93,9 @@ impl WorkspaceAction {
                         }
                         None => {}
                     },
-                    None => { state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id)); }
+                    None => {
+                        state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id));
+                    }
                 };
             }
         }

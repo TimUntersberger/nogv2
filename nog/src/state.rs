@@ -97,4 +97,15 @@ impl State {
             .next()
             .map(f)
     }
+
+    /// Doesn't call the function if the workspace doesn't exist
+    pub fn with_ws_mut<T>(&self, id: WorkspaceId, f: impl Fn(&mut Workspace) -> T) -> Option<T> {
+        self.displays
+            .write()
+            .iter_mut()
+            .map(|d| d.wm.get_ws_by_id_mut(id))
+            .flatten()
+            .next()
+            .map(f)
+    }
 }
