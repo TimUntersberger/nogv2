@@ -15,6 +15,7 @@ pub struct WorkspaceId(pub usize);
 #[derive(Debug)]
 pub struct Workspace {
     pub id: WorkspaceId,
+    pub layout_name: String,
     pub state: WorkspaceState,
     pub graph: Graph,
 }
@@ -26,9 +27,10 @@ pub enum WorkspaceError {
 pub type WorkspaceResult<T = ()> = Result<T, WorkspaceError>;
 
 impl Workspace {
-    pub fn new(id: WorkspaceId) -> Self {
+    pub fn new(id: WorkspaceId, layout_name: &str) -> Self {
         Self {
             id,
+            layout_name: layout_name.to_string(),
             state: WorkspaceState::Normal,
             graph: Graph::new(),
         }

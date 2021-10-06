@@ -33,6 +33,7 @@ pub struct Window {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Workspace {
     pub id: usize,
+    pub layout: String,
     pub focused_window_id: Option<usize>,
     pub windows: Vec<Window>
 }

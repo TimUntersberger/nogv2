@@ -5,7 +5,7 @@
 //!
 //! The format of a session file is as follows:
 //!
-//! @workspace denotes the start of a workspace section
+//! @workspace <workspace_id> <layout_name> denotes the start of a workspace section
 //! @endworkspace denotes the end of a workspace section
 //!
 //! A workspace section is split up into two paragraphs (seperated by an empty line).
@@ -76,7 +76,7 @@ pub fn save_session(workspaces: &[Workspace]) {
                 .filter(|s| !s.is_empty())
                 .join("\n\n");
 
-            format!("@workspace {}\n{}\n@endworkspace", workspace.id.0, sections)
+            format!("@workspace {} {}\n{}\n@endworkspace", workspace.id.0, &workspace.layout_name, sections)
         })
         .join("\n");
 
@@ -111,7 +111,9 @@ pub fn load_session() -> Option<Vec<Workspace>> {
         let line = lines[i];
 
         if let Some(rest) = line.strip_prefix("@workspace") {
-            let id = WorkspaceId(rest.trim().parse::<usize>().ok()?);
+            let tokens = rest.trim().split(' ').collect::<Vec<_>>();
+            let id = WorkspaceId(tokens[0].parse::<usize>().ok()?);
+            let layout_name = tokens[1];
             let mut graph = Graph {
                 max_id: 0,
                 dirty: false,
@@ -175,7 +177,7 @@ pub fn load_session() -> Option<Vec<Workspace>> {
 
             //TODO: Correctly set the `child_count` of group nodes
 
-            let mut workspace = Workspace::new(id);
+            let mut workspace = Workspace::new(id, layout_name);
             workspace.graph = graph;
             workspaces.push(workspace);
         }

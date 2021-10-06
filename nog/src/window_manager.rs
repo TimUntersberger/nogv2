@@ -29,7 +29,7 @@ pub struct WindowManager {
 impl WindowManager {
     pub fn new() -> Self {
         Self {
-            workspaces: vec![Workspace::new(WorkspaceId(1))],
+            workspaces: vec![Workspace::new(WorkspaceId(1), "master_slave")],
             focused_workspace_id: WorkspaceId(1),
             window_cleanup: HashMap::new(),
             workspace_cleanup: HashMap::new(),
@@ -57,7 +57,7 @@ impl WindowManager {
 
         match self.get_ws_by_id(id) {
             Some(ws) => ws.unminimize(),
-            None => self.workspaces.push(Workspace::new(id))
+            None => self.workspaces.push(Workspace::new(id, "master_slave")),
         };
 
         let old_ws_id = mem::replace(&mut self.focused_workspace_id, id);
@@ -235,6 +235,6 @@ impl WindowManager {
         }
 
         self.focused_workspace_id = WorkspaceId(1);
-        self.workspaces = vec![Workspace::new(WorkspaceId(1))];
+        self.workspaces = vec![Workspace::new(WorkspaceId(1), "master_slave")];
     }
 }

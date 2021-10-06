@@ -81,6 +81,7 @@ fn handle_client(mut stream: TcpStream, tx: Sender<Event>, state: State) -> std:
                                 .iter()
                                 .map(|ws| nog_protocol::Workspace {
                                     id: ws.id.0,
+                                    layout: ws.layout_name.clone(),
                                     focused_window_id: ws
                                         .get_focused_win()
                                         .map(|win| win.get_id().0),
