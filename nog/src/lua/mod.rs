@@ -203,6 +203,15 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
+        fn move_win_to_ws(win_id: Option<WindowId>, ws_id: WorkspaceId) {
+            inject state;
+
+            state.tx.send(Event::Action(Action::MoveWindowToWorkspace(win_id, ws_id)))
+            .unwrap();
+
+            Ok(())
+        }
+
         fn ws_focus(ws_id: Option<WorkspaceId>, direction: Direction) {
             inject state;
 
@@ -325,7 +334,7 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
         fn win_manage(win_id: Option<WindowId>) {
             inject state;
 
-            state.tx.send(Event::Action(Action::Window(WindowAction::Manage(win_id))))
+            state.tx.send(Event::Action(Action::Window(WindowAction::Manage(None, win_id))))
                 .unwrap();
 
             Ok(())

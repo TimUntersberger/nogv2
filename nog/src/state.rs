@@ -48,6 +48,23 @@ impl State {
         self.displays.read().iter().any(|d| d.wm.has_window(win_id))
     }
 
+    /// Creates a workspace with the given id, if it doesn't exist yet.
+    pub fn create_workspace(&self, dsp_id: DisplayId, ws_id: WorkspaceId) {
+        let exists = self
+            .displays
+            .read()
+            .iter()
+            .any(|d| d.wm.get_ws_by_id(ws_id).is_some());
+
+        if exists {
+            return;
+        }
+
+        self.with_dsp_mut(dsp_id, |dsp| {
+            dsp.wm.workspaces.push(Workspace::new(ws_id, "master_slave"));
+        });
+    }
+
     /// Doesn't call the function if none was found
     pub fn with_dsp_containing_win_mut<T>(
         &self,
@@ -74,6 +91,10 @@ impl State {
             .map(f)
     }
 
+    pub fn with_focused_dsp<T>(&self, f: impl Fn(&Display) -> T) -> T {
+        f(&self.displays.read()[0])
+    }
+
     pub fn with_focused_dsp_mut<T>(&self, f: impl Fn(&mut Display) -> T) -> T {
         f(&mut self.displays.write()[0])
     }
@@ -85,6 +106,11 @@ impl State {
     /// Doesn't call the function if display doesn't exist
     pub fn with_dsp<T>(&self, id: DisplayId, f: impl Fn(&Display) -> T) -> Option<T> {
         self.displays.read().iter().find(|d| d.id == id).map(f)
+    }
+
+    /// Doesn't call the function if display doesn't exist
+    pub fn with_dsp_mut<T>(&self, id: DisplayId, f: impl Fn(&mut Display) -> T) -> Option<T> {
+        self.displays.write().iter_mut().find(|d| d.id == id).map(f)
     }
 
     /// Doesn't call the function if the workspace doesn't exist

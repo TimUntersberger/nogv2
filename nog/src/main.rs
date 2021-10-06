@@ -202,7 +202,7 @@ fn failable_main() -> Result<(), Error> {
                             info!("'{}' created", win.get_title());
                             state.with_focused_dsp_mut(|d| {
                                 let area = d.get_render_area(&state.config.read());
-                                d.wm.manage(&rt, &state.config.read(), area, win).unwrap();
+                                d.wm.manage(&rt, &state.config.read(), None, area, win).unwrap();
                             });
                         }
                     }

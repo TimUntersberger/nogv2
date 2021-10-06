@@ -107,6 +107,7 @@ impl WindowManager {
         &mut self,
         rt: &LuaRuntime,
         config: &Config,
+        ws_id: Option<WorkspaceId>,
         area: Area,
         win: Window,
     ) -> WindowManagerResult {
@@ -126,7 +127,7 @@ impl WindowManager {
         self.organize(
             rt,
             config,
-            None,
+            ws_id,
             area,
             String::from("managed"),
             win.get_id(),
@@ -163,19 +164,28 @@ impl WindowManager {
         &mut self,
         rt: &LuaRuntime,
         config: &Config,
-        maybe_workspace: Option<&mut Workspace>,
+        ws_id: Option<WorkspaceId>,
         area: Area,
         reason: String,
         args: TArgs,
     ) -> WindowManagerResult {
-        let workspace = maybe_workspace.unwrap_or_else(|| self.get_focused_workspace_mut());
+        let ws_id = ws_id.unwrap_or_else(|| self.focused_workspace_id.clone());
+        let mut workspace = self.get_ws_by_id_mut(ws_id).unwrap();
         // We need to use the scope here to make the rust type system happy.
         // scope drops the userdata when the function has finished.
         rt.lua
             .scope(|scope| {
                 let ud = scope.create_nonstatic_userdata(GraphProxy(&mut workspace.graph))?;
-                mlua::Function::from_lua(rt.lua.load("nog.layout").eval()?, rt.lua)?
-                    .call((ud, reason, args))
+                mlua::Function::from_lua(
+                    rt.lua
+                        .load(&format!(
+                            "nog.__organize({}, '{}')",
+                            workspace.id.0, &workspace.layout_name
+                        ))
+                        .eval()?,
+                    rt.lua,
+                )?
+                .call((ud, reason, args))
             })
             .map_err(|e| WindowManagerError::LayoutFunctionError(e.to_string()))?;
 

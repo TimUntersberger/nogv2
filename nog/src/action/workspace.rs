@@ -91,7 +91,7 @@ impl WorkspaceAction {
                                 }
                             });
                         }
-                        None => {}
+                        None => {} //unreachable!("It shouldn't be possible that a workspace exists which doesn't have any windows AND is not focused")
                     },
                     None => {
                         state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id));

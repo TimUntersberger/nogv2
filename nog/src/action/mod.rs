@@ -1,6 +1,21 @@
 use std::{mem, sync::Arc};
 
-use crate::{bar::Bar, config::Config, event::Event, graph::GraphNode, key::Key, key_combination::KeyCombination, keybinding::KeybindingMode, keybinding_event_loop::KeybindingEventLoop, lua::LuaRuntime, modifiers::Modifiers, platform::{Api, NativeApi, NativeWindow, Window}, session, state::State};
+use crate::{
+    bar::Bar,
+    config::Config,
+    event::Event,
+    graph::GraphNode,
+    key::Key,
+    key_combination::KeyCombination,
+    keybinding::KeybindingMode,
+    keybinding_event_loop::KeybindingEventLoop,
+    lua::LuaRuntime,
+    modifiers::Modifiers,
+    platform::{Api, NativeApi, NativeWindow, Window, WindowId},
+    session,
+    state::State,
+    workspace::WorkspaceId,
+};
 use log::info;
 use mlua::FromLua;
 pub use window::WindowAction;
@@ -41,9 +56,10 @@ pub enum Action {
     HideBars,
     Awake,
     Hibernate,
+    MoveWindowToWorkspace(Option<WindowId>, WorkspaceId),
     SimulateKeyPress {
         key: Key,
-        modifiers: Modifiers
+        modifiers: Modifiers,
     },
     Window(WindowAction),
     Workspace(WorkspaceAction),
@@ -70,6 +86,21 @@ pub enum Action {
 impl Action {
     pub fn handle(self, state: &State, rt: &LuaRuntime) {
         match self {
+            Action::MoveWindowToWorkspace(win_id, ws_id) => {
+                let win_id = win_id.or_else(|| {
+                    state.with_focused_dsp(|dsp| {
+                        dsp.wm
+                            .get_focused_workspace()
+                            .get_focused_win()
+                            .map(|x| x.get_id())
+                    })
+                });
+
+                if let Some(win_id) = win_id {
+                    WindowAction::Unmanage(Some(win_id)).handle(state, rt);
+                    WindowAction::Manage(Some(ws_id), Some(win_id)).handle(state, rt);
+                }
+            }
             Action::Awake => {
                 info!("Awoke!");
                 if state.config.read().display_app_bar {
@@ -79,7 +110,7 @@ impl Action {
                     state.tx.send(Event::Action(Action::HideTaskbars)).unwrap();
                 }
                 state.awake();
-            },
+            }
             Action::SimulateKeyPress { key, modifiers } => {
                 Api::simulate_key_press(key, modifiers);
             }
@@ -103,18 +134,19 @@ impl Action {
                 let area = d.get_render_area(&state.config.read());
                 info!("Loaded session!");
 
-                let mut windows = Vec::new();
+                let mut ws_windows = Vec::new();
 
                 for ws in &d.wm.workspaces {
                     for node in ws.graph.nodes.values() {
                         if let GraphNode::Window(win_id) = node {
-                            windows.push(Window::new(*win_id));
+                            ws_windows.push((ws.id, Window::new(*win_id)));
                         }
                     }
                 }
 
-                for window in windows {
-                    d.wm.manage(rt, &state.config.read(), area, window).unwrap();
+                for (ws_id, window) in ws_windows {
+                    d.wm.manage(rt, &state.config.read(), Some(ws_id), area, window)
+                        .unwrap();
                 }
 
                 d.wm.render(&state.config.read(), area);
@@ -220,7 +252,7 @@ impl Action {
                         bar.close();
                     }
                 }
-            },
+            }
         }
     }
 }

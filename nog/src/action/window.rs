@@ -6,19 +6,38 @@ use crate::{
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
     window_event_loop::{WindowEvent, WindowEventKind},
+    workspace::WorkspaceId,
 };
 
 #[derive(Debug, Clone)]
 pub enum WindowAction {
     Focus(WindowId),
-    Manage(Option<WindowId>),
+    Manage(Option<WorkspaceId>, Option<WindowId>),
     Unmanage(Option<WindowId>),
     Close(Option<WindowId>),
     Minimize(Option<WindowId>),
 }
 
+impl std::fmt::Display for WindowAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                WindowAction::Focus(id) => format!("WindowAction::Focus({})", id.0),
+                WindowAction::Manage(ws_id, id) =>
+                    format!("WindowAction::Manage({:?}, {:?})", ws_id, id),
+                WindowAction::Unmanage(id) => format!("WindowAction::Unmanage({:?})", id),
+                WindowAction::Close(id) => format!("WindowAction::Close({:?})", id),
+                WindowAction::Minimize(id) => format!("WindowAction::Minimize({:?})", id),
+            }
+        )
+    }
+}
+
 impl WindowAction {
     pub fn handle(self, state: &State, rt: &LuaRuntime) {
+        log::trace!("{}", self);
         match self {
             WindowAction::Focus(win_id) => {
                 let win = Window::new(win_id);
@@ -58,34 +77,42 @@ impl WindowAction {
                     }))
                     .unwrap();
             }
-            WindowAction::Manage(maybe_id) => {
-                let win = maybe_id
+            WindowAction::Manage(ws_id, maybe_win_id) => {
+                let win = maybe_win_id
                     .map(Window::new)
                     .unwrap_or_else(Api::get_foreground_window);
 
-                state.with_focused_dsp_mut(|d| {
+                let ws_id = ws_id
+                    .unwrap_or_else(|| state.with_focused_dsp(|dsp| dsp.wm.focused_workspace_id));
+
+                state.create_workspace(state.get_focused_dsp_id(), ws_id);
+
+                state.with_dsp_containing_ws_mut(ws_id, |d| {
                     let area = d.get_render_area(&state.config.read());
-                    let workspace = d.wm.get_focused_workspace_mut();
+                    let workspace = d.wm.get_ws_by_id(ws_id).unwrap();
 
                     if win.exists() && !workspace.has_window(win.get_id()) {
                         info!("'{}' managed", win.get_title());
 
-                        d.wm.manage(rt, &state.config.read(), area, win).unwrap();
+                        d.wm.manage(rt, &state.config.read(), Some(workspace.id), area, win).unwrap();
                     }
                 });
             }
             WindowAction::Unmanage(maybe_id) => state.with_focused_dsp_mut(|d| {
                 let workspace = d.wm.get_focused_workspace();
                 let area = d.get_render_area(&state.config.read());
+
                 let win = maybe_id
                     .map(Window::new)
-                    .unwrap_or_else(Api::get_foreground_window);
+                    .or_else(|| workspace.get_focused_win());
 
-                if workspace.has_window(win.get_id()) {
-                    info!("'{}' unmanaged", win.get_title());
+                if let Some(win) = win {
+                    if workspace.has_window(win.get_id()) {
+                        info!("'{}' unmanaged", win.get_title());
 
-                    d.wm.unmanage(rt, &state.config.read(), area, win.get_id())
-                        .unwrap();
+                        d.wm.unmanage(rt, &state.config.read(), area, win.get_id())
+                            .unwrap();
+                    }
                 }
             }),
         }
