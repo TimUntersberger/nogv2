@@ -258,6 +258,7 @@ impl FromStr for Key {
             "J" => Key::J,
             "K" => Key::K,
             "L" => Key::L,
+            "M" => Key::M,
             "N" => Key::N,
             "O" => Key::O,
             "P" => Key::P,
