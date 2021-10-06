@@ -14,6 +14,7 @@ pub enum WindowAction {
     Manage(Option<WindowId>),
     Unmanage(Option<WindowId>),
     Close(Option<WindowId>),
+    Minimize(Option<WindowId>),
 }
 
 impl WindowAction {
@@ -34,6 +35,24 @@ impl WindowAction {
                 state
                     .tx
                     .send(Event::Window(WindowEvent {
+                        kind: WindowEventKind::Deleted,
+                        window: win,
+                    }))
+                    .unwrap();
+            }
+            WindowAction::Minimize(maybe_win_id) => {
+                let win_id = maybe_win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
+                let win = Window::new(win_id);
+
+                info!("Minimizing '{}'", win.get_title());
+
+                win.minimize();
+
+                state
+                    .tx
+                    .send(Event::Window(WindowEvent {
+                        // TODO: Right now Minimized is not getting handled. Once we handle the
+                        // minimized event correctly change from deleted to minimized.
                         kind: WindowEventKind::Deleted,
                         window: win,
                     }))

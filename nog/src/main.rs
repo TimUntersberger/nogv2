@@ -212,14 +212,9 @@ fn failable_main() -> Result<(), Error> {
                         let win_id = win_event.window.get_id();
                         state.with_dsp_containing_win_mut(win_id, |d| {
                             let area = d.get_render_area(&state.config.read());
-                            d.wm.organize(
-                                &rt,
-                                &state.config.read(),
-                                None,
-                                area,
-                                String::from("deleted"),
-                                win_id,
-                            )
+                            d.wm.unmanage(&rt, &state.config.read(), area, win_id)
+                                .unwrap();
+                            info!("'{}' deleted", win_event.window.get_title());
                         });
                     }
                 }

@@ -1,4 +1,4 @@
-nog.nbind("alt+ctrl+f", function()
+nog.nbind("alt+t", function()
   if nog.win_is_managed(nil) then
     nog.win_unmanage(nil)
   else
@@ -6,8 +6,12 @@ nog.nbind("alt+ctrl+f", function()
   end
 end)
 
-nog.nbind("alt+f", function()
+nog.nbind("alt+ctrl+f", function()
   nog.ws_set_fullscreen(1, not nog.ws_is_fullscreen(1))
+end)
+
+nog.nbind("alt+m", function()
+  nog.win_minimize(nil)
 end)
 
 nog.gbind("alt+escape", function()

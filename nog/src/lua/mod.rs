@@ -295,7 +295,17 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             inject state;
 
             let id = win_id.unwrap_or_else(|| Api::get_foreground_window().get_id());
+
             Ok(state.win_is_managed(id))
+        }
+
+        fn win_minimize(win_id: Option<WindowId>) {
+            inject state;
+
+            state.tx.send(Event::Action(Action::Window(WindowAction::Minimize(win_id))))
+                .unwrap();
+
+            Ok(())
         }
 
         fn win_get_title(win_id: WindowId) {
