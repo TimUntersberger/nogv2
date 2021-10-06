@@ -15,6 +15,12 @@ nog.layout = nog.execute_runtime_file "layouts/master_slave.lua"
 nog.execute_runtime_file "keybindings.lua"
 nog.execute_runtime_file "package_loader.lua"
 
+nog.bar_set_layout {
+  left = {},
+  center = {},
+  right = {}
+}
+
 -- local modes = {}
 -- local previous_kbs = nil
 -- local current_mode = nil
