@@ -48,8 +48,8 @@ action_fn!(ExecuteLuaActionFn, mlua::Result<String>);
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    SaveSession,
-    LoadSession,
+    SaveSession(String),
+    LoadSession(String),
     ShowTaskbars,
     HideTaskbars,
     ShowBars,
@@ -125,14 +125,14 @@ impl Action {
             }
             Action::Window(action) => action.handle(state, rt),
             Action::Workspace(action) => action.handle(state, rt),
-            Action::SaveSession => {
-                session::save_session(&state.displays.read()[0].wm.workspaces);
-                info!("Saved session!");
+            Action::SaveSession(name) => {
+                session::save_session(&name, &state.displays.read()[0].wm.workspaces);
+                info!("Saved session as {}!", name);
             }
-            Action::LoadSession => state.with_focused_dsp_mut(|d| {
-                d.wm.workspaces = session::load_session().unwrap();
+            Action::LoadSession(name) => state.with_focused_dsp_mut(|d| {
+                d.wm.workspaces = session::load_session(&name).unwrap();
                 let area = d.get_render_area(&state.config.read());
-                info!("Loaded session!");
+                info!("Loaded {} session!", name);
 
                 let mut ws_windows = Vec::new();
 

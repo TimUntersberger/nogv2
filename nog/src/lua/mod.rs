@@ -275,18 +275,18 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
-        fn session_save() {
+        fn session_save(name: String) {
             inject state;
 
-            state.tx.send(Event::Action(Action::SaveSession)).unwrap();
+            state.tx.send(Event::Action(Action::SaveSession(name))).unwrap();
 
             Ok(())
         }
 
-        fn session_load() {
+        fn session_load(name: String) {
             inject state;
 
-            state.tx.send(Event::Action(Action::LoadSession)).unwrap();
+            state.tx.send(Event::Action(Action::LoadSession(name))).unwrap();
 
             Ok(())
         }

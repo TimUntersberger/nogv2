@@ -43,7 +43,7 @@ use std::fs;
 
 use itertools::Itertools;
 
-pub fn save_session(workspaces: &[Workspace]) {
+pub fn save_session(name: &str, workspaces: &[Workspace]) {
     let session = workspaces
         .iter()
         .map(|workspace| {
@@ -87,15 +87,15 @@ pub fn save_session(workspaces: &[Workspace]) {
         fs::create_dir(&path).unwrap();
     }
 
-    path.push("default");
+    path.push(name);
 
     fs::write(path, session).unwrap();
 }
 
-pub fn load_session() -> Option<Vec<Workspace>> {
+pub fn load_session(name: &str) -> Option<Vec<Workspace>> {
     let mut path = get_config_path();
     path.push("sessions");
-    path.push("default");
+    path.push(name);
 
     if !path.exists() {
         return None;
