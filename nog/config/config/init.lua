@@ -35,6 +35,11 @@ nog.nbind("alt+F1", function()
 end)
 
 nog.nbind_tbl("alt", nog.change_ws, nog.range(9))
+
+nog.nbind_tbl("alt+ctrl", function(ws_id) 
+  nog.move_win_to_ws(nil, ws_id)
+end, nog.range(9))
+
 nog.nbind("alt+0", function()
   nog.change_ws(10)
 end)
