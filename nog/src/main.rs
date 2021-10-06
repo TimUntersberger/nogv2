@@ -17,6 +17,7 @@ use std::{
 use window_event_loop::WindowEventLoop;
 
 use crate::{
+    lua::lua_error_to_string,
     paths::get_bin_path,
     platform::{Api, NativeApi, NativeWindow},
     state::State,
@@ -107,10 +108,13 @@ fn lua_value_to_bar_item(
 enum Error {
     Ctrlc(ctrlc::Error),
     Lua(mlua::Error),
-    Config(mlua::Error),
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
+    dbg!(failable_main());
+}
+
+fn failable_main() -> Result<(), Error> {
     logging::init().expect("Failed to initialize logging");
     info!("Initialized logging");
 
@@ -146,8 +150,9 @@ fn main() -> Result<(), Error> {
     }
 
     // Run the config
-    rt.eval("dofile(nog.config_path .. '/config/init.lua')")
-        .map_err(Error::Config)?;
+    if let Err(e) = rt.eval("dofile(nog.config_path .. '/config/init.lua')") {
+        log::error!("Failed to execute config: {}", lua_error_to_string(e));
+    }
 
     tx.send(Event::ConfigFinished).unwrap();
 

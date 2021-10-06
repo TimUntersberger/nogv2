@@ -26,6 +26,15 @@ use crate::{
 };
 use rgb::Rgb;
 
+pub fn lua_error_to_string(err: LuaError) -> String {
+    match err {
+        LuaError::CallbackError { traceback, cause } => {
+            format!("{}\n{}", cause, traceback)
+        }
+        _ => format!("{}", err),
+    }
+}
+
 struct BarLayout<'a> {
     left: mlua::Table<'a>,
     center: mlua::Table<'a>,
