@@ -1,4 +1,4 @@
-use std::{mem, sync::Arc};
+use std::{mem, str::FromStr, sync::Arc};
 
 use crate::{
     bar::Bar,
@@ -48,6 +48,7 @@ action_fn!(ExecuteLuaActionFn, mlua::Result<String>);
 
 #[derive(Debug, Clone)]
 pub enum Action {
+    Launch(String),
     SaveSession(String),
     LoadSession(String),
     ShowTaskbars,
@@ -83,9 +84,57 @@ pub enum Action {
     },
 }
 
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Action::Launch(path) => format!("Launch '{}'", path),
+                Action::SaveSession(name) => format!("Save session as '{}'", name),
+                Action::LoadSession(name) => format!("Load session '{}'", name),
+                Action::ShowTaskbars => format!("Show taskbars"),
+                Action::HideTaskbars => format!("Hide taskbars"),
+                Action::ShowBars => format!("Show bars"),
+                Action::HideBars => format!("Hide bars"),
+                Action::Awake => format!("Awake"),
+                Action::Hibernate => format!("Hibernate"),
+                Action::MoveWindowToWorkspace(window, workspace) =>
+                    format!("Move Window({:?}) to Workspace({:?})", window, workspace),
+                Action::SimulateKeyPress { key, modifiers } => format!(
+                    "Simulate '{}'",
+                    KeyCombination::new(key.clone(), modifiers.clone())
+                ),
+                Action::Window(inner) => format!("{}", inner),
+                Action::Workspace(inner) => format!("{}", inner),
+                Action::UpdateConfig { key, update_fn } => format!("config.{} updated", key),
+                Action::CreateKeybinding {
+                    mode,
+                    key_combination,
+                } => format!("{:?} Keybinding('{}') created", mode, key_combination),
+                Action::RemoveKeybinding { key } => format!("Keybinding('{}') removed", key),
+                Action::ExecuteLua {
+                    code,
+                    print_type,
+                    capture_stdout,
+                    cb,
+                } => format!(
+                    "Executing lua string (Stdout: {}, Type: {})",
+                    capture_stdout, print_type
+                ),
+            }
+        )
+    }
+}
+
 impl Action {
     pub fn handle(self, state: &State, rt: &LuaRuntime) {
+        match &self {
+            Action::Window(_) | Action::Workspace(_) => {}
+            _ => log::trace!("{}", &self),
+        }
         match self {
+            Action::Launch(path) => Api::launch(path),
             Action::MoveWindowToWorkspace(win_id, ws_id) => {
                 let win_id = win_id.or_else(|| {
                     state.with_focused_dsp(|dsp| {
@@ -115,7 +164,6 @@ impl Action {
                 Api::simulate_key_press(key, modifiers);
             }
             Action::Hibernate => {
-                info!("Hibernating...");
                 state.tx.send(Event::Action(Action::HideBars)).unwrap();
                 state.tx.send(Event::Action(Action::ShowTaskbars)).unwrap();
                 for d in state.displays.write().iter_mut() {
@@ -127,12 +175,10 @@ impl Action {
             Action::Workspace(action) => action.handle(state, rt),
             Action::SaveSession(name) => {
                 session::save_session(&name, &state.displays.read()[0].wm.workspaces);
-                info!("Saved session as {}!", name);
             }
             Action::LoadSession(name) => state.with_focused_dsp_mut(|d| {
                 d.wm.workspaces = session::load_session(&name).unwrap();
                 let area = d.get_render_area(&state.config.read());
-                info!("Loaded {} session!", name);
 
                 let mut ws_windows = Vec::new();
 
@@ -163,7 +209,6 @@ impl Action {
             }
             Action::UpdateConfig { key, update_fn } => {
                 update_fn.0(&mut state.config.write());
-                info!("Updated config property: {:#?}", key);
             }
             Action::ExecuteLua {
                 code,
@@ -233,11 +278,11 @@ impl Action {
                 key_combination,
             } => {
                 KeybindingEventLoop::add_keybinding(key_combination.get_id());
-                info!("Created {:?} keybinding: {}", mode, key_combination);
             }
             Action::RemoveKeybinding { key } => {
-                // KeybindingEventLoop::remove_keybinding(key_combination.get_id());
-                info!("Removed keybinding: {}", key);
+                KeybindingEventLoop::remove_keybinding(
+                    KeyCombination::from_str(&key).unwrap().get_id(),
+                );
             }
             Action::ShowBars => {
                 for d in state.displays.write().iter_mut() {

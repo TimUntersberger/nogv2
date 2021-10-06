@@ -43,6 +43,12 @@ impl KeybindingEventLoop {
             kbs.push(id);
         }
     }
+
+    pub fn remove_keybinding(id: usize) {
+        let mut kbs = KEYBINDING_IDS.write().unwrap();
+
+        *kbs = kbs.iter().map(|x| *x).filter(|kb| *kb != id).collect();
+    }
 }
 
 impl EventLoop for KeybindingEventLoop {

@@ -25,13 +25,17 @@ impl Display for WorkspaceAction {
             f,
             "{}",
             match self {
-                WorkspaceAction::Change(id) => format!("WorkspaceAction::Change({})", id.0),
+                WorkspaceAction::Change(id) => format!("Changing to Workspace({})", id.0),
                 WorkspaceAction::SetFullscreen(id, value) =>
-                    format!("WorkspaceAction::SetFullscreen({:?}, {})", id, value),
+                    if *value {
+                        format!("Workspace({:?}) is no longer in fullscreen mode", id)
+                    } else {
+                        format!("Workspace({:?}) is now in fullscreen mode", id)
+                    },
                 WorkspaceAction::Focus(id, direction) =>
-                    format!("WorkspaceAction::Focus({:?}, {})", id, direction),
+                    format!("Focusing {} in Workspace({:?})", direction, id),
                 WorkspaceAction::Swap(id, direction) =>
-                    format!("WorkspaceAction::Swap({:?}, {})", id, direction),
+                    format!("Swapping {} in Workspace({:?})", direction, id),
             }
         )
     }

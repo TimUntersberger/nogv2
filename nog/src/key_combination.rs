@@ -11,6 +11,13 @@ pub struct KeyCombination {
 }
 
 impl KeyCombination {
+    pub fn new(key: Key, modifiers: Modifiers) -> Self {
+        Self {
+            key,
+            modifiers
+        }
+    }
+
     pub fn get_id(&self) -> usize {
         (self.key as usize) * 10usize.pow(Modifiers::BIT_COUNT as u32) + self.modifiers.get_id()
     }

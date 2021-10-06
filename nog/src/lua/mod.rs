@@ -326,7 +326,7 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
         fn launch(path: String) {
             inject state;
 
-            Api::launch(path);
+            state.tx.send(Event::Action(Action::Launch(path))).unwrap();
 
             Ok(())
         }

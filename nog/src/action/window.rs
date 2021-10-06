@@ -24,12 +24,12 @@ impl std::fmt::Display for WindowAction {
             f,
             "{}",
             match self {
-                WindowAction::Focus(id) => format!("WindowAction::Focus({})", id.0),
+                WindowAction::Focus(id) => format!("Focusing Window({})", id.0),
                 WindowAction::Manage(ws_id, id) =>
-                    format!("WindowAction::Manage({:?}, {:?})", ws_id, id),
-                WindowAction::Unmanage(id) => format!("WindowAction::Unmanage({:?})", id),
-                WindowAction::Close(id) => format!("WindowAction::Close({:?})", id),
-                WindowAction::Minimize(id) => format!("WindowAction::Minimize({:?})", id),
+                    format!("Managing Window({:?}) in Workspace({:?})", id, ws_id),
+                WindowAction::Unmanage(id) => format!("Unmanaging Window({:?})", id),
+                WindowAction::Close(id) => format!("Closing Window({:?})", id),
+                WindowAction::Minimize(id) => format!("Minimizing Window({:?})", id),
             }
         )
     }
