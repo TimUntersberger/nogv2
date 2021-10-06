@@ -167,7 +167,6 @@ fn failable_main() -> Result<(), Error> {
 
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
-        dbg!(&event);
         match event {
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
