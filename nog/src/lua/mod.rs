@@ -342,14 +342,24 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(())
         }
 
+        fn dsp_get_wss(dsp_id: Option<DisplayId>) {
+            inject state;
+
+            let dsp_id = dsp_id.unwrap_or_else(|| state.get_focused_dsp_id());
+
+            Ok(state.with_dsp(dsp_id, |dsp| dsp.wm.workspaces.iter().map(|ws| ws.id).collect::<Vec<_>>()))
+        }
+
         fn dsp_get_focused() {
             inject state;
 
             Ok(state.get_focused_dsp_id())
         }
 
-        fn dsp_get_focused_ws(dsp_id: DisplayId) {
+        fn dsp_get_focused_ws(dsp_id: Option<DisplayId>) {
             inject state;
+
+            let dsp_id = dsp_id.unwrap_or_else(|| state.get_focused_dsp_id());
 
             Ok(state.with_dsp(dsp_id, |dsp| dsp.wm.focused_workspace_id).unwrap())
         }
