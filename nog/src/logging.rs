@@ -20,6 +20,7 @@ pub fn init() -> Result<(), log::SetLoggerError> {
             ))
         })
         .level(log::LevelFilter::Trace)
+        .level_for("nog::keybinding_event_loop", log::LevelFilter::Info)
         .chain(tx)
         .apply()?;
     Ok(())
