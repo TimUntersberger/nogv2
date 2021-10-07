@@ -8,5 +8,6 @@ members = [
   "nog-iced", 
   "nog-bar", 
   "nog-menu",
+  "nog-notif",
   "nog-protocol"
 ]

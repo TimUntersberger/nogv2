@@ -10,6 +10,7 @@ Complete rewrite of nog
 | nog-iced | A wrapper for iced winit which adds support for handling/modifying the created winit window |
 | nog-bar | Hosts the code for the appbar |
 | nog-menu | Hosts the code for the menu |
+| nog-notif | An application that displays a notification style window based on the input arguments |
 | nog | The tilingin window manager |
 
 ## Tools

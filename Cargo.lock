@@ -1703,6 +1703,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nog-notif"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "nog-iced",
+ "raw-window-handle",
+ "rgb",
+ "windows 0.1.0",
+]
+
+[[package]]
 name = "nog-protocol"
 version = "0.1.0"
 dependencies = [
