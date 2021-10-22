@@ -183,6 +183,12 @@ fn failable_main() -> Result<(), Error> {
                 WindowEventKind::Created => {
                     if state.is_awake() {
                         let win = win_event.window;
+
+                        if state.with_dsp_containing_win_mut(win.get_id(), |_| ()).is_some() {
+                            log::debug!("Window is already managed");
+                            continue;
+                        }
+
                         let title = win.get_title();
 
                         if title == "nog_bar" {

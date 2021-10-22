@@ -6,7 +6,7 @@ use crate::platform::{Area, NativeWindow, Window, WindowId};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WorkspaceState {
     Fullscreen,
-    Normal
+    Normal,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -107,12 +107,11 @@ impl Workspace {
                 if let Some(win_node_id) = self.graph.get_focused_window_child(0) {
                     render_node(win_node_id, &self.graph, config, area);
                 }
-            },
+            }
             WorkspaceState::Normal => {
                 render_node(self.graph.root_node_id, &self.graph, config, area);
-            },
+            }
         }
-
     }
 
     fn focus_node(&mut self, id: GraphNodeId) {
@@ -207,6 +206,15 @@ fn render_node(id: GraphNodeId, graph: &Graph, config: &Config, mut area: Area) 
             area.pos.y += config.inner_gap as isize;
             area.size.width -= config.inner_gap as usize * 2;
             area.size.height -= config.inner_gap as usize * 2;
+
+            log::trace!(
+                "Rendering Window({}) x={} y={} width={} height={}",
+                win_id,
+                area.pos.x,
+                area.pos.y,
+                area.size.width,
+                area.size.height
+            );
 
             let win = Window::new(*win_id);
             win.reposition(area.pos);
