@@ -27,6 +27,8 @@ new-item -path ./$root_dir -name "bin" -itemtype "Directory"
 copy-item ./nog/runtime/* ./$root_dir/runtime -recurse
 copy-item ./target/release/nog.exe ./$root_dir/bin/nog.exe
 copy-item ./target/release/nog-cli.exe ./$root_dir/bin/nog-cli.exe
+copy-item ./target/release/nog-menu.exe ./$root_dir/bin/nog-menu.exe
+copy-item ./target/release/nog-notif.exe ./$root_dir/bin/nog-notif.exe
 copy-item ./target/release/nog-bar.exe ./$root_dir/bin/nog-bar.exe
 
 ./tools/rcedit.exe ./$root_dir/bin/nog.exe --set-icon ./assets/logo.ico
