@@ -3,8 +3,7 @@ use std::{mem, ptr};
 
 use windows::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use windows::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use windows::Windows::Win32::Graphics::Gdi::{RedrawWindow, UpdateWindow, HRGN, RDW_INVALIDATE};
-use windows::Windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowPlacement, PostMessageW, SC_CLOSE, SC_RESTORE, SM_CYCAPTION, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOCOPYBITS, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SendMessageA, SendMessageW, SendNotifyMessageW, SetWindowLongW, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowPlacement, PostMessageW, SC_CLOSE, SC_RESTORE, SM_CYCAPTION, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOCOPYBITS, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWMINIMIZED, SendMessageA, SendMessageW, SendNotifyMessageW, SetWindowLongW, SetWindowPlacement, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
 use windows::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
@@ -128,12 +127,10 @@ impl Window {
 
     pub fn restore_placement(&self) {
         unsafe {
-            SendMessageA(
-                self.0,
-                WM_SYSCOMMAND,
-                WPARAM(SC_RESTORE as usize),
-                LPARAM(0),
-            );
+            let mut window_placement = Default::default();
+            GetWindowPlacement(self.0, &mut window_placement);
+            window_placement.showCmd = SW_RESTORE;
+            SetWindowPlacement(self.0, &mut window_placement);
         }
     }
 }
@@ -275,7 +272,10 @@ impl NativeWindow for Window {
 
     fn minimize(&self) {
         unsafe {
-            ShowWindow(self.0, SW_MINIMIZE);
+            let mut window_placement = Default::default();
+            GetWindowPlacement(self.0, &mut window_placement);
+            window_placement.showCmd = SW_SHOWMINIMIZED;
+            SetWindowPlacement(self.0, &mut window_placement);
         }
     }
 
