@@ -13,6 +13,7 @@ pub trait NativeWindow: Clone + Copy + std::fmt::Debug {
     fn exists(&self) -> bool;
     fn close(&self);
     fn minimize(&self);
+    fn maximize(&self);
     fn unminimize(&self);
     fn show(&self);
     fn hide(&self);
@@ -111,6 +112,12 @@ pub struct Rect {
     pub right: isize,
     pub top: isize,
     pub bottom: isize,
+}
+
+impl Rect {
+    pub fn as_size(self) -> Size {
+        Size::new((self.right - self.left).abs() as usize, (self.top - self.bottom).abs() as usize)
+    }
 }
 
 impl ops::Sub for Rect {

@@ -3,13 +3,8 @@ use std::{mem, ptr};
 
 use windows::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use windows::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use windows::Windows::Win32::Graphics::Gdi::{HRGN, RDW_INVALIDATE, RedrawWindow, UpdateWindow};
-use windows::Windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetWindowLongW, SendNotifyMessageW, SetWindowLongW, GWL_EXSTYLE, GWL_STYLE,
-    SC_CLOSE, SWP_FRAMECHANGED, SW_HIDE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, WM_SYSCOMMAND,
-    WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZEBOX,
-    WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
-};
+use windows::Windows::Win32::Graphics::Gdi::{RedrawWindow, UpdateWindow, HRGN, RDW_INVALIDATE};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowPlacement, PostMessageW, SC_CLOSE, SC_RESTORE, SM_CYCAPTION, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOCOPYBITS, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SendMessageA, SendMessageW, SendNotifyMessageW, SetWindowLongW, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
 use windows::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{
@@ -69,6 +64,26 @@ impl Window {
         }
     }
 
+    /// This function returns the rectangle of the full window
+    pub fn get_window_rect(&self) -> Rect {
+        unsafe {
+            let mut rect = RECT::default();
+            GetWindowRect(self.0, &mut rect);
+
+            Rect::from(rect)
+        }
+    }
+
+    /// This function returns the rectangle of the paint area of the window
+    pub fn get_client_rect(&self) -> Rect {
+        unsafe {
+            let mut rect = RECT::default();
+            GetClientRect(self.0, &mut rect);
+
+            Rect::from(rect)
+        }
+    }
+
     pub fn get_extended_window_frame(&self) -> windows::Result<Rect> {
         unsafe {
             let mut full_rect = RECT::default();
@@ -100,6 +115,25 @@ impl Window {
             )?;
 
             Ok(Size::from(rect))
+        }
+    }
+
+    pub fn is_maximized(&self) -> bool {
+        unsafe {
+            let mut window_placement = Default::default();
+            GetWindowPlacement(self.0, &mut window_placement);
+            window_placement.showCmd == SW_MAXIMIZE
+        }
+    }
+
+    pub fn restore_placement(&self) {
+        unsafe {
+            SendMessageA(
+                self.0,
+                WM_SYSCOMMAND,
+                WPARAM(SC_RESTORE as usize),
+                LPARAM(0),
+            );
         }
     }
 }
@@ -230,13 +264,6 @@ impl NativeWindow for Window {
     fn show(&self) {
         unsafe {
             ShowWindow(self.0, SW_SHOW);
-            // RedrawWindow(
-            //     self.0,
-            //     ptr::null(),
-            //     HRGN(0),
-            //     RDW_INVALIDATE,
-            // );
-            // UpdateWindow(self.0);
         }
     }
 
@@ -252,9 +279,13 @@ impl NativeWindow for Window {
         }
     }
 
-    fn unminimize(&self) {
+    fn maximize(&self) {
         unsafe {
-            ShowWindow(self.0, SW_RESTORE);
+            ShowWindow(self.0, SW_MAXIMIZE);
         }
+    }
+
+    fn unminimize(&self) {
+        self.restore_placement();
     }
 }

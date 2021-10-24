@@ -111,17 +111,28 @@ impl WindowManager {
         area: Area,
         win: Window,
     ) -> WindowManagerResult {
-        let size = win.get_size();
-        let pos = win.get_position();
         let cleanup = self.window_cleanup.entry(win.get_id()).or_default();
 
-        cleanup.reset_transform = Some(Box::new(move || {
-            win.reposition(pos);
-            win.resize(size);
-        }));
+        if win.is_maximized() {
+            win.restore_placement();
+            let size = win.get_size();
+            let pos = win.get_position();
+            cleanup.reset_transform = Some(Box::new(move || {
+                win.reposition(pos);
+                win.resize(size);
+                win.maximize();
+            }));
+        } else {
+            let size = win.get_size();
+            let pos = win.get_position();
+            cleanup.reset_transform = Some(Box::new(move || {
+                win.reposition(pos);
+                win.resize(size);
+            }));
+        }
 
         if config.remove_decorations {
-            cleanup.add_decorations = Some(win.remove_decorations())
+            cleanup.add_decorations = Some(win.remove_decorations());
         }
 
         self.organize(
