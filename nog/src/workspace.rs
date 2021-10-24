@@ -115,22 +115,27 @@ impl Workspace {
     }
 
     fn focus_node(&mut self, id: GraphNodeId) {
-        let parent = self.graph.get_parent_node(id).unwrap();
-        let idx = self
-            .graph
-            .get_children(parent)
-            .iter()
-            .enumerate()
-            .find(|(_, c)| **c == id)
-            .map(|(idx, _)| idx)
-            .unwrap();
+        if let Some(parent) = self.graph.get_parent_node(id) {
+            let idx = self
+                .graph
+                .get_children(parent)
+                .iter()
+                .enumerate()
+                .find(|(_, c)| **c == id)
+                .map(|(idx, _)| idx)
+                .unwrap();
 
-        match self.graph.get_node_mut(parent).unwrap() {
-            GraphNode::Group { focus, .. } => {
-                *focus = idx;
-            }
-            _ => unreachable!(),
-        };
+            match self.graph.get_node_mut(parent).unwrap() {
+                GraphNode::Group { focus, .. } => {
+                    *focus = idx;
+                }
+                _ => unreachable!(),
+            };
+
+            // If we focus a node in the graph we also need to set the focus of all the
+            // parent nodes until we hit the root, because we can't be sure that the parent has focus.
+            self.focus_node(parent);
+        }
     }
 
     pub fn focus_window(&mut self, id: WindowId) -> WorkspaceResult {
