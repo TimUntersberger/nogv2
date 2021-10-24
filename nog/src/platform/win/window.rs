@@ -165,19 +165,30 @@ impl NativeWindow for Window {
 
     fn remove_decorations(&self) -> Box<dyn Fn() + 'static + Send + Sync> {
         unsafe {
-            let style = GetWindowLongW(self.0, GWL_STYLE) as u32;
-            let new_style = style
-                & !(WS_CAPTION.0
-                    | WS_THICKFRAME.0
-                    | WS_MINIMIZEBOX.0
-                    | WS_MAXIMIZEBOX.0
-                    | WS_SYSMENU.0);
-            SetWindowLongW(self.0, GWL_STYLE, new_style as i32);
+            let non_client_area_height =
+                (self.get_window_rect().as_size() - self.get_client_rect().as_size()).height;
+            let titlebar_height = GetSystemMetrics(SM_CYCAPTION) as usize;
 
+            let style = GetWindowLongW(self.0, GWL_STYLE) as u32;
             let exstyle = GetWindowLongW(self.0, GWL_EXSTYLE) as u32;
-            let new_exstyle =
-                exstyle & !(WS_EX_DLGMODALFRAME.0 | WS_EX_CLIENTEDGE.0 | WS_EX_STATICEDGE.0);
-            SetWindowLongW(self.0, GWL_EXSTYLE, new_exstyle as i32);
+
+            // If the non client area height is greater than the height of the titlebar, we assume
+            // that the window doesn't use a custom titlebar. Sadly there is no official supported
+            // way of testing for custom titlebars.
+            //
+            // It doesn't matter whether we remove these styles from applications with a custom
+            // titlebar like discord, but firefox and chromium have buggy painting doing so.
+            //
+            // Thus I think just not removing these styles for applications with a custom titlebar
+            // is the only real solution.
+            if non_client_area_height >= titlebar_height {
+                let new_style = style & !(WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0);
+                SetWindowLongW(self.0, GWL_STYLE, new_style as i32);
+
+                let new_exstyle =
+                    exstyle & !(WS_EX_DLGMODALFRAME.0 | WS_EX_CLIENTEDGE.0 | WS_EX_STATICEDGE.0);
+                SetWindowLongW(self.0, GWL_EXSTYLE, new_exstyle as i32);
+            }
 
             let hwnd = self.0;
             Box::new(move || {
