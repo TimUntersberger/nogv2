@@ -103,6 +103,7 @@ end)
 nog.config.color = 0x2e3440
 nog.config.remove_task_bar = false
 nog.config.remove_decorations = false
+nog.config.inner_gap = 5
 nog.config.font_name = "CaskaydiaCove NF"
 nog.config.font_size = 18
 nog.config.bar_height = 20
