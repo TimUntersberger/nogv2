@@ -2,11 +2,13 @@ use crate::direction::Direction;
 use crate::display::DisplayId;
 use crate::key_combination::KeyCombination;
 use crate::keybinding::KeybindingMode;
-use crate::platform::{MonitorId, WindowId};
+use crate::platform::{MonitorId, Size, WindowId};
 use crate::workspace::WorkspaceId;
 use mlua::prelude::*;
 use rgb::Rgb;
 use std::str::FromStr;
+
+use super::LuaEvent;
 
 impl<'lua> FromLua<'lua> for KeybindingMode {
     fn from_lua(lua_value: LuaValue<'lua>, lua: &'lua Lua) -> LuaResult<Self> {
@@ -126,5 +128,29 @@ impl<'lua> FromLua<'lua> for Direction {
                 message: Some("Expected a type that can be coerced into a string".into()),
             }),
         }
+    }
+}
+
+impl<'lua> ToLua<'lua> for Size {
+    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        let tbl = lua.create_table()?;
+
+        tbl.set("width", self.width)?;
+        tbl.set("height", self.height)?;
+
+        Ok(mlua::Value::Table(tbl))
+    }
+}
+
+impl<'lua> ToLua<'lua> for LuaEvent {
+    fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
+        Ok(match self {
+            LuaEvent::Manage { manual, win_id } => {
+                let tbl = lua.create_table()?;
+                tbl.raw_set("manual", manual)?;
+                tbl.raw_set("win_id", win_id)?;
+                mlua::Value::Table(tbl)
+            }
+        })
     }
 }

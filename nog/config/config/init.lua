@@ -100,6 +100,18 @@ nog.nbind("alt+q", function()
   nog.win_close(nil)
 end)
 
+nog.on("manage", function(ev)
+  local size = nog.win_get_size(ev.win_id)
+
+  if ev.manual then
+    return true
+  end
+
+  if size.width <= 100 or size.height <= 100 then
+    return false
+  end
+end)
+
 nog.config.color = 0x2e3440
 nog.config.remove_task_bar = false
 nog.config.remove_decorations = false

@@ -90,6 +90,43 @@ macro_rules! namespace {
     };
 }
 
+/// The events that can be listened to using `nog.on`
+#[derive(Clone, Debug)]
+pub enum LuaEvent {
+    Manage {
+        /// whether the user tries to manage the window via nog.win_manage
+        manual: bool,
+        win_id: WindowId,
+    },
+}
+
+pub fn init_events(rt: &LuaRuntime) -> LuaResult<()> {
+    rt.lua
+        .set_named_registry_value("manage", rt.lua.create_table()?)?;
+
+    Ok(())
+}
+
+pub fn get_event_handlers_iter<'a>(
+    rt: &'a LuaRuntime,
+    event_name: &str,
+) -> LuaResult<impl Iterator<Item = mlua::Function<'a>>> {
+    Ok(rt
+        .lua
+        .named_registry_value::<str, mlua::Table>(event_name)
+        .map_err(|_| mlua::Error::RuntimeError(format!("Event '{}' doesn't exist", event_name)))?
+        .raw_sequence_values::<mlua::Function>()
+        .flatten())
+}
+
+/// Returns whether any event handler returned false
+pub fn emit_manage(rt: &LuaRuntime, event: LuaEvent) -> LuaResult<bool> {
+    Ok(get_event_handlers_iter(rt, "manage")?
+        .map(|cb| cb.call(event.clone()))
+        .flatten()
+        .any(|x: mlua::Value| x == mlua::Value::Boolean(false)))
+}
+
 pub fn init(state: State) -> LuaResult<LuaRuntime> {
     let rt = LuaRuntime::new(state.clone())?;
 
@@ -114,6 +151,19 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
                 key_combination,
             }))
             .unwrap();
+            Ok(())
+        }
+
+        fn on(event_name: String, cb: mlua::Function) {
+            inject lua;
+
+            let tbl: mlua::Table = lua
+                .named_registry_value(&event_name)
+                .map_err(|_| mlua::Error::RuntimeError(format!("Event '{}' doesn't exist", &event_name)))?;
+            let len = tbl.len()?;
+
+            tbl.raw_insert(len + 1, cb)?;
+
             Ok(())
         }
 
@@ -323,6 +373,12 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             Ok(Window::new(win_id).get_title())
         }
 
+        fn win_get_size(win_id: WindowId) {
+            inject state;
+
+            Ok(Window::new(win_id).get_size())
+        }
+
         fn launch(path: String) {
             inject state;
 
@@ -385,6 +441,8 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
     });
 
     ns.register(None)?;
+
+    init_events(&rt)?;
 
     // Run the nog init.lua
     rt.eval("dofile(nog.runtime_path .. '/lua/init.lua')")?;

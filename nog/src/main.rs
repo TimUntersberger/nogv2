@@ -17,7 +17,7 @@ use std::{
 use window_event_loop::WindowEventLoop;
 
 use crate::{
-    lua::lua_error_to_string,
+    lua::{lua_error_to_string, LuaEvent},
     paths::get_bin_path,
     platform::{Api, NativeApi, NativeWindow},
     state::State,
@@ -184,7 +184,10 @@ fn failable_main() -> Result<(), Error> {
                     if state.is_awake() {
                         let win = win_event.window;
 
-                        if state.with_dsp_containing_win_mut(win.get_id(), |_| ()).is_some() {
+                        if state
+                            .with_dsp_containing_win_mut(win.get_id(), |_| ())
+                            .is_some()
+                        {
                             log::debug!("Window is already managed");
                             continue;
                         }
@@ -200,15 +203,22 @@ fn failable_main() -> Result<(), Error> {
                             continue;
                         }
 
-                        let size = win.get_size();
+                        // If any event handler returns false we should not manage the window.
+                        let dont_manage = lua::emit_manage(
+                            &rt,
+                            LuaEvent::Manage {
+                                manual: false,
+                                win_id: win.get_id(),
+                            },
+                        )
+                        .unwrap();
 
-                        if size.width >= state.config.read().min_width
-                            && size.height >= state.config.read().min_height
-                        {
+                        if !dont_manage {
                             info!("'{}' created", win.get_title());
                             state.with_focused_dsp_mut(|d| {
                                 let area = d.get_render_area(&state.config.read());
-                                d.wm.manage(&rt, &state.config.read(), None, area, win).unwrap();
+                                d.wm.manage(&rt, &state.config.read(), None, area, win)
+                                    .unwrap();
                             });
                         }
                     }
