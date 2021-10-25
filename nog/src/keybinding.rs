@@ -5,7 +5,6 @@ use crate::key_combination::KeyCombination;
 #[derive(Debug, Clone, Copy)]
 pub enum KeybindingMode {
     Global,
-    Workspace,
     Normal,
 }
 
@@ -15,7 +14,6 @@ impl FromStr for KeybindingMode {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "g" => KeybindingMode::Global,
-            "w" => KeybindingMode::Workspace,
             "n" => KeybindingMode::Normal,
             _ => return Err(()),
         })

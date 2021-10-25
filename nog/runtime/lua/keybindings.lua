@@ -20,6 +20,3 @@ nog.nbind_tbl = create_bind_tbl_fn("n")
 
 nog.gbind = create_bind_fn("g")
 nog.gbind_tbl = create_bind_tbl_fn("g")
-
-nog.wbind = create_bind_fn("w")
-nog.wbind_tbl = create_bind_tbl_fn("w")
