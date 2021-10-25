@@ -18,6 +18,7 @@ use window_event_loop::WindowEventLoop;
 
 use crate::{
     lua::{lua_error_to_string, LuaEvent},
+    notification::{Notification, NotificationManager},
     paths::get_bin_path,
     platform::{Api, NativeApi, NativeWindow},
     state::State,
@@ -50,6 +51,7 @@ mod keybinding_event_loop;
 mod logging;
 mod lua;
 mod modifiers;
+mod notification;
 mod paths;
 mod platform;
 mod server;
@@ -164,6 +166,11 @@ fn failable_main() -> Result<(), Error> {
 
     KeybindingEventLoop::spawn(tx.clone());
     info!("Keybinding event loop spawned");
+
+    let mut notification_manager = NotificationManager::new(
+        &state.with_focused_dsp(|dsp| dsp.get_render_area(&state.config.read())),
+    );
+    info!("Notification Manager initialized");
 
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
@@ -347,7 +354,7 @@ fn failable_main() -> Result<(), Error> {
                     );
                 }
             }
-            Event::Action(action) => action.handle(&state, &rt),
+            Event::Action(action) => action.handle(&state, &rt, &mut notification_manager),
             Event::RenderGraph => {
                 for d in state.displays.read().iter() {
                     let area = d.get_render_area(&state.config.read());
@@ -382,11 +389,7 @@ fn failable_main() -> Result<(), Error> {
                     .args(["-b", &format!("0x{:x}", state.config.read().color.to_hex())])
                     .args([
                         "-t",
-                        if state.config.read().light_theme {
-                            "0x000000"
-                        } else {
-                            "0xFFFFFF"
-                        },
+                        &format!("0x{:x}", state.config.read().get_text_color().to_hex()),
                     ])
                     .spawn()
                     .unwrap();

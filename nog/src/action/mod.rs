@@ -11,6 +11,7 @@ use crate::{
     keybinding_event_loop::KeybindingEventLoop,
     lua::LuaRuntime,
     modifiers::Modifiers,
+    notification::{Notification, NotificationManager},
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     session,
     state::State,
@@ -57,6 +58,7 @@ pub enum Action {
     HideBars,
     Awake,
     Hibernate,
+    CreateNotification(Notification),
     MoveWindowToWorkspace(Option<WindowId>, WorkspaceId),
     SimulateKeyPress {
         key: Key,
@@ -90,6 +92,7 @@ impl std::fmt::Display for Action {
             f,
             "{}",
             match self {
+                Action::CreateNotification(n) => String::from("Create notification"),
                 Action::Launch(path) => format!("Launch '{}'", path),
                 Action::SaveSession(name) => format!("Save session as '{}'", name),
                 Action::LoadSession(name) => format!("Load session '{}'", name),
@@ -128,7 +131,12 @@ impl std::fmt::Display for Action {
 }
 
 impl Action {
-    pub fn handle(self, state: &State, rt: &LuaRuntime) {
+    pub fn handle(
+        self,
+        state: &State,
+        rt: &LuaRuntime,
+        notification_manager: &mut NotificationManager,
+    ) {
         match &self {
             Action::Window(_) | Action::Workspace(_) => {}
             _ => log::trace!("{}", &self),
@@ -283,6 +291,9 @@ impl Action {
                 KeybindingEventLoop::remove_keybinding(
                     KeyCombination::from_str(&key).unwrap().get_id(),
                 );
+            }
+            Action::CreateNotification(n) => {
+                notification_manager.push(n);
             }
             Action::ShowBars => {
                 for d in state.displays.write().iter_mut() {

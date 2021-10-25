@@ -19,6 +19,7 @@ use crate::{
     key_combination::KeyCombination,
     keybinding::KeybindingMode,
     lua::config_proxy::ConfigProxy,
+    notification::Notification,
     paths::{get_config_path, get_runtime_path},
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
@@ -150,6 +151,18 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
                 mode,
                 key_combination,
             }))
+            .unwrap();
+            Ok(())
+        }
+
+        fn notify() {
+            inject state;
+            state.tx.send(Event::Action(Action::CreateNotification(
+                Notification::new()
+                    .background(state.config.read().color)
+                    .foreground(state.config.read().get_text_color())
+                    .message(String::from("Welcome to nog")),
+            )))
             .unwrap();
             Ok(())
         }
