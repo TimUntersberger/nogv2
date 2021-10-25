@@ -1,5 +1,8 @@
 use clap::clap_app;
-use nog_iced::{iced::{self, Application, Color, Column, Command, Container, Text}, load_font};
+use nog_iced::{
+    iced::{self, Application, Color, Column, Command, Container, Text},
+    load_font,
+};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use rgb::Rgb;
 use windows::Windows::Win32::{
@@ -93,6 +96,7 @@ fn main() {
         (version: "1.0")
         (author: "Tim Untersberger <timuntersberger2@gmail.com")
         (about: "Creates a nog notification")
+        (@arg MESSAGE: -m --message +takes_value "The message of the notification. (Default: NogNotification)")
         (@arg COLOR: -b --bg_color +takes_value "The color of the notification. (Default: 0xFFFFFF)")
         (@arg TEXT_COLOR: -t --text_color +takes_value "The color of the notification text. (Default: 0x000000)")
         (@arg HEIGHT: -h --height +takes_value "The height of the notification. (Default: 100)")
@@ -104,6 +108,7 @@ fn main() {
     )
     .get_matches();
 
+    let message = matches.value_of("MESSAGE").unwrap_or("NogNotification");
     let color = matches
         .value_of("COLOR")
         .and_then(|v| i32::from_str_radix(v.trim_start_matches("0x"), 16).ok())
@@ -151,7 +156,7 @@ fn main() {
         },
         id: None,
         flags: AppState {
-            message: String::from("Hello World\nHello"),
+            message: String::from(message),
             text_color: Rgb::from_hex(text_color).0.into(),
             bg: Rgb::from_hex(color).0.into(),
         },
