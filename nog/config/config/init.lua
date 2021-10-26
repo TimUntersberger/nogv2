@@ -100,15 +100,51 @@ nog.nbind("alt+q", function()
   nog.win_close(nil)
 end)
 
-nog.on("manage", function(ev)
-  local size = nog.win_get_size(ev.win_id)
+local auto_manage = true
 
-  if ev.manual then
-    return true
+nog.nbind("alt+ctrl+m", function()
+  auto_manage = not auto_manage
+end)
+
+local window_handlers = {
+  {
+    when = {
+      title = "^.* - Mozilla Firefox$",
+    },
+    action = {
+      workspace_id = 2
+    }
+  }
+}
+
+nog.on("manage", function(ev)
+  if not ev.manual then
+    if not auto_manage then
+      return
+    end
+
+    local size = nog.win_get_size(ev.win_id)
+
+    if size.width <= 100 or size.height <= 100 then
+      return
+    end
   end
 
-  if size.width <= 100 or size.height <= 100 then
-    return false
+  local title = nog.win_get_title(ev.win_id)
+
+  for _, wh in ipairs(window_handlers) do
+    local matches = true
+
+    for key, val in pairs(wh.when) do
+      if key == "title" and not title:find(val) then
+        matches = false
+        break
+      end
+    end
+
+    if matches then
+      return wh.action
+    end
   end
 end)
 

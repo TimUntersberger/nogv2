@@ -17,6 +17,7 @@ use std::{
 use window_event_loop::WindowEventLoop;
 
 use crate::{
+    action::WindowAction,
     lua::{lua_error_to_string, LuaEvent},
     notification::{Notification, NotificationManager},
     paths::get_bin_path,
@@ -210,8 +211,7 @@ fn failable_main() -> Result<(), Error> {
                             continue;
                         }
 
-                        // If any event handler returns false we should not manage the window.
-                        let dont_manage = lua::emit_manage(
+                        let result = lua::emit_manage(
                             &rt,
                             LuaEvent::Manage {
                                 manual: false,
@@ -220,14 +220,20 @@ fn failable_main() -> Result<(), Error> {
                         )
                         .unwrap();
 
-                        if !dont_manage {
-                            info!("'{}' created", win.get_title());
-                            state.with_focused_dsp_mut(|d| {
-                                let area = d.get_render_area(&state.config.read());
-                                d.wm.manage(&rt, &state.config.read(), None, area, win)
-                                    .unwrap();
-                            });
+                        if result.ignore.unwrap_or(false) {
+                            continue;
                         }
+
+                        info!("'{}' created", win.get_title());
+                        state.with_focused_dsp_mut(|d| {
+                            let area = d.get_render_area(&state.config.read());
+                            d.wm.manage(&rt, &state.config.read(), result.workspace_id.clone(), area, win)
+                                .unwrap();
+
+                            if let Some(ws_id) = result.workspace_id {
+                                d.wm.change_workspace(ws_id);
+                            }
+                        });
                     }
                 }
                 WindowEventKind::Deleted => {

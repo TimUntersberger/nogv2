@@ -2,7 +2,7 @@ use log::info;
 
 use crate::{
     event::Event,
-    lua::LuaRuntime,
+    lua::{self, LuaEvent, LuaRuntime},
     platform::{Api, NativeApi, NativeWindow, Window, WindowId},
     state::State,
     window_event_loop::{WindowEvent, WindowEventKind},
@@ -85,16 +85,43 @@ impl WindowAction {
                 let ws_id = ws_id
                     .unwrap_or_else(|| state.with_focused_dsp(|dsp| dsp.wm.focused_workspace_id));
 
+                let already_managed = state
+                    .with_dsp_containing_win_mut(win.get_id(), |_| {})
+                    .is_some();
+
+                if already_managed {
+                    return;
+                }
+
+                let result = lua::emit_manage(
+                    &rt,
+                    LuaEvent::Manage {
+                        manual: true,
+                        win_id: win.get_id(),
+                    },
+                )
+                .unwrap();
+
+                if result.ignore.unwrap_or(false) {
+                    return;
+                }
+
+                let ws_id = result.workspace_id.unwrap_or(ws_id);
+
                 state.create_workspace(state.get_focused_dsp_id(), ws_id);
 
                 state.with_dsp_containing_ws_mut(ws_id, |d| {
+                    d.wm.change_workspace(ws_id);
+
                     let area = d.get_render_area(&state.config.read());
                     let workspace = d.wm.get_ws_by_id(ws_id).unwrap();
 
                     if win.exists() && !workspace.has_window(win.get_id()) {
                         info!("'{}' managed", win.get_title());
 
-                        d.wm.manage(rt, &state.config.read(), Some(workspace.id), area, win)
+                        let ws_id = workspace.id;
+
+                        d.wm.manage(rt, &state.config.read(), Some(ws_id), area, win)
                             .unwrap();
                     }
                 });
