@@ -71,7 +71,7 @@ impl EventLoop for KeybindingEventLoop {
         });
 
         while let Ok(event) = CHAN.1.lock().unwrap().recv() {
-            if let InputEvent::KeyUp(kb) = event {
+            if let InputEvent::KeyDown(kb) = event {
                 tx.send(Event::Keybinding(Keybinding {
                     key_combination: kb,
                 }))
