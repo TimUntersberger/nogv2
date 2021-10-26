@@ -2,6 +2,25 @@
 
 Complete rewrite of nog
 
+## Installation
+
+For now you can only install `nog` by cloning the repository and doing one of the following:
+
+### Using the Makefile
+
+Executing `make` will create a new release with the version set to `CUSTOM`, install it 
+and then start `nog` in the background.
+
+### Using the tools
+
+Execute the following powershell commands in the same order:
+
+1. `.\tools\make_release.ps1 CUSTOM`
+2. `.\tools\install_release.ps1 NogRelease.zip`
+3. `start-process -windowstyle hidden nog`
+
+## Structure
+
 | project | description |
 |-|-|
 | nog-cli | Cli client for nog |
