@@ -12,10 +12,7 @@ pub struct KeyCombination {
 
 impl KeyCombination {
     pub fn new(key: Key, modifiers: Modifiers) -> Self {
-        Self {
-            key,
-            modifiers
-        }
+        Self { key, modifiers }
     }
 
     pub fn get_id(&self) -> usize {

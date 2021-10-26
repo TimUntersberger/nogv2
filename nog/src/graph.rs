@@ -208,7 +208,9 @@ impl Graph {
             // It doesn't matter whether it is a row or column
             Some(GraphNode::Group { focus, .. }) => {
                 let children = self.get_children(id);
-                children.get(*focus).and_then(|x| self.get_focused_window_child(*x))
+                children
+                    .get(*focus)
+                    .and_then(|x| self.get_focused_window_child(*x))
             }
             _ => Some(id),
         }

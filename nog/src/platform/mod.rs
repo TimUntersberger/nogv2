@@ -116,7 +116,10 @@ pub struct Rect {
 
 impl Rect {
     pub fn as_size(self) -> Size {
-        Size::new((self.right - self.left).abs() as usize, (self.top - self.bottom).abs() as usize)
+        Size::new(
+            (self.right - self.left).abs() as usize,
+            (self.top - self.bottom).abs() as usize,
+        )
     }
 }
 

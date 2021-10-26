@@ -3,7 +3,14 @@ use std::{mem, ptr};
 
 use windows::Windows::Win32::Foundation::{HWND, LPARAM, PWSTR, RECT, WPARAM};
 use windows::Windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-use windows::Windows::Win32::UI::WindowsAndMessaging::{GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowPlacement, PostMessageW, SC_CLOSE, SC_RESTORE, SM_CYCAPTION, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOCOPYBITS, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWMINIMIZED, SendMessageA, SendMessageW, SendNotifyMessageW, SetWindowLongW, SetWindowPlacement, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
+use windows::Windows::Win32::UI::WindowsAndMessaging::{
+    GetClassNameW, GetClientRect, GetSystemMetrics, GetWindowLongW, GetWindowPlacement,
+    PostMessageW, SendMessageA, SendMessageW, SendNotifyMessageW, SetWindowLongW,
+    SetWindowPlacement, GWL_EXSTYLE, GWL_STYLE, SC_CLOSE, SC_RESTORE, SM_CYCAPTION, SWP_DRAWFRAME,
+    SWP_FRAMECHANGED, SWP_NOCOPYBITS, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW,
+    SW_SHOWMINIMIZED, WM_SYSCOMMAND, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME,
+    WS_EX_STATICEDGE, WS_MAXIMIZE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
+};
 use windows::Windows::Win32::UI::{
     KeyboardAndMouseInput::keybd_event,
     WindowsAndMessaging::{

@@ -94,7 +94,8 @@ impl WindowAction {
                     if win.exists() && !workspace.has_window(win.get_id()) {
                         info!("'{}' managed", win.get_title());
 
-                        d.wm.manage(rt, &state.config.read(), Some(workspace.id), area, win).unwrap();
+                        d.wm.manage(rt, &state.config.read(), Some(workspace.id), area, win)
+                            .unwrap();
                     }
                 });
             }

@@ -76,7 +76,10 @@ pub fn save_session(name: &str, workspaces: &[Workspace]) {
                 .filter(|s| !s.is_empty())
                 .join("\n\n");
 
-            format!("@workspace {} {}\n{}\n@endworkspace", workspace.id.0, &workspace.layout_name, sections)
+            format!(
+                "@workspace {} {}\n{}\n@endworkspace",
+                workspace.id.0, &workspace.layout_name, sections
+            )
         })
         .join("\n");
 

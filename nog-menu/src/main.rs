@@ -7,8 +7,8 @@ use nog_iced::iced::{
     window::{self, Position},
     Application, Color, Settings,
 };
-use win::Win as Api;
 use rgb::Rgb;
+use win::Win as Api;
 
 mod ui;
 mod win;

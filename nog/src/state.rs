@@ -2,7 +2,15 @@ use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc};
 
 use nog_protocol::BarContent;
 
-use crate::{config::Config, display::{Display, DisplayId}, event::Event, notification::NotificationManager, platform::WindowId, thread_safe::ThreadSafe, workspace::{Workspace, WorkspaceId}};
+use crate::{
+    config::Config,
+    display::{Display, DisplayId},
+    event::Event,
+    notification::NotificationManager,
+    platform::WindowId,
+    thread_safe::ThreadSafe,
+    workspace::{Workspace, WorkspaceId},
+};
 
 #[derive(Debug, Clone)]
 /// You can clone the state without any worries.
@@ -54,7 +62,9 @@ impl State {
         }
 
         self.with_dsp_mut(dsp_id, |dsp| {
-            dsp.wm.workspaces.push(Workspace::new(ws_id, "master_slave"));
+            dsp.wm
+                .workspaces
+                .push(Workspace::new(ws_id, "master_slave"));
         });
     }
 

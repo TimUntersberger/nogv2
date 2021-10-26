@@ -6,8 +6,8 @@ use crate::{
     event::Event,
     thread_safe::ThreadSafe,
 };
-use rgb::Rgb;
 use mlua::prelude::*;
+use rgb::Rgb;
 
 pub struct ConfigProxy {
     config: ThreadSafe<Config>,

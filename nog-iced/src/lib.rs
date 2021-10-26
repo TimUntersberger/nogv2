@@ -1,8 +1,8 @@
 pub use iced;
 pub use iced_native;
 
-use font_kit::properties::Properties;
 use font_kit::family_name::FamilyName;
+use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 use iced::{Application, Settings};
 use iced_wgpu as renderer;
@@ -42,7 +42,7 @@ pub fn load_font(name: String) -> Option<Arc<Vec<u8>>> {
     let handle = SystemSource::new()
         .select_best_match(&[FamilyName::Title(name)], &Properties::default())
         .ok()?;
-    
+
     let font = handle.load().ok()?;
 
     font.copy_font_data()

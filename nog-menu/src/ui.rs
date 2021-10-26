@@ -193,18 +193,16 @@ impl Application for App {
                 (KeyCode::Escape, mods) if mods == Modifiers::empty() => {
                     self.exit = true;
                 }
-                (KeyCode::Enter, mods) if mods == Modifiers::empty() => {
-                    match &self.mode {
-                        MenuMode::Files => {
-                            let item = &self.state.filtered_items[self.state.selected_idx];
-                            item.on_submit();
-                            self.exit = true;
-                        },
-                        MenuMode::ExecuteLua => {
-                            self.exit = true;
-                        },
+                (KeyCode::Enter, mods) if mods == Modifiers::empty() => match &self.mode {
+                    MenuMode::Files => {
+                        let item = &self.state.filtered_items[self.state.selected_idx];
+                        item.on_submit();
+                        self.exit = true;
                     }
-                }
+                    MenuMode::ExecuteLua => {
+                        self.exit = true;
+                    }
+                },
                 (KeyCode::K | KeyCode::P, mods) if mods == Modifiers::CTRL => {
                     self.move_selection(-1);
                 }

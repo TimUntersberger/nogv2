@@ -27,7 +27,7 @@ pub struct BarContent {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Window {
-    pub id: usize
+    pub id: usize,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -35,7 +35,7 @@ pub struct Workspace {
     pub id: usize,
     pub layout: String,
     pub focused_window_id: Option<usize>,
-    pub windows: Vec<Window>
+    pub windows: Vec<Window>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -43,20 +43,20 @@ pub struct Display {
     pub id: String,
     pub monitor_id: usize,
     pub focused_workspace_id: usize,
-    pub workspaces: Vec<Workspace>
+    pub workspaces: Vec<Workspace>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct State {
     pub focused_display_id: String,
-    pub displays: Vec<Display>
+    pub displays: Vec<Display>,
 }
 
 #[derive(Debug)]
 pub enum Message {
     ExecuteLua { code: String, print_type: bool },
     GetBarContent,
-    GetState
+    GetState,
 }
 
 #[derive(Debug)]

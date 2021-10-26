@@ -1,7 +1,12 @@
 use crate::{Native, ResultItem};
-use std::{os::windows::process::CommandExt, process::Command, ptr, sync::mpsc::{sync_channel, SyncSender}};
+use std::{
+    os::windows::process::CommandExt,
+    process::Command,
+    ptr,
+    sync::mpsc::{sync_channel, SyncSender},
+};
+use windows::Windows::Win32::Foundation::PWSTR;
 use windows::Windows::Win32::System::WindowsProgramming::GetUserNameW;
-use windows::Windows::Win32::Foundation::{PWSTR};
 
 fn get_user_name() -> String {
     unsafe {
@@ -141,6 +146,10 @@ impl Native for Win {
     }
 
     fn start_program(path: &str) {
-        Command::new("cmd").arg("/C").raw_arg(&format!(r#"start "" "{}""#, path)).spawn().unwrap();
+        Command::new("cmd")
+            .arg("/C")
+            .raw_arg(&format!(r#"start "" "{}""#, path))
+            .spawn()
+            .unwrap();
     }
 }

@@ -2,7 +2,7 @@ use std::io;
 
 use clap::clap_app;
 use crossterm::terminal::enable_raw_mode;
-use nog_client::{Client, ClientError, json};
+use nog_client::{json, Client, ClientError};
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -71,7 +71,10 @@ fn main() {
             };
         }
         ("state", Some(m)) => {
-            println!("{}", json::to_string_pretty(&client.get_state().unwrap()).unwrap());
+            println!(
+                "{}",
+                json::to_string_pretty(&client.get_state().unwrap()).unwrap()
+            );
         }
         ("bar", Some(m)) => todo!(),
         ("render", Some(m)) => tui(),

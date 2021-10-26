@@ -10,6 +10,10 @@ mod state;
 
 pub use state::State;
 
+use iced_futures::futures;
+use iced_futures::futures::channel::mpsc;
+use iced_graphics::window;
+use iced_native::Cache;
 use iced_winit::clipboard::Clipboard;
 use iced_winit::conversion;
 use iced_winit::mouse;
@@ -18,10 +22,6 @@ use iced_winit::{
     application::{build_user_interface, requests_exit, run_command, update},
     Application, Debug, Error, Executor, Proxy, Runtime, Settings,
 };
-use iced_futures::futures;
-use iced_futures::futures::channel::mpsc;
-use iced_graphics::window;
-use iced_native::Cache;
 
 use std::mem::ManuallyDrop;
 
