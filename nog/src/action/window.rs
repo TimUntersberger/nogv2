@@ -93,20 +93,15 @@ impl WindowAction {
                     return;
                 }
 
-                let result = lua::emit_manage(
+                lua::emit_manage(
                     &rt,
                     LuaEvent::Manage {
                         manual: true,
+                        ws_id: Some(ws_id),
                         win_id: win.get_id(),
                     },
                 )
                 .unwrap();
-
-                if result.ignore.unwrap_or(false) {
-                    return;
-                }
-
-                let ws_id = result.workspace_id.unwrap_or(ws_id);
 
                 state.create_workspace(state.get_focused_dsp_id(), ws_id);
 

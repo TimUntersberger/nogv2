@@ -97,14 +97,9 @@ pub enum LuaEvent {
     Manage {
         /// whether the user tries to manage the window via nog.win_manage
         manual: bool,
+        ws_id: Option<WorkspaceId>,
         win_id: WindowId,
     },
-}
-
-#[derive(Clone, Debug)]
-pub struct LuaEventManageResult {
-    pub ignore: Option<bool>,
-    pub workspace_id: Option<WorkspaceId>,
 }
 
 pub fn init_events(rt: &LuaRuntime) -> LuaResult<()> {
@@ -127,30 +122,12 @@ pub fn get_event_handlers_iter<'a>(
 }
 
 /// Returns whether any event handler returned false
-pub fn emit_manage(rt: &LuaRuntime, event: LuaEvent) -> LuaResult<LuaEventManageResult> {
-    let mut result = LuaEventManageResult {
-        ignore: None,
-        workspace_id: None,
-    };
-
-    for return_value in get_event_handlers_iter(rt, "manage")?
-        .map(|cb| cb.call::<LuaEvent, Option<mlua::Table>>(event.clone()))
-        .flatten()
-        .flatten()
-    {
-        for (key, val) in return_value.pairs::<String, mlua::Value>().flatten() {
-            match key.as_str() {
-                "ignore" => result.ignore = Some(rt.lua.from_value(val).unwrap_or_default()),
-                "workspace_id" => {
-                    result.workspace_id =
-                        Some(WorkspaceId(rt.lua.from_value(val).unwrap_or_default()))
-                }
-                _ => {}
-            }
-        }
+pub fn emit_manage(rt: &LuaRuntime, event: LuaEvent) -> LuaResult<()> {
+    for ev_handler in get_event_handlers_iter(rt, "manage")? {
+        ev_handler.call::<LuaEvent, Option<mlua::Table>>(event.clone())?;
     }
 
-    Ok(result)
+    Ok(())
 }
 
 pub fn init(state: State) -> LuaResult<LuaRuntime> {

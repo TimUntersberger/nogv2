@@ -211,28 +211,21 @@ fn failable_main() -> Result<(), Error> {
                             continue;
                         }
 
-                        let result = lua::emit_manage(
+                        lua::emit_manage(
                             &rt,
                             LuaEvent::Manage {
                                 manual: false,
+                                ws_id: None,
                                 win_id: win.get_id(),
                             },
                         )
                         .unwrap();
 
-                        if result.ignore.unwrap_or(false) {
-                            continue;
-                        }
-
                         info!("'{}' created", win.get_title());
                         state.with_focused_dsp_mut(|d| {
                             let area = d.get_render_area(&state.config.read());
-                            d.wm.manage(&rt, &state.config.read(), result.workspace_id.clone(), area, win)
+                            d.wm.manage(&rt, &state.config.read(), None, area, win)
                                 .unwrap();
-
-                            if let Some(ws_id) = result.workspace_id {
-                                d.wm.change_workspace(ws_id);
-                            }
                         });
                     }
                 }
