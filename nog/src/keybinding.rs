@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use crate::key_combination::KeyCombination;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeybindingMode {
     Global,
     Normal,
@@ -20,9 +20,23 @@ impl FromStr for KeybindingMode {
     }
 }
 
+impl Display for KeybindingMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                KeybindingMode::Global => "g",
+                KeybindingMode::Normal => "n",
+            }
+        )
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Keybinding {
     pub key_combination: KeyCombination,
+    pub mode: KeybindingMode
 }
 
 impl Keybinding {

@@ -336,12 +336,12 @@ fn failable_main() -> Result<(), Error> {
                     items,
                 };
             }
-            Event::Keybinding(kb) => {
-                info!("Received keybinding {}", kb.to_string());
+            Event::Keybinding(kc) => {
+                info!("Received keybinding {}", kc.to_string());
 
                 let cb = rt
                     .lua
-                    .named_registry_value::<str, mlua::Function>(&kb.get_id().to_string())
+                    .named_registry_value::<str, mlua::Function>(&kc.get_id().to_string())
                     .expect("Registry value of a keybinding somehow disappeared?");
 
                 if let Err(e) = cb.call::<(), ()>(()) {

@@ -7,7 +7,7 @@ use crate::{
     graph::GraphNode,
     key::Key,
     key_combination::KeyCombination,
-    keybinding::KeybindingMode,
+    keybinding::{Keybinding, KeybindingMode},
     keybinding_event_loop::KeybindingEventLoop,
     lua::LuaRuntime,
     modifiers::Modifiers,
@@ -160,12 +160,21 @@ impl Action {
             }
             Action::Awake => {
                 info!("Awoke!");
+
                 if state.config.read().display_app_bar {
                     state.tx.send(Event::Action(Action::ShowBars)).unwrap();
                 }
+
                 if state.config.read().remove_task_bar {
                     state.tx.send(Event::Action(Action::HideTaskbars)).unwrap();
                 }
+
+                for kb in state.keybindings.read().iter() {
+                    if kb.mode != KeybindingMode::Global {
+                        KeybindingEventLoop::add_keybinding(kb.get_id());
+                    }
+                }
+
                 state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(&rt, WorkspaceId(1)));
                 state.awake();
             }
@@ -178,6 +187,13 @@ impl Action {
                 for d in state.displays.write().iter_mut() {
                     d.wm.cleanup();
                 }
+
+                for kb in state.keybindings.read().iter() {
+                    if kb.mode != KeybindingMode::Global {
+                        KeybindingEventLoop::remove_keybinding(kb.get_id());
+                    }
+                }
+
                 state.hibernate();
             }
             Action::Window(action) => action.handle(state, rt),
@@ -287,11 +303,26 @@ impl Action {
                 key_combination,
             } => {
                 KeybindingEventLoop::add_keybinding(key_combination.get_id());
+                state.keybindings.write().push(Keybinding {
+                    mode,
+                    key_combination,
+                });
             }
             Action::RemoveKeybinding { key } => {
-                KeybindingEventLoop::remove_keybinding(
-                    KeyCombination::from_str(&key).unwrap().get_id(),
-                );
+                let kc_id = KeyCombination::from_str(&key).unwrap().get_id();
+
+                let kb_idx = state
+                    .keybindings
+                    .read()
+                    .iter()
+                    .enumerate()
+                    .find(|(_, kb)| kb.get_id() == kc_id)
+                    .map(|(idx, _)| idx)
+                    .unwrap();
+
+                state.keybindings.write().remove(kb_idx);
+
+                KeybindingEventLoop::remove_keybinding(kc_id);
             }
             Action::CreateNotification(n) => {
                 notification_manager.push(n);

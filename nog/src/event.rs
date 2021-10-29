@@ -1,4 +1,5 @@
 use crate::action::Action;
+use crate::key_combination::KeyCombination;
 use crate::keybinding::Keybinding;
 use crate::platform::Window;
 use crate::window_event_loop::WindowEvent;
@@ -10,6 +11,6 @@ pub enum Event {
     Exit,
     RenderBarLayout,
     Window(WindowEvent<Window>),
-    Keybinding(Keybinding),
+    Keybinding(KeyCombination),
     Action(Action),
 }
