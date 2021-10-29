@@ -2,15 +2,7 @@ use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc};
 
 use nog_protocol::BarContent;
 
-use crate::{
-    config::Config,
-    display::{Display, DisplayId},
-    event::Event,
-    notification::NotificationManager,
-    platform::WindowId,
-    thread_safe::ThreadSafe,
-    workspace::{Workspace, WorkspaceId},
-};
+use crate::{config::Config, display::{Display, DisplayId}, event::Event, lua::LuaEvent, notification::NotificationManager, platform::WindowId, thread_safe::ThreadSafe, workspace::{Workspace, WorkspaceId}};
 
 #[derive(Debug, Clone)]
 /// You can clone the state without any worries.
@@ -49,25 +41,6 @@ impl State {
         self.displays.read().iter().any(|d| d.wm.has_window(win_id))
     }
 
-    /// Creates a workspace with the given id, if it doesn't exist yet.
-    pub fn create_workspace(&self, dsp_id: DisplayId, ws_id: WorkspaceId) {
-        let exists = self
-            .displays
-            .read()
-            .iter()
-            .any(|d| d.wm.get_ws_by_id(ws_id).is_some());
-
-        if exists {
-            return;
-        }
-
-        self.with_dsp_mut(dsp_id, |dsp| {
-            dsp.wm
-                .workspaces
-                .push(Workspace::new(ws_id, "master_slave"));
-        });
-    }
-
     /// Doesn't call the function if none was found
     pub fn with_dsp_containing_win_mut<T>(
         &self,
@@ -104,6 +77,10 @@ impl State {
 
     pub fn get_focused_dsp_id(&self) -> DisplayId {
         self.displays.read()[0].id.clone()
+    }
+
+    pub fn get_focused_ws_id(&self) -> Option<WorkspaceId> {
+        self.with_focused_dsp(|dsp| dsp.wm.focused_workspace_id)
     }
 
     /// Doesn't call the function if display doesn't exist

@@ -8,7 +8,6 @@ pub enum Event {
     RenderGraph,
     ShowMenu,
     Exit,
-    ConfigFinished,
     RenderBarLayout,
     Window(WindowEvent<Window>),
     Keybinding(Keybinding),

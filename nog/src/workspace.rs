@@ -15,6 +15,8 @@ pub struct WorkspaceId(pub usize);
 #[derive(Debug)]
 pub struct Workspace {
     pub id: WorkspaceId,
+    /// Initially this is set to the id of the workspace
+    pub display_name: String,
     pub layout_name: String,
     pub state: WorkspaceState,
     pub graph: Graph,
@@ -30,6 +32,7 @@ impl Workspace {
     pub fn new(id: WorkspaceId, layout_name: &str) -> Self {
         Self {
             id,
+            display_name: id.0.to_string(),
             layout_name: layout_name.to_string(),
             state: WorkspaceState::Normal,
             graph: Graph::new(),

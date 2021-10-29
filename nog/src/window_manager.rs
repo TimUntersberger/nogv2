@@ -7,7 +7,7 @@ use crate::{
     cleanup::{WindowCleanup, WorkspaceCleanup},
     config::Config,
     direction::Direction,
-    lua::{graph_proxy::GraphProxy, LuaRuntime},
+    lua::{self, graph_proxy::GraphProxy, LuaEvent, LuaRuntime},
     platform::{Area, NativeWindow, Window, WindowId},
     workspace::{Workspace, WorkspaceId},
 };
@@ -21,7 +21,7 @@ pub type WindowManagerResult<T = ()> = Result<T, WindowManagerError>;
 #[derive(Debug)]
 pub struct WindowManager {
     pub workspaces: Vec<Workspace>,
-    pub focused_workspace_id: WorkspaceId,
+    pub focused_workspace_id: Option<WorkspaceId>,
     pub window_cleanup: HashMap<WindowId, WindowCleanup>,
     pub workspace_cleanup: HashMap<WorkspaceId, WorkspaceCleanup>,
 }
@@ -29,15 +29,15 @@ pub struct WindowManager {
 impl WindowManager {
     pub fn new() -> Self {
         Self {
-            workspaces: vec![Workspace::new(WorkspaceId(1), "master_slave")],
-            focused_workspace_id: WorkspaceId(1),
+            workspaces: vec![],
+            focused_workspace_id: None,
             window_cleanup: HashMap::new(),
             workspace_cleanup: HashMap::new(),
         }
     }
 
     pub fn get_focused_workspace_mut(&mut self) -> &mut Workspace {
-        let id = self.focused_workspace_id;
+        let id = self.focused_workspace_id.unwrap();
         self.workspaces.iter_mut().find(|ws| ws.id == id).unwrap()
     }
 
@@ -50,32 +50,37 @@ impl WindowManager {
         }
     }
 
-    pub fn change_workspace(&mut self, id: WorkspaceId) {
-        if self.focused_workspace_id == id {
-            return;
-        }
+    pub fn change_workspace(&mut self, rt: &LuaRuntime, id: WorkspaceId) {
+        match self.focused_workspace_id {
+            Some(focused_workspace_id) if focused_workspace_id == id => return,
+            _ => match self.get_ws_by_id(id) {
+                Some(ws) => ws.unminimize(),
+                None => {
+                    self.workspaces.push(Workspace::new(id, "master_slave"));
 
-        match self.get_ws_by_id(id) {
-            Some(ws) => ws.unminimize(),
-            None => self.workspaces.push(Workspace::new(id, "master_slave")),
+                    lua::emit_ws_created(&rt, LuaEvent::WsCreated { ws_id: id }).unwrap();
+                }
+            },
         };
 
-        let old_ws_id = mem::replace(&mut self.focused_workspace_id, id);
-        let old_ws = self.get_ws_by_id(old_ws_id).unwrap();
+        let old_ws_id = mem::replace(&mut self.focused_workspace_id, Some(id));
+        let old_ws = old_ws_id.and_then(|id| self.get_ws_by_id(id));
 
-        if old_ws.is_empty() {
-            self.remove_workspace(old_ws_id);
-        } else {
-            let ws = self.get_ws_by_id(old_ws_id).unwrap();
-            ws.minimize();
+        if let Some(old_ws) = old_ws {
+            if old_ws.is_empty() {
+                self.remove_workspace(old_ws_id.unwrap());
+            } else {
+                let ws = self.get_ws_by_id(old_ws.id).unwrap();
+                ws.minimize();
+            }
         }
     }
 
-    pub fn focus_window(&mut self, id: WindowId) -> bool {
+    pub fn focus_window(&mut self, rt: &LuaRuntime, id: WindowId) -> bool {
         for ws in self.workspaces.iter_mut() {
             if ws.focus_window(id).is_ok() {
                 let id = ws.id;
-                self.change_workspace(id);
+                self.change_workspace(rt, id);
                 return true;
             }
         }
@@ -84,7 +89,7 @@ impl WindowManager {
     }
 
     pub fn get_focused_workspace(&self) -> &Workspace {
-        let id = self.focused_workspace_id;
+        let id = self.focused_workspace_id.unwrap();
         self.workspaces.iter().find(|ws| ws.id == id).unwrap()
     }
 
@@ -180,7 +185,7 @@ impl WindowManager {
         reason: String,
         args: TArgs,
     ) -> WindowManagerResult {
-        let ws_id = ws_id.unwrap_or_else(|| self.focused_workspace_id.clone());
+        let ws_id = ws_id.unwrap_or_else(|| self.focused_workspace_id.unwrap().clone());
         let mut workspace = self.get_ws_by_id_mut(ws_id).unwrap();
         // We need to use the scope here to make the rust type system happy.
         // scope drops the userdata when the function has finished.
@@ -245,7 +250,7 @@ impl WindowManager {
             }
         }
 
-        self.focused_workspace_id = WorkspaceId(1);
-        self.workspaces = vec![Workspace::new(WorkspaceId(1), "master_slave")];
+        self.focused_workspace_id = None;
+        self.workspaces = vec![];
     }
 }

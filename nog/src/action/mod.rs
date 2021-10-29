@@ -166,6 +166,7 @@ impl Action {
                 if state.config.read().remove_task_bar {
                     state.tx.send(Event::Action(Action::HideTaskbars)).unwrap();
                 }
+                state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(&rt, WorkspaceId(1)));
                 state.awake();
             }
             Action::SimulateKeyPress { key, modifiers } => {

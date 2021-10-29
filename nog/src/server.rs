@@ -74,7 +74,7 @@ fn handle_client(mut stream: TcpStream, tx: Sender<Event>, state: State) -> std:
                         .map(|d| nog_protocol::Display {
                             id: d.id.0.clone(),
                             monitor_id: d.monitor.id.0 as usize,
-                            focused_workspace_id: d.wm.focused_workspace_id.0,
+                            focused_workspace_id: d.wm.focused_workspace_id.map(|x| x.0),
                             workspaces: d
                                 .wm
                                 .workspaces

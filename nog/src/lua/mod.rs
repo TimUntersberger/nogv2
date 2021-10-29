@@ -94,17 +94,23 @@ macro_rules! namespace {
 /// The events that can be listened to using `nog.on`
 #[derive(Clone, Debug)]
 pub enum LuaEvent {
-    Manage {
+    WinManage {
         /// whether the user tries to manage the window via nog.win_manage
         manual: bool,
         ws_id: Option<WorkspaceId>,
         win_id: WindowId,
     },
+    WsCreated {
+        ws_id: WorkspaceId,
+    },
 }
 
 pub fn init_events(rt: &LuaRuntime) -> LuaResult<()> {
     rt.lua
-        .set_named_registry_value("manage", rt.lua.create_table()?)?;
+        .set_named_registry_value("win_manage", rt.lua.create_table()?)?;
+
+    rt.lua
+        .set_named_registry_value("ws_created", rt.lua.create_table()?)?;
 
     Ok(())
 }
@@ -122,8 +128,17 @@ pub fn get_event_handlers_iter<'a>(
 }
 
 /// Returns whether any event handler returned false
-pub fn emit_manage(rt: &LuaRuntime, event: LuaEvent) -> LuaResult<()> {
-    for ev_handler in get_event_handlers_iter(rt, "manage")? {
+pub fn emit_win_manage(rt: &LuaRuntime, event: LuaEvent) -> LuaResult<()> {
+    for ev_handler in get_event_handlers_iter(rt, "win_manage")? {
+        ev_handler.call::<LuaEvent, Option<mlua::Table>>(event.clone())?;
+    }
+
+    Ok(())
+}
+
+/// Returns whether any event handler returned false
+pub fn emit_ws_created(rt: &LuaRuntime, event: LuaEvent) -> LuaResult<()> {
+    for ev_handler in get_event_handlers_iter(rt, "ws_created")? {
         ev_handler.call::<LuaEvent, Option<mlua::Table>>(event.clone())?;
     }
 
@@ -306,6 +321,25 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             state.tx.send(Event::Action(Action::Workspace(WorkspaceAction::SetFullscreen(ws_id, value)))).unwrap();
 
             Ok(())
+        }
+
+        fn ws_set_name(ws_id: Option<WorkspaceId>, value: String) {
+            inject state;
+
+            state.tx.send(Event::Action(Action::Workspace(WorkspaceAction::SetName(ws_id, value)))).unwrap();
+
+            Ok(())
+        }
+
+        fn ws_get_name(ws_id: Option<WorkspaceId>) {
+            inject state;
+
+            Ok(
+                state.with_ws(
+                    ws_id.unwrap_or_else(|| state.get_focused_ws_id().unwrap()), 
+                    |ws|ws.display_name.clone()
+                )
+            )
         }
 
         fn ws_get_all() {

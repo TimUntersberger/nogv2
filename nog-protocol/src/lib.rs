@@ -42,7 +42,7 @@ pub struct Workspace {
 pub struct Display {
     pub id: String,
     pub monitor_id: usize,
-    pub focused_workspace_id: usize,
+    pub focused_workspace_id: Option<usize>,
     pub workspaces: Vec<Workspace>,
 }
 

@@ -15,6 +15,7 @@ use super::{Action, WindowAction};
 pub enum WorkspaceAction {
     Change(WorkspaceId),
     SetFullscreen(Option<WorkspaceId>, bool),
+    SetName(Option<WorkspaceId>, String),
     Focus(Option<WorkspaceId>, Direction),
     Swap(Option<WorkspaceId>, Direction),
 }
@@ -26,6 +27,8 @@ impl Display for WorkspaceAction {
             "{}",
             match self {
                 WorkspaceAction::Change(id) => format!("Changing to Workspace({})", id.0),
+                WorkspaceAction::SetName(id, value) =>
+                    format!("The name of Workspace({:?}) is now '{}'", id, value),
                 WorkspaceAction::SetFullscreen(id, value) =>
                     if *value {
                         format!("Workspace({:?}) is no longer in fullscreen mode", id)
@@ -46,13 +49,20 @@ impl WorkspaceAction {
         log::trace!("{}", &self);
         match self {
             WorkspaceAction::SetFullscreen(maybe_id, value) => {
-                state.with_ws_mut(WorkspaceId(1), |ws| {
+                let ws_id = maybe_id.unwrap_or_else(|| state.get_focused_ws_id().unwrap());
+
+                state.with_ws_mut(ws_id, |ws| {
                     ws.state = if value {
                         WorkspaceState::Fullscreen
                     } else {
                         WorkspaceState::Normal
                     }
                 });
+            }
+            WorkspaceAction::SetName(maybe_id, value) => {
+                let ws_id = maybe_id.unwrap_or_else(|| state.get_focused_ws_id().unwrap());
+
+                state.with_ws_mut(ws_id, move |ws| ws.display_name = value.clone());
             }
             WorkspaceAction::Focus(maybe_id, dir) => state.with_focused_dsp_mut(|d| {
                 let workspace = d.wm.get_focused_workspace_mut();
@@ -90,7 +100,7 @@ impl WorkspaceAction {
                     Some(maybe_focused_win) => match maybe_focused_win {
                         Some(win) => {
                             state.with_dsp_containing_ws_mut(id, |dsp| {
-                                if dsp.wm.focus_window(win.get_id()) {
+                                if dsp.wm.focus_window(&rt, win.get_id()) {
                                     win.focus();
                                 }
                             });
@@ -98,7 +108,7 @@ impl WorkspaceAction {
                         None => {} //unreachable!("It shouldn't be possible that a workspace exists which doesn't have any windows AND is not focused")
                     },
                     None => {
-                        state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(id));
+                        state.with_focused_dsp_mut(|dsp| dsp.wm.change_workspace(&rt, id));
                     }
                 };
             }

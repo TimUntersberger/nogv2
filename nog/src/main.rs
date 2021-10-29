@@ -24,6 +24,7 @@ use crate::{
     platform::{Api, NativeApi, NativeWindow},
     state::State,
     window_event_loop::WindowEventKind,
+    workspace::WorkspaceId,
 };
 
 /// Responsible for handling events like when a window is created, deleted, etc.
@@ -157,7 +158,7 @@ fn failable_main() -> Result<(), Error> {
         log::error!("Failed to execute config: {}", lua_error_to_string(e));
     }
 
-    tx.send(Event::ConfigFinished).unwrap();
+    tx.send(Event::Action(Action::Awake)).unwrap();
 
     Server::spawn(tx.clone(), state.clone());
     info!("IPC Server started");
@@ -181,7 +182,7 @@ fn failable_main() -> Result<(), Error> {
                     if state.is_awake() {
                         let win_id = win_event.window.get_id();
                         state.with_dsp_containing_win_mut(win_id, |d| {
-                            if d.wm.focus_window(win_id) {
+                            if d.wm.focus_window(&rt, win_id) {
                                 info!("Focused window with id {}", win_event.window.get_id());
                                 win_event.window.focus();
                             }
@@ -211,9 +212,9 @@ fn failable_main() -> Result<(), Error> {
                             continue;
                         }
 
-                        lua::emit_manage(
+                        lua::emit_win_manage(
                             &rt,
-                            LuaEvent::Manage {
+                            LuaEvent::WinManage {
                                 manual: false,
                                 ws_id: None,
                                 win_id: win.get_id(),
@@ -370,15 +371,6 @@ fn failable_main() -> Result<(), Error> {
                 KeybindingEventLoop::stop();
 
                 break;
-            }
-            Event::ConfigFinished => {
-                if state.config.read().remove_task_bar {
-                    tx.send(Event::Action(Action::HideTaskbars)).unwrap();
-                }
-
-                if state.config.read().display_app_bar {
-                    tx.send(Event::Action(Action::ShowBars)).unwrap();
-                }
             }
             Event::ShowMenu => {
                 let mut path = get_bin_path();

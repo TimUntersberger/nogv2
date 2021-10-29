@@ -4,7 +4,7 @@ return function()
 
     return nog.tbl_map(
       nog.tbl_filter(
-        nog.ws_get_all(), 
+        nog.ws_get_all(),
         function(ws_id)
           return nog.dsp_contains_ws(nil, ws_id)
         end
@@ -18,7 +18,7 @@ return function()
         end
 
         return {
-          string.format(" %d ", ws_id),
+          string.format(" %s ", nog.ws_get_name(ws_id)),
           bg = bg
         }
       end

@@ -82,8 +82,7 @@ impl WindowAction {
                     .map(Window::new)
                     .unwrap_or_else(Api::get_foreground_window);
 
-                let ws_id = ws_id
-                    .unwrap_or_else(|| state.with_focused_dsp(|dsp| dsp.wm.focused_workspace_id));
+                let ws_id = ws_id.unwrap_or_else(|| state.get_focused_ws_id().unwrap());
 
                 let already_managed = state
                     .with_dsp_containing_win_mut(win.get_id(), |_| {})
@@ -93,9 +92,9 @@ impl WindowAction {
                     return;
                 }
 
-                lua::emit_manage(
+                lua::emit_win_manage(
                     &rt,
-                    LuaEvent::Manage {
+                    LuaEvent::WinManage {
                         manual: true,
                         ws_id: Some(ws_id),
                         win_id: win.get_id(),
@@ -103,10 +102,8 @@ impl WindowAction {
                 )
                 .unwrap();
 
-                state.create_workspace(state.get_focused_dsp_id(), ws_id);
-
-                state.with_dsp_containing_ws_mut(ws_id, |d| {
-                    d.wm.change_workspace(ws_id);
+                state.with_dsp_mut(state.get_focused_dsp_id(), |d| {
+                    d.wm.change_workspace(&rt, ws_id);
 
                     let area = d.get_render_area(&state.config.read());
                     let workspace = d.wm.get_ws_by_id(ws_id).unwrap();
