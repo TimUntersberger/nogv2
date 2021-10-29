@@ -1,3 +1,7 @@
+function I(...)
+  print(nog.inspect(...))
+end
+
 function keybindings(tbl)
   for mode, bindings in pairs(tbl) do
     for key, cb in pairs(bindings) do
@@ -169,6 +173,15 @@ event_handlers {
   manage = {
     {
       when = function(ev)
+        local size = nog.win_get_size(ev.win_id)
+        return size.width <= 100 or size.height <= 100
+      end,
+      action = function(ev)
+        nog.win_unmanage(ev.win_id)
+      end
+    },
+    {
+      when = function(ev)
         local title = nog.win_get_title(ev.win_id)
         return title:find("^.* - Notepad$")
       end,
@@ -178,14 +191,5 @@ event_handlers {
         end
       end
     },
-    {
-      when = function(ev)
-        local size = nog.win_get_size(ev.win_id)
-        return size.width <= 100 or size.height <= 100
-      end,
-      action = function(ev)
-        nog.win_unmanage(ev.win_id)
-      end
-    }
   }
 }
