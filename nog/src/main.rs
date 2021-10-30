@@ -17,6 +17,7 @@ use std::{
 use window_event_loop::WindowEventLoop;
 
 use crate::{
+    system_tray::SystemTray,
     action::WindowAction,
     lua::{lua_error_to_string, LuaEvent},
     notification::{Notification, NotificationManager},
@@ -64,6 +65,8 @@ mod window_event_loop;
 mod window_manager;
 mod workspace;
 mod file_watcher;
+mod system_tray;
+mod constants;
 
 fn lua_value_to_bar_item(
     lua: &mlua::Lua,
@@ -166,6 +169,10 @@ fn failable_main() -> Result<(), Error> {
     info!("IPC Server started");
 
     WindowEventLoop::spawn(tx.clone());
+    info!("Window event loop spawned");
+
+    // Need to hold ref to avoid drop
+    let _sys_tray = SystemTray::init(tx.clone());
     info!("Window event loop spawned");
 
     KeybindingEventLoop::spawn(tx.clone());

@@ -13,6 +13,7 @@ use mlua::prelude::*;
 
 use crate::{
     file_watcher::FileWatcher,
+    constants::get_version,
     action::{Action, WindowAction, WorkspaceAction},
     direction::Direction,
     display::DisplayId,
@@ -152,7 +153,7 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
     let ns = namespace!(rt, nog, {
         const runtime_path = get_runtime_path().to_str().unwrap();
         const config_path = get_config_path().to_str().unwrap();
-        const version = option_env!("NOG_VERSION").unwrap_or("DEV");
+        const version = get_version();
         const config = ConfigProxy::new(state.tx.clone(), state.config);
 
         fn scale_color(hex: i32, factor: f32) {
