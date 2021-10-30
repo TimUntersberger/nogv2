@@ -12,12 +12,12 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 
 use crate::{
-    file_watcher::FileWatcher,
-    constants::get_version,
     action::{Action, WindowAction, WorkspaceAction},
+    constants::get_version,
     direction::Direction,
     display::DisplayId,
     event::Event,
+    file_watcher::FileWatcher,
     key_combination::KeyCombination,
     keybinding::KeybindingMode,
     lua::config_proxy::ConfigProxy,
@@ -198,7 +198,7 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
 
             Ok(())
         }
-        
+
         fn watch(path: String, cb: mlua::Function<'static>) {
             inject lua, state;
 
@@ -350,7 +350,7 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
 
             Ok(
                 state.with_ws(
-                    ws_id.unwrap_or_else(|| state.get_focused_ws_id().unwrap()), 
+                    ws_id.unwrap_or_else(|| state.get_focused_ws_id().unwrap()),
                     |ws|ws.display_name.clone()
                 )
             )

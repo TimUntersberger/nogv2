@@ -1,5 +1,3 @@
-use std::sync::{atomic::AtomicBool, mpsc::SyncSender, Arc};
-use nog_protocol::BarContent;
 use crate::{
     config::Config,
     display::{Display, DisplayId},
@@ -9,6 +7,8 @@ use crate::{
     thread_safe::ThreadSafe,
     workspace::{Workspace, WorkspaceId},
 };
+use nog_protocol::BarContent;
+use std::sync::{atomic::AtomicBool, mpsc::SyncSender, Arc};
 
 /// You can clone the state without any worries.
 #[derive(Debug, Clone)]

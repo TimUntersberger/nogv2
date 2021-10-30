@@ -145,7 +145,11 @@ impl<'lua> ToLua<'lua> for Size {
 impl<'lua> ToLua<'lua> for LuaEvent {
     fn to_lua(self, lua: &'lua Lua) -> LuaResult<LuaValue<'lua>> {
         Ok(match self {
-            LuaEvent::WinManage { manual, win_id, ws_id } => {
+            LuaEvent::WinManage {
+                manual,
+                win_id,
+                ws_id,
+            } => {
                 let tbl = lua.create_table()?;
                 tbl.raw_set("manual", manual)?;
                 tbl.raw_set("win_id", win_id)?;

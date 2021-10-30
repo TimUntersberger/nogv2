@@ -36,7 +36,7 @@ impl Display for KeybindingMode {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Keybinding {
     pub key_combination: KeyCombination,
-    pub mode: KeybindingMode
+    pub mode: KeybindingMode,
 }
 
 impl Keybinding {

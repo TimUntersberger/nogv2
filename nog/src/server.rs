@@ -48,7 +48,11 @@ impl Server {
     }
 }
 
-fn handle_client(mut stream: TcpStream, tx: SyncSender<Event>, state: State) -> std::io::Result<()> {
+fn handle_client(
+    mut stream: TcpStream,
+    tx: SyncSender<Event>,
+    state: State,
+) -> std::io::Result<()> {
     loop {
         let mut header_buffer = [0u8; 2];
         stream.read_exact(&mut header_buffer)?;

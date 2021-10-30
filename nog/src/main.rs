@@ -17,13 +17,13 @@ use std::{
 use window_event_loop::WindowEventLoop;
 
 use crate::{
-    system_tray::SystemTray,
     action::WindowAction,
     lua::{lua_error_to_string, LuaEvent},
     notification::{Notification, NotificationManager},
     paths::get_bin_path,
     platform::{Api, NativeApi, NativeWindow},
     state::State,
+    system_tray::SystemTray,
     window_event_loop::WindowEventKind,
     workspace::WorkspaceId,
 };
@@ -43,9 +43,11 @@ mod action;
 mod bar;
 mod cleanup;
 mod config;
+mod constants;
 mod direction;
 mod display;
 mod event;
+mod file_watcher;
 mod graph;
 mod key;
 mod key_combination;
@@ -60,13 +62,11 @@ mod platform;
 mod server;
 mod session;
 mod state;
+mod system_tray;
 mod thread_safe;
 mod window_event_loop;
 mod window_manager;
 mod workspace;
-mod file_watcher;
-mod system_tray;
-mod constants;
 
 fn lua_value_to_bar_item(
     lua: &mlua::Lua,
@@ -188,7 +188,7 @@ fn failable_main() -> Result<(), Error> {
         match event {
             Event::Defered(defered_fn) => {
                 (defered_fn.0)(&rt, state.clone());
-            },
+            }
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
                     if state.is_awake() {
