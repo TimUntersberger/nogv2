@@ -31,8 +31,6 @@ copy-item ./target/release/nog-menu.exe ./$root_dir/bin/nog-menu.exe
 copy-item ./target/release/nog-notif.exe ./$root_dir/bin/nog-notif.exe
 copy-item ./target/release/nog-bar.exe ./$root_dir/bin/nog-bar.exe
 
-./tools/rcedit.exe ./$root_dir/bin/nog.exe --set-icon ./assets/logo.ico
-
 compress-archive ./$root_dir ./$root_dir.zip
 
 remove-item -Path ./$root_dir -recurse
