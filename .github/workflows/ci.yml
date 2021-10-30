@@ -7,4 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
       - run: cargo fmt -- --check
