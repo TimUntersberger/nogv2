@@ -10,4 +10,5 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - run: rustup component add rustfmt --toolchain nightly-x86_64-pc-windows-msvc
       - run: cargo fmt -- --check
