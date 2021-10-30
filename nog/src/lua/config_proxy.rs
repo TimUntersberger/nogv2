@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::SyncSender;
 
 use crate::{
     action::{Action, UpdateConfigActionFn},
@@ -11,11 +11,11 @@ use rgb::Rgb;
 
 pub struct ConfigProxy {
     config: ThreadSafe<Config>,
-    tx: Sender<Event>,
+    tx: SyncSender<Event>,
 }
 
 impl ConfigProxy {
-    pub fn new(tx: Sender<Event>, config: ThreadSafe<Config>) -> Self {
+    pub fn new(tx: SyncSender<Event>, config: ThreadSafe<Config>) -> Self {
         Self { config, tx }
     }
 }

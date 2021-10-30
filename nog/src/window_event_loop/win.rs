@@ -79,7 +79,7 @@ lazy_static! {
 }
 
 impl EventLoop for WindowEventLoop {
-    fn run(tx: Sender<Event>) {
+    fn run(tx: SyncSender<Event>) {
         STOP.store(false, atomic::Ordering::SeqCst);
 
         std::thread::spawn(|| unsafe {

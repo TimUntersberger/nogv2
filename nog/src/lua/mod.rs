@@ -12,6 +12,7 @@ pub use runtime::LuaRuntime;
 use mlua::prelude::*;
 
 use crate::{
+    file_watcher::FileWatcher,
     action::{Action, WindowAction, WorkspaceAction},
     direction::Direction,
     display::DisplayId,
@@ -195,6 +196,18 @@ pub fn init(state: State) -> LuaResult<LuaRuntime> {
             tbl.raw_insert(len + 1, cb)?;
 
             Ok(())
+        }
+        
+        fn watch(path: String, cb: mlua::Function<'static>) {
+            inject lua, state;
+
+            let key = lua.create_registry_value(cb)?;
+
+            let mut fw = FileWatcher::new(path.into(), state.tx.clone(), key);
+
+            fw.start();
+
+            Ok(fw)
         }
 
         fn simulate_key_press(kc: KeyCombination) {

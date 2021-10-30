@@ -11,7 +11,7 @@ use rgb::Rgb;
 use server::Server;
 use std::{
     process::Command,
-    sync::mpsc::{channel, Sender},
+    sync::mpsc::{sync_channel, SyncSender},
     thread,
 };
 use window_event_loop::WindowEventLoop;
@@ -29,9 +29,9 @@ use crate::{
 
 /// Responsible for handling events like when a window is created, deleted, etc.
 pub trait EventLoop {
-    fn run(tx: Sender<Event>);
+    fn run(tx: SyncSender<Event>);
     fn stop();
-    fn spawn(tx: Sender<Event>) {
+    fn spawn(tx: SyncSender<Event>) {
         thread::spawn(move || {
             Self::run(tx);
         });
@@ -63,6 +63,7 @@ mod thread_safe;
 mod window_event_loop;
 mod window_manager;
 mod workspace;
+mod file_watcher;
 
 fn lua_value_to_bar_item(
     lua: &mlua::Lua,
@@ -122,7 +123,8 @@ fn failable_main() -> Result<(), Error> {
     logging::init().expect("Failed to initialize logging");
     info!("Initialized logging");
 
-    let (tx, rx) = channel();
+    let (tx, rx) = sync_channel(100);
+
     // The timer stops repeating once the guard and the timer are dropped, so we have to hold both
     // of them until program termination.
     let _bar_content_timer = {
@@ -177,6 +179,9 @@ fn failable_main() -> Result<(), Error> {
     info!("Starting main event loop");
     while let Ok(event) = rx.recv() {
         match event {
+            Event::Defered(defered_fn) => {
+                (defered_fn.0)(&rt, state.clone());
+            },
             Event::Window(win_event) => match win_event.kind {
                 WindowEventKind::FocusChanged => {
                     if state.is_awake() {

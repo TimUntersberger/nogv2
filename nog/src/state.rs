@@ -1,24 +1,20 @@
-use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc};
-
+use std::sync::{atomic::AtomicBool, mpsc::SyncSender, Arc};
 use nog_protocol::BarContent;
-
 use crate::{
     config::Config,
     display::{Display, DisplayId},
     event::Event,
     keybinding::Keybinding,
-    lua::LuaEvent,
-    notification::NotificationManager,
     platform::WindowId,
     thread_safe::ThreadSafe,
     workspace::{Workspace, WorkspaceId},
 };
 
-#[derive(Debug, Clone)]
 /// You can clone the state without any worries.
+#[derive(Debug, Clone)]
 pub struct State {
     pub awake: Arc<AtomicBool>,
-    pub tx: Sender<Event>,
+    pub tx: SyncSender<Event>,
     pub displays: ThreadSafe<Vec<Display>>,
     pub bar_content: ThreadSafe<BarContent>,
     pub keybindings: ThreadSafe<Vec<Keybinding>>,
@@ -26,7 +22,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(tx: Sender<Event>) -> Self {
+    pub fn new(tx: SyncSender<Event>) -> Self {
         Self {
             awake: Arc::new(AtomicBool::new(true)),
             tx,

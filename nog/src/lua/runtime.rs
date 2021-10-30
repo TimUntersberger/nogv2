@@ -4,6 +4,7 @@ use super::LuaNamespace;
 use mlua::prelude::*;
 
 pub struct LuaRuntime {
+    /// LuaRuntime contains a copy of the state for ease of use
     state: State,
     pub lua: &'static Lua,
 }

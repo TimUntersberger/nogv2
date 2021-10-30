@@ -52,7 +52,7 @@ impl KeybindingEventLoop {
 }
 
 impl EventLoop for KeybindingEventLoop {
-    fn run(tx: std::sync::mpsc::Sender<Event>) {
+    fn run(tx: std::sync::mpsc::SyncSender<Event>) {
         STOP.store(false, atomic::Ordering::SeqCst);
 
         std::thread::spawn(|| unsafe {

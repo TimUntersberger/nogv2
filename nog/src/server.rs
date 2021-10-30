@@ -7,18 +7,18 @@ use nog_protocol::{BarContent, Message};
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    sync::mpsc::{sync_channel, Sender},
+    sync::mpsc::{sync_channel, SyncSender},
 };
 
 pub struct Server {
-    tx: Sender<Event>,
+    tx: SyncSender<Event>,
     state: State,
     host: String,
     port: u32,
 }
 
 impl Server {
-    pub fn new(tx: Sender<Event>, state: State) -> Self {
+    pub fn new(tx: SyncSender<Event>, state: State) -> Self {
         Self {
             tx,
             state,
@@ -26,7 +26,7 @@ impl Server {
             port: 8080,
         }
     }
-    pub fn spawn(tx: Sender<Event>, state: State) {
+    pub fn spawn(tx: SyncSender<Event>, state: State) {
         std::thread::spawn(move || {
             let server = Server::new(tx, state);
             server.start();
@@ -48,7 +48,7 @@ impl Server {
     }
 }
 
-fn handle_client(mut stream: TcpStream, tx: Sender<Event>, state: State) -> std::io::Result<()> {
+fn handle_client(mut stream: TcpStream, tx: SyncSender<Event>, state: State) -> std::io::Result<()> {
     loop {
         let mut header_buffer = [0u8; 2];
         stream.read_exact(&mut header_buffer)?;

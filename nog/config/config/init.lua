@@ -71,7 +71,7 @@ keybindings "n" {
     nog.ws_set_fullscreen(1, not nog.ws_is_fullscreen(1))
   end,
   ["alt+ctrl+r"] = function()
-    dofile(nog.config_path .. "\\lua\\config.lua")
+    dofile(nog.config_path .. "\\config\\init.lua")
   end,
   ["alt+space"] = function()
     nog.open_menu()
@@ -204,3 +204,9 @@ event_handlers "ws_created" {
     end
   }
 }
+
+local watcher
+watcher = nog.watch(nog.config_path, function()
+  watcher:stop()
+  dofile(nog.config_path .. "\\config\\init.lua")
+end)
