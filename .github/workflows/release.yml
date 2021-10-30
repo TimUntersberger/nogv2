@@ -1,0 +1,25 @@
+name: Release
+on: 
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Make release
+        run: ./tools/make_release.ps1 "master ($(git rev-parse --short HEAD))"
+      - name: Create release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Latest master release"
+          files: |
+            ./NogRelease.zip
