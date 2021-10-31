@@ -2,6 +2,8 @@ function I(...)
   print(nog.inspect(...))
 end
 
+
+
 function keybindings(mode)
   return function(tbl)
     for key, cb in pairs(tbl) do
@@ -53,6 +55,12 @@ keybindings "g" {
     else
       nog.awake()
     end
+  end,
+  ["alt+ctrl+t"] = function()
+    nog.notify {
+      message = os.date "%d.%m.%Y %H:%M:%S",
+      background = 0x00ff00
+    }
   end
 }
 

@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use clap::clap_app;
 use nog_iced::{
-    iced::{self, Application, Color, Column, Command, Container, Text},
+    iced::{self, time, Application, Color, Column, Command, Container, Subscription, Text},
     load_font,
 };
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
@@ -17,6 +19,7 @@ use windows::Windows::Win32::{
 
 struct AppState {
     pub message: String,
+    pub ttl: u32,
     pub text_color: Color,
     pub bg: Color,
 }
@@ -51,7 +54,16 @@ impl Application for App {
         self.state.bg
     }
 
+    fn subscription(&self) -> Subscription<Self::Message> {
+        if self.state.ttl > 0 {
+            return time::every(Duration::from_millis(self.state.ttl as u64)).map(|_| ())
+        }
+
+        Subscription::none()
+    }
+
     fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
+        self.exit = true;
         Command::none()
     }
 
@@ -97,6 +109,7 @@ fn main() {
         (author: "Tim Untersberger <timuntersberger2@gmail.com")
         (about: "Creates a nog notification")
         (@arg MESSAGE: -m --message +takes_value "The message of the notification. (Default: NogNotification)")
+        (@arg TTL: --ttl +takes_value "After how many milliseconds the notification is supposed to disappear. If the value is 0 the notification lives until the process is exited. (Default: 0)")
         (@arg COLOR: -b --bg_color +takes_value "The color of the notification. (Default: 0xFFFFFF)")
         (@arg TEXT_COLOR: -t --text_color +takes_value "The color of the notification text. (Default: 0x000000)")
         (@arg HEIGHT: -h --height +takes_value "The height of the notification. (Default: 100)")
@@ -139,6 +152,11 @@ fn main() {
         .and_then(|v| v.parse::<i32>().ok())
         .unwrap_or(0);
 
+    let ttl = matches
+        .value_of("TTL")
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0);
+
     let font: &'static [u8] = Box::leak(Box::new(
         (*load_font(font_name.to_string())
             .or_else(|| load_font(String::from("Consolas")))
@@ -158,6 +176,7 @@ fn main() {
         flags: AppState {
             message: String::from(message),
             text_color: Rgb::from_hex(text_color).0.into(),
+            ttl,
             bg: Rgb::from_hex(color).0.into(),
         },
         default_font: Some(&font),
