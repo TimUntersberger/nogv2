@@ -8,12 +8,19 @@ use crate::{
     workspace::{Workspace, WorkspaceId},
 };
 use nog_protocol::BarContent;
-use std::sync::{atomic::AtomicBool, mpsc::SyncSender, Arc};
+use std::sync::mpsc::SyncSender;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum StateMode {
+    Awake,
+    Hibernating,
+    Initializing
+}
 
 /// You can clone the state without any worries.
 #[derive(Debug, Clone)]
 pub struct State {
-    pub awake: Arc<AtomicBool>,
+    pub mode: ThreadSafe<StateMode>,
     pub tx: SyncSender<Event>,
     pub displays: ThreadSafe<Vec<Display>>,
     pub bar_content: ThreadSafe<BarContent>,
@@ -24,7 +31,7 @@ pub struct State {
 impl State {
     pub fn new(tx: SyncSender<Event>) -> Self {
         Self {
-            awake: Arc::new(AtomicBool::new(true)),
+            mode: ThreadSafe::new(StateMode::Initializing),
             tx,
             displays: Default::default(),
             keybindings: Default::default(),
@@ -34,15 +41,15 @@ impl State {
     }
 
     pub fn awake(&self) {
-        self.awake.store(true, std::sync::atomic::Ordering::SeqCst);
+        *self.mode.write() = StateMode::Awake;
     }
 
     pub fn hibernate(&self) {
-        self.awake.store(false, std::sync::atomic::Ordering::SeqCst);
+        *self.mode.write() = StateMode::Hibernating;
     }
 
     pub fn is_awake(&self) -> bool {
-        self.awake.load(std::sync::atomic::Ordering::SeqCst)
+        *self.mode.read() == StateMode::Awake
     }
 
     pub fn win_is_managed(&self, win_id: WindowId) -> bool {

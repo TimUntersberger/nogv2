@@ -2,7 +2,7 @@ use std::{mem, str::FromStr, sync::Arc};
 
 use crate::{
     bar::Bar,
-    config::Config,
+    config::{Config, ConfigProperty},
     event::Event,
     graph::GraphNode,
     key::Key,
@@ -66,10 +66,7 @@ pub enum Action {
     },
     Window(WindowAction),
     Workspace(WorkspaceAction),
-    UpdateConfig {
-        key: String,
-        update_fn: UpdateConfigActionFn,
-    },
+    UpdateConfig(ConfigProperty),
     /// When this event is received the new callback is already in the named registry of lua
     CreateKeybinding {
         mode: KeybindingMode,
@@ -110,7 +107,7 @@ impl std::fmt::Display for Action {
                 ),
                 Action::Window(inner) => format!("{}", inner),
                 Action::Workspace(inner) => format!("{}", inner),
-                Action::UpdateConfig { key, update_fn } => format!("config.{} updated", key),
+                Action::UpdateConfig(prop) => format!("config.{} updated", prop.get_name()),
                 Action::CreateKeybinding {
                     mode,
                     key_combination,
@@ -232,8 +229,46 @@ impl Action {
                     d.hide_taskbar();
                 }
             }
-            Action::UpdateConfig { key, update_fn } => {
-                update_fn.0(&mut state.config.write());
+            Action::UpdateConfig(prop) => {
+                if state.is_awake() {
+                    let event = match prop {
+                        ConfigProperty::FontSize(_)
+                        | ConfigProperty::FontName(_)
+                        | ConfigProperty::BarHeight(_) => {
+                            Some(Event::BatchAction(vec![Action::HideBars, Action::ShowBars]))
+                        }
+                        ConfigProperty::OuterGap(_) | ConfigProperty::InnerGap(_) => {
+                            Some(Event::RenderGraph)
+                        }
+                        ConfigProperty::RemoveTaskBar(old_value) => {
+                            match old_value != state.config.read().remove_task_bar {
+                                true => Some(match old_value {
+                                    true => Event::Action(Action::ShowTaskbars),
+                                    false => Event::Action(Action::HideTaskbars),
+                                }),
+                                false => None,
+                            }
+                        }
+                        ConfigProperty::DisplayAppBar(old_value) => {
+                            match old_value != state.config.read().display_app_bar {
+                                true => Some(match old_value {
+                                    true => Event::Action(Action::HideBars),
+                                    false => Event::Action(Action::ShowBars),
+                                }),
+                                false => None,
+                            }
+                        }
+                        ConfigProperty::LightTheme(_)
+                        | ConfigProperty::Color(_)
+                        | ConfigProperty::MultiMonitor(_)
+                        | ConfigProperty::RemoveDecorations(_)
+                        | ConfigProperty::IgnoreFullscreenActions(_) => None,
+                    };
+
+                    if let Some(event) = event {
+                        state.tx.send(event).unwrap();
+                    }
+                }
             }
             Action::ExecuteLua {
                 code,

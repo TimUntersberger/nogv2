@@ -1,13 +1,12 @@
-use std::sync::mpsc::SyncSender;
-
 use crate::{
     action::{Action, UpdateConfigActionFn},
-    config::Config,
+    config::{Config, ConfigProperty},
     event::Event,
     thread_safe::ThreadSafe,
 };
 use mlua::prelude::*;
 use rgb::Rgb;
+use std::{mem, sync::mpsc::SyncSender};
 
 pub struct ConfigProxy {
     config: ThreadSafe<Config>,
@@ -39,13 +38,8 @@ impl mlua::UserData for ConfigProxy {
                 bar_height,
                 font_size,
                 font_name,
-                use_border,
-                enable_hot_reloading,
-                min_width,
-                min_height,
                 light_theme,
                 multi_monitor,
-                launch_on_startup,
                 outer_gap,
                 inner_gap,
                 remove_decorations,
@@ -60,43 +54,37 @@ impl mlua::UserData for ConfigProxy {
         methods.add_meta_method_mut(
             LuaMetaMethod::NewIndex,
             |lua, this, (key, value): (String, mlua::Value)| {
-                macro_rules! update_action_creator {
-                    {$($name:ident : $ty:ty),*} => {
+                macro_rules! change_detector {
+                    {$($name:ident : $ty:ty => $enum:ident),*} => {
                         match key.as_str() {
                             $(stringify!($name) => {
                                 let value = <$ty>::from_lua(value, lua)?;
-                                Some(UpdateConfigActionFn::new(move |config: &mut Config| {
-                                    config.$name = value.clone();
-                                }))
+                                let old_value = mem::replace(&mut this.config.write().$name, value);
+                                Some(ConfigProperty::$enum(old_value))
                             }),*
                             _ => None,
                         }
                     }
                 }
 
-                let maybe_action = update_action_creator! {
-                    color: Rgb,
-                    bar_height: u32,
-                    font_size: u32,
-                    font_name: String,
-                    use_border: bool,
-                    enable_hot_reloading: bool,
-                    min_width: usize,
-                    min_height: usize,
-                    light_theme: bool,
-                    multi_monitor: bool,
-                    launch_on_startup: bool,
-                    outer_gap: u32,
-                    inner_gap: u32,
-                    remove_decorations: bool,
-                    remove_task_bar: bool,
-                    ignore_fullscreen_actions: bool,
-                    display_app_bar: bool
+                let config_prop = change_detector! {
+                    color: Rgb => Color,
+                    bar_height: u32 => BarHeight,
+                    font_size: u32 => FontSize,
+                    font_name: String => FontName,
+                    light_theme: bool => LightTheme,
+                    multi_monitor: bool => MultiMonitor,
+                    outer_gap: u32 => OuterGap,
+                    inner_gap: u32 => InnerGap,
+                    remove_decorations: bool => RemoveDecorations,
+                    remove_task_bar: bool => RemoveTaskBar,
+                    ignore_fullscreen_actions: bool => IgnoreFullscreenActions,
+                    display_app_bar: bool => DisplayAppBar
                 };
 
-                if let Some(f) = maybe_action {
+                if let Some(prop) = config_prop {
                     this.tx
-                        .send(Event::Action(Action::UpdateConfig { key, update_fn: f }))
+                        .send(Event::Action(Action::UpdateConfig(prop)))
                         .unwrap();
                 }
 

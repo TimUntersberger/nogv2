@@ -258,6 +258,9 @@ fn failable_main() -> Result<(), Error> {
                     //This then causes this event for each window, resulting in unmanaging each
                     //window. Somehow ignore this event when changing workspaces.
                     //
+                    //Maybe just not unmanaging a manually minimized window is an option?
+
+                    //
                     // let win_id = win_event.window.get_id();
 
                     // state.with_dsp_containing_win_mut(win_id, |d| {
@@ -367,6 +370,11 @@ fn failable_main() -> Result<(), Error> {
                 }
             }
             Event::Action(action) => action.handle(&state, &rt, &mut notification_manager),
+            Event::BatchAction(actions) => {
+                for action in actions {
+                    action.handle(&state, &rt, &mut notification_manager);
+                }
+            }
             Event::RenderGraph => {
                 for d in state.displays.read().iter() {
                     let area = d.get_render_area(&state.config.read());

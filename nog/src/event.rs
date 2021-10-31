@@ -32,4 +32,5 @@ pub enum Event {
     Window(WindowEvent<Window>),
     Keybinding(KeyCombination),
     Action(Action),
+    BatchAction(Vec<Action>),
 }
