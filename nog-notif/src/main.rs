@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    io::{self, Write},
+    time::Duration,
+};
 
 use clap::clap_app;
 use nog_iced::{
@@ -19,6 +22,7 @@ use windows::Windows::Win32::{
 
 struct AppState {
     pub message: String,
+    pub verbose: bool,
     pub ttl: u32,
     pub text_color: Color,
     pub bg: Color,
@@ -56,7 +60,7 @@ impl Application for App {
 
     fn subscription(&self) -> Subscription<Self::Message> {
         if self.state.ttl > 0 {
-            return time::every(Duration::from_millis(self.state.ttl as u64)).map(|_| ())
+            return time::every(Duration::from_millis(self.state.ttl as u64)).map(|_| ());
         }
 
         Subscription::none()
@@ -87,12 +91,17 @@ impl Application for App {
     {
         //TODO: platform specific
         let prev_hwnd = unsafe { GetForegroundWindow() };
+        let verbose = settings.flags.verbose;
 
         nog_iced::run::<Self>(
             settings,
             Some(Box::new(move |w| match &w.raw_window_handle() {
                 RawWindowHandle::Windows(win_hndl) => unsafe {
                     let hwnd = HWND(win_hndl.hwnd as isize);
+                    if verbose {
+                        println!("{}", hwnd.0)
+                    }
+
                     SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_NOACTIVATE.0 as i32);
                     keybd_event(0, 0, Default::default(), 0);
                     SetForegroundWindow(prev_hwnd);
@@ -108,6 +117,7 @@ fn main() {
         (version: "1.0")
         (author: "Tim Untersberger <timuntersberger2@gmail.com")
         (about: "Creates a nog notification")
+        (@arg VERBOSE: -v --verbose "Whether to print the window id of the window. (Default: false)")
         (@arg MESSAGE: -m --message +takes_value "The message of the notification. (Default: NogNotification)")
         (@arg TTL: --ttl +takes_value "After how many milliseconds the notification is supposed to disappear. If the value is 0 the notification lives until the process is exited. (Default: 0)")
         (@arg COLOR: -b --bg_color +takes_value "The color of the notification. (Default: 0xFFFFFF)")
@@ -122,6 +132,7 @@ fn main() {
     .get_matches();
 
     let message = matches.value_of("MESSAGE").unwrap_or("NogNotification");
+    let verbose = matches.is_present("VERBOSE");
     let color = matches
         .value_of("COLOR")
         .and_then(|v| i32::from_str_radix(v.trim_start_matches("0x"), 16).ok())
@@ -177,6 +188,7 @@ fn main() {
             message: String::from(message),
             text_color: Rgb::from_hex(text_color).0.into(),
             ttl,
+            verbose,
             bg: Rgb::from_hex(color).0.into(),
         },
         default_font: Some(&font),
