@@ -1,6 +1,6 @@
 # nogv2
 
-Complete rewrite of nog
+Complete rewrite of nog. This repo will get merged into the original nog repo once ready.
 
 ## Installation
 
